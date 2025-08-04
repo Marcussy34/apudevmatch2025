@@ -1,0 +1,20 @@
+{
+  "name": "Grand Warden",
+  "description": "Secure Password Manager - Your digital guardian for all your passwords",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": "hello_extensions.png"
+  },
+  "icons": {
+    "16": "hello_extensions.png",
+    "32": "hello_extensions.png",
+    "48": "hello_extensions.png",
+    "128": "hello_extensions.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ]
+}
