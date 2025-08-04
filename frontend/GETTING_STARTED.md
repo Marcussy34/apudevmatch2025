@@ -128,6 +128,16 @@ This creates a `dist` folder with the compiled extension files that Chrome can l
   - **Smart detection**: Only prompts for actual login forms with valid credentials
   - **No manual action** required - everything happens automatically!
 
+  **Enhanced No-Credentials Dropdown:**
+  - **Click autofill icon** on sites with no matching credentials
+  - **See all available credentials** from other sites (use anyway)
+  - **"Create New Credential"** option with green highlight
+  - **Full modal form** appears with username/password fields
+  - **Password visibility toggle** (eye icon)
+  - **Save & Fill** button immediately fills and saves new credential
+  - **Keyboard shortcuts**: Enter to save, Escape to cancel
+  - **Perfect for quick credential creation** without waiting for form submission
+
 ## 🛠️ Development Workflow
 
 ### Making Changes
@@ -207,6 +217,9 @@ frontend/
 - **Automatic Save Detection**: Detects form submissions and prompts to save new credentials
 - **Password Update Prompts**: Automatically offers to update changed passwords
 - **Zero-Click Saving**: No need to manually open extension - save prompts appear automatically
+- **Enhanced No-Credentials UI**: Shows all available credentials when none match current site
+- **Instant Credential Creation**: Full modal form for creating new credentials on any site
+- **Cross-Site Credential Usage**: Use credentials from one site on another with "Use anyway" option
 - **Domain Matching**: Intelligent matching of saved credentials to current websites
 - **Cross-Site Compatibility**: Works on any website with `!important` CSS overrides
 - **Add Password Modal**: Comprehensive form with validation and password generation

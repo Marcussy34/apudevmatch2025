@@ -366,60 +366,423 @@ class GrandWardenAutofill {
   private showNoCredentialsMessage(loginField: LoginField) {
     const dropdown = document.createElement('div')
     dropdown.className = 'gw-credentials-dropdown'
+    
+    // Get all available credentials to show as options
+    const allCredentials = this.credentials
+    const currentDomain = window.location.hostname.toLowerCase()
+    
+    let credentialItems = ''
+    
+    if (allCredentials.length > 0) {
+      credentialItems = allCredentials.map(credential => `
+        <div class="gw-credential-item" data-credential-id="${credential.id}" style="
+          padding: 12px 16px;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+          border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        ">
+          <div style="
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: white;
+          ">
+            ${credential.name.charAt(0).toUpperCase()}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 500; color: #e2e8f0; font-size: 13px; margin-bottom: 2px;">
+              ${credential.name}
+            </div>
+            <div style="color: #94a3b8; font-size: 11px; opacity: 0.8;">
+              ${credential.username}
+            </div>
+          </div>
+          <div style="color: #94a3b8; font-size: 11px;">
+            Use anyway
+          </div>
+        </div>
+      `).join('')
+    }
+    
     dropdown.innerHTML = `
       <div style="
         position: absolute;
         top: 100%;
         right: 0;
-        width: 280px;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        border: 1px solid rgba(59, 130, 246, 0.3);
+        background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+        border: 1px solid rgba(148, 163, 184, 0.3);
         border-radius: 8px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        padding: 0;
+        min-width: 320px;
+        max-width: 380px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
         z-index: 999999;
-        padding: 16px;
-        font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-        color: #f1f5f9;
-        font-size: 14px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: white;
+        font-size: 13px;
         margin-top: 4px;
+        animation: slideIn 0.2s ease-out;
+        max-height: 400px;
+        overflow-y: auto;
       ">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <!-- Header -->
+        <div style="padding: 12px 16px; border-bottom: 1px solid rgba(71, 85, 105, 0.3); background: rgba(15, 23, 42, 0.5);">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"></path>
+            </svg>
+            <span style="font-weight: 600; font-size: 14px;">No credentials for this site</span>
+          </div>
+          <div style="color: #94a3b8; font-size: 12px;">
+            Choose from other saved credentials or create new
+          </div>
+        </div>
+        
+        <!-- Create New Option -->
+        <div class="gw-create-new-item" style="
+          padding: 12px 16px;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+          border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: rgba(34, 197, 94, 0.1);
+          border-left: 3px solid #22c55e;
+        ">
           <div style="
-            width: 24px;
-            height: 24px;
-            background: rgba(59, 130, 246, 0.2);
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
             border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-weight: 600;
+            font-size: 16px;
+            color: white;
           ">
-            ${this.getPasswordIcon()}
+            +
           </div>
-          <span style="font-weight: 600;">Grand Warden</span>
+          <div style="flex: 1;">
+            <div style="font-weight: 500; color: #e2e8f0; font-size: 13px; margin-bottom: 2px;">
+              Create New Credential
+            </div>
+            <div style="color: #94a3b8; font-size: 11px;">
+              Add credentials for ${currentDomain}
+            </div>
+          </div>
         </div>
-        <p style="margin: 0; color: #94a3b8; font-size: 13px;">
-          No saved credentials found for ${window.location.hostname}
-        </p>
-        <button onclick="this.parentElement.parentElement.remove()" style="
-          margin-top: 12px;
-          background: rgb(59, 130, 246);
-          color: white;
-          border: none;
-          padding: 6px 12px;
-          border-radius: 4px;
-          font-size: 12px;
-          cursor: pointer;
-        ">
-          Save New Credential
-        </button>
+        
+        ${allCredentials.length > 0 ? `
+          <!-- Separator -->
+          <div style="padding: 8px 16px; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(15, 23, 42, 0.3);">
+            Or use existing credentials
+          </div>
+          
+          <!-- Existing Credentials -->
+          ${credentialItems}
+        ` : ''}
       </div>
     `
     
+    // Position and show dropdown
     const container = loginField.element.parentElement!
     container.appendChild(dropdown)
     
-    // Remove after 3 seconds
-    setTimeout(() => dropdown.remove(), 3000)
+    // Add click handlers
+    const createNewItem = dropdown.querySelector('.gw-create-new-item') as HTMLElement
+    if (createNewItem) {
+      createNewItem.addEventListener('click', () => {
+        this.showCreateCredentialModal(currentDomain)
+        this.closeDropdown()
+      })
+      
+      // Hover effect
+      createNewItem.addEventListener('mouseenter', () => {
+        createNewItem.style.backgroundColor = 'rgba(34, 197, 94, 0.15)'
+      })
+      createNewItem.addEventListener('mouseleave', () => {
+        createNewItem.style.backgroundColor = 'rgba(34, 197, 94, 0.1)'
+      })
+    }
+    
+    // Add click handlers for existing credentials
+    dropdown.querySelectorAll('.gw-credential-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const credentialId = parseInt((e.currentTarget as HTMLElement).dataset.credentialId!)
+        const credential = allCredentials.find(c => c.id === credentialId)
+        if (credential) {
+          this.fillCredentials(credential)
+        }
+        this.closeDropdown()
+      })
+      
+      // Hover effect
+      item.addEventListener('mouseenter', () => {
+        (item as HTMLElement).style.backgroundColor = 'rgba(59, 130, 246, 0.1)'
+      })
+      item.addEventListener('mouseleave', () => {
+        (item as HTMLElement).style.backgroundColor = 'transparent'
+      })
+    })
+    
+    loginField.dropdown = dropdown
+    this.currentDropdown = dropdown
+    this.isDropdownOpen = true
+    
+    // Auto-hide after 10 seconds
+    setTimeout(() => {
+      if (document.contains(dropdown)) {
+        this.closeDropdown()
+      }
+    }, 10000)
+    
+    console.log('Grand Warden: No credentials message shown with', allCredentials.length, 'alternatives')
+  }
+
+  private showCreateCredentialModal(domain: string) {
+    // Remove any existing modals
+    const existing = document.querySelector('.gw-create-modal')
+    if (existing) existing.remove()
+
+    const siteName = this.getSiteName(domain)
+    
+    const modal = document.createElement('div')
+    modal.className = 'gw-create-modal'
+    modal.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease-out;
+      ">
+        <div style="
+          background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 12px;
+          padding: 24px;
+          max-width: 400px;
+          width: 90%;
+          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          color: white;
+          animation: slideInModal 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+        ">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+            <div style="
+              width: 40px;
+              height: 40px;
+              background: linear-gradient(135deg, #22c55e, #16a34a);
+              border-radius: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 20px;
+              color: white;
+            ">
+              +
+            </div>
+            <div>
+              <div style="font-weight: 600; font-size: 18px; margin-bottom: 2px;">Create New Credential</div>
+              <div style="color: #94a3b8; font-size: 13px;">Add login for ${siteName}</div>
+            </div>
+          </div>
+          
+          <div style="space-y: 16px;">
+            <div>
+              <label style="display: block; color: #e2e8f0; font-size: 13px; font-weight: 500; margin-bottom: 6px;">
+                Username or Email
+              </label>
+              <input 
+                type="text" 
+                id="gw-new-username"
+                placeholder="Enter username or email"
+                style="
+                  width: 100%;
+                  padding: 10px 12px;
+                  background: rgba(15, 23, 42, 0.6);
+                  border: 1px solid rgba(148, 163, 184, 0.3);
+                  border-radius: 6px;
+                  color: white;
+                  font-size: 14px;
+                  outline: none;
+                  transition: border-color 0.2s ease;
+                  box-sizing: border-box;
+                "
+              >
+            </div>
+            
+            <div style="margin-top: 16px;">
+              <label style="display: block; color: #e2e8f0; font-size: 13px; font-weight: 500; margin-bottom: 6px;">
+                Password
+              </label>
+              <div style="position: relative;">
+                <input 
+                  type="password" 
+                  id="gw-new-password"
+                  placeholder="Enter password"
+                  style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    background: rgba(15, 23, 42, 0.6);
+                    border: 1px solid rgba(148, 163, 184, 0.3);
+                    border-radius: 6px;
+                    color: white;
+                    font-size: 14px;
+                    outline: none;
+                    transition: border-color 0.2s ease;
+                    padding-right: 40px;
+                    box-sizing: border-box;
+                  "
+                >
+                <button type="button" id="gw-toggle-password" style="
+                  position: absolute;
+                  right: 8px;
+                  top: 50%;
+                  transform: translateY(-50%);
+                  background: none;
+                  border: none;
+                  color: #94a3b8;
+                  cursor: pointer;
+                  padding: 4px;
+                ">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+              <button id="gw-modal-cancel" style="
+                flex: 1;
+                padding: 10px 16px;
+                background: transparent;
+                border: 1px solid rgba(148, 163, 184, 0.3);
+                border-radius: 6px;
+                color: #94a3b8;
+                font-size: 14px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+              ">Cancel</button>
+              <button id="gw-modal-save" style="
+                flex: 1;
+                padding: 10px 16px;
+                background: linear-gradient(135deg, #22c55e, #16a34a);
+                border: none;
+                border-radius: 6px;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+              ">Save & Fill</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+    
+    document.body.appendChild(modal)
+    
+    // Focus on username field
+    const usernameField = modal.querySelector('#gw-new-username') as HTMLInputElement
+    const passwordField = modal.querySelector('#gw-new-password') as HTMLInputElement
+    usernameField?.focus()
+    
+    // Password toggle
+    const toggleBtn = modal.querySelector('#gw-toggle-password') as HTMLButtonElement
+    toggleBtn?.addEventListener('click', () => {
+      const isPassword = passwordField.type === 'password'
+      passwordField.type = isPassword ? 'text' : 'password'
+      toggleBtn.innerHTML = isPassword 
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+             <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22M9 9a3 3 0 1 1 4.24 4.24"></path>
+           </svg>`
+        : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+             <circle cx="12" cy="12" r="3"></circle>
+           </svg>`
+    })
+    
+    // Button handlers
+    const cancelBtn = modal.querySelector('#gw-modal-cancel') as HTMLButtonElement
+    const saveBtn = modal.querySelector('#gw-modal-save') as HTMLButtonElement
+    
+    cancelBtn?.addEventListener('click', () => modal.remove())
+    
+    saveBtn?.addEventListener('click', () => {
+      const username = usernameField.value.trim()
+      const password = passwordField.value.trim()
+      
+      if (!username || !password) {
+        // Highlight empty fields
+        if (!username) usernameField.style.borderColor = '#ef4444'
+        if (!password) passwordField.style.borderColor = '#ef4444'
+        return
+      }
+      
+      // Create and save new credential
+      const newCredential: SavedCredential = {
+        id: Date.now(),
+        name: siteName,
+        url: domain.replace(/^www\./, ''),
+        username: username,
+        password: password
+      }
+      
+      this.credentials.push(newCredential)
+      console.log('Grand Warden: Created new credential via modal', newCredential)
+      
+      // Fill the credentials immediately
+      this.fillCredentials(newCredential)
+      
+      // Show success notification
+      this.showSaveSuccessNotification(siteName)
+      
+      // Update badge count
+      chrome.runtime.sendMessage({ 
+        type: 'UPDATE_BADGE', 
+        count: this.getMatchingCredentials().length 
+      })
+      
+      modal.remove()
+    })
+    
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove()
+      }
+    })
+    
+    // Enter key to save
+    modal.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        saveBtn?.click()
+      } else if (e.key === 'Escape') {
+        modal.remove()
+      }
+    })
   }
 
   private showCredentialsDropdown(loginField: LoginField, credentials: SavedCredential[]) {
@@ -1145,6 +1508,16 @@ if (typeof window !== 'undefined') {
     @keyframes slideOutSave {
       from { opacity: 1; transform: translateY(0) scale(1); }
       to { opacity: 0; transform: translateY(-20px) scale(0.9); }
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideInModal {
+      from { opacity: 0; transform: translateY(-30px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
     
     /* Ensure Grand Warden icons are always visible */
