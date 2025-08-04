@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub - Sign In</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0d1117;
+            color: #f0f6fc;
+            line-height: 1.5;
+        }
+        
+        .header {
+            background: #21262d;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 200px);
+            padding: 40px 0;
+        }
+        
+        .login-form {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 32px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        
+        .form-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 24px;
+            color: #f0f6fc;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #f0f6fc;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #0d1117;
+            color: #f0f6fc;
+            font-size: 14px;
+            line-height: 20px;
+            box-sizing: border-box;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #388bfd;
+            box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.3);
+        }
+        
+        .form-button {
+            width: 100%;
+            padding: 12px 16px;
+            background: #238636;
+            border: 1px solid rgba(240, 246, 252, 0.1);
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+        
+        .form-button:hover {
+            background: #2ea043;
+        }
+        
+        .form-button:active {
+            background: #1a7f37;
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 24px 0;
+            position: relative;
+            color: #7d8590;
+            font-size: 14px;
+        }
+        
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #30363d;
+        }
+        
+        .divider span {
+            background: #21262d;
+            padding: 0 16px;
+        }
+        
+        .demo-info {
+            background: #1f6feb;
+            border: 1px solid #388bfd;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        
+        .demo-info strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .credentials-list {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 16px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .credential-item {
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+        
+        .credential-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            color: #7d8590;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                GitHub
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="login-form">
+            <div class="demo-info">
+                <strong>🛡️ Grand Warden Auto-Fill Demo</strong>
+                Install the Grand Warden extension and look for the small blue icons in the input fields below. Click them to instantly auto-fill!
+                
+                <div class="credentials-list">
+                    <div class="credential-item"><strong>✨ How it works:</strong></div>
+                    <div class="credential-item">1. Blue icons appear inside login fields</div>
+                    <div class="credential-item">2. Click the icon to instantly auto-fill</div>
+                    <div class="credential-item">3. No selection needed - auto-detects GitHub!</div>
+                    <div class="credential-item"><strong>Credentials:</strong> johndoe_dev / CodeMaster#456</div>
+                </div>
+            </div>
+            
+            <h1 class="form-title">Sign in to GitHub</h1>
+            
+            <form>
+                <div class="form-group">
+                    <label class="form-label" for="login_field">Username or email address</label>
+                    <input class="form-input" type="text" id="login_field" name="login" placeholder="Username or email address" autocapitalize="off" autocorrect="off" autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input class="form-input" type="password" id="password" name="password" placeholder="Password" autocomplete="current-password">
+                </div>
+                
+                <button class="form-button" type="submit">Sign in</button>
+            </form>
+            
+            <div class="divider">
+                <span>or</span>
+            </div>
+            
+            <p style="text-align: center; font-size: 14px; color: #7d8590;">
+                This is a demo page to test Grand Warden's autofill functionality.<br>
+                No actual login will occur.
+            </p>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            © 2024 Grand Warden Demo • Autofill functionality demonstration
+        </div>
+    </footer>
+
+    <script>
+        // Simulate a real login form
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('login_field').value;
+            const password = document.getElementById('password').value;
+            
+            if (username && password) {
+                alert(`Demo login attempt:\nUsername: ${username}\nPassword: ${password.replace(/./g, '*')}\n\nThis is just a demo - no actual authentication occurs.`);
+            } else {
+                alert('Please fill in both username and password fields.');
+            }
+        });
+
+        // Log when fields are focused (for debugging)
+        document.getElementById('login_field').addEventListener('focus', () => {
+            console.log('Username field focused - Grand Warden should detect this');
+        });
+
+        document.getElementById('password').addEventListener('focus', () => {
+            console.log('Password field focused - Grand Warden autofill prompt should appear');
+        });
+    </script>
+</body>
+</html>
