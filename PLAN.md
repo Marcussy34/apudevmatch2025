@@ -1,4 +1,4 @@
-# 🔒 SilentGuard – Product Requirements Document (v4)
+# 🔒 Grand Warden – Product Requirements Document (v4)
 
 _Last updated: 25 Jul 2025 – v4: Wallet Vault + **Sui Event Mirroring via Sapphire (ROFL)**_
 
@@ -6,7 +6,7 @@ _Last updated: 25 Jul 2025 – v4: Wallet Vault + **Sui Event Mirroring via Sapp
 
 ## 1 · Executive Summary
 
-**SilentGuard** is a privacy-first security suite delivered as a browser extension (with PWA fallback). It bundles two core pillars under one UX:
+**Grand Warden** is a privacy-first security suite delivered as a browser extension (with PWA fallback). It bundles two core pillars under one UX:
 
 1. **Password Vault** – Cloud-synced, zero-knowledge credential manager
 2. **Wallet Vault** – Always-encrypted storage & enclave-based signing for Web3 keys
@@ -30,7 +30,7 @@ A mandatory third pillar is a **live, cross-chain data layer powered by The Grap
 
 ## 2 · Expanded Problem Statement
 
-| Pain                            | Legacy Tools                    | SilentGuard Fix                     |
+| Pain                            | Legacy Tools                    | Grand Warden Fix                    |
 | ------------------------------- | ------------------------------- | ----------------------------------- |
 | Password reuse & vault breaches | SaaS vaults expose metadata     | TEE-protected Password Vault        |
 | Wallet seed loss / phishing     | Paper backups, hot-wallet leaks | Wallet Vault with enclave signing   |
@@ -279,8 +279,8 @@ graph --version
 
 ```bash
 # Create project directory
-mkdir my-silentguard-subgraph
-cd my-silentguard-subgraph
+mkdir my-grandwarden-subgraph
+cd my-grandwarden-subgraph
 
 # Initialize package.json
 npm init -y
@@ -299,11 +299,11 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
-    name: SilentGuardVault
+    name: GrandWardenVault
     network: oasis # This MUST match docker-compose.yml: ethereum: 'oasis:http://emulator:8545'
     source:
       address: "0xYourSapphireContractAddress"
-      abi: SilentGuardVault
+      abi: GrandWardenVault
       startBlock: 12700000 # Use recent block number
     mapping:
       kind: ethereum/events
@@ -316,8 +316,8 @@ dataSources:
         - BreachAlert
         - User
       abis:
-        - name: SilentGuardVault
-          file: ./abis/SilentGuardVault.json
+        - name: GrandWardenVault
+          file: ./abis/GrandWardenVault.json
       eventHandlers:
         - event: VaultCreated(indexed address,bytes32,uint256)
           handler: handleVaultCreated
@@ -383,7 +383,7 @@ import {
   VaultCreated as VaultCreatedEvent,
   DeviceRegistered as DeviceRegisteredEvent,
   BreachAlert as BreachAlertEvent,
-} from "../generated/SilentGuardVault/SilentGuardVault";
+} from "../generated/GrandWardenVault/GrandWardenVault";
 import {
   VaultCreated,
   DeviceRegistered,
@@ -477,7 +477,7 @@ export function handleBreachAlert(event: BreachAlertEvent): void {
 
 #### Step 6: Add Contract ABI
 
-Create `abis/SilentGuardVault.json` with your contract's ABI including the events:
+Create `abis/GrandWardenVault.json` with your contract's ABI including the events:
 
 ```json
 [
@@ -569,10 +569,10 @@ graph codegen
 graph build
 
 # Create subgraph on local Graph Node
-graph create --node http://localhost:8020 silentguard-vault
+graph create --node http://localhost:8020 grandwarden-vault
 
 # Deploy to local Graph Node
-graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 silentguard-vault
+graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 grandwarden-vault
 ```
 
 ### 🔍 Querying Your Subgraph
@@ -580,7 +580,7 @@ graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 silentgua
 #### GraphQL Endpoint
 
 ```
-http://localhost:8000/subgraphs/name/silentguard-vault
+http://localhost:8000/subgraphs/name/grandwarden-vault
 ```
 
 #### Example Queries
@@ -656,7 +656,7 @@ subscription {
 curl http://localhost:8030/health
 
 # Check subgraph sync status
-curl -X POST http://localhost:8000/subgraphs/name/silentguard-vault \
+curl -X POST http://localhost:8000/subgraphs/name/grandwarden-vault \
   -H "Content-Type: application/json" \
   -d '{"query":"{ _meta { block { number } } }"}'
 
@@ -780,7 +780,7 @@ This creates a seamless bridge from Sui → Sapphire → Graph Node → Your App
 
 ### 🎯 Ready for Smart Contract Integration
 
-1. **Deploy SilentGuard contracts** to Sapphire testnet with proper event emissions
+1. **Deploy Grand Warden contracts** to Sapphire testnet with proper event emissions
 2. **Update subgraph** with actual contract addresses and ABIs
 3. **Test event flow** - Deploy contract → Emit events → Query subgraph
 4. **ROFL Integration** - Connect Sui event mirroring to Sapphire
@@ -793,13 +793,13 @@ This creates a seamless bridge from Sui → Sapphire → Graph Node → Your App
 cd docker && docker-compose up -d
 
 # Deploy your own subgraph
-cd ../my-silentguard-subgraph
+cd ../my-grandwarden-subgraph
 graph codegen && graph build
-graph create --node http://localhost:8020 silentguard-vault
-graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 silentguard-vault
+graph create --node http://localhost:8020 grandwarden-vault
+graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 grandwarden-vault
 
 # Query your subgraph
-curl -X POST http://localhost:8000/subgraphs/name/silentguard-vault \
+curl -X POST http://localhost:8000/subgraphs/name/grandwarden-vault \
   -H "Content-Type: application/json" \
   -d '{"query":"{ _meta { block { number } } }"}'
 ```
