@@ -1,4 +1,4 @@
-# Grand Warden
+# Grand Warden🛡️👑
 
 > A next-generation security suite designed to protect your entire digital life in one place.
 
