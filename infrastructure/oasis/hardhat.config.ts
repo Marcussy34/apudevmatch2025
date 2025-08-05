@@ -1,6 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@oasisprotocol/sapphire-hardhat";
 import "@nomicfoundation/hardhat-toolbox";
+import "./tasks";
 import * as dotenv from "dotenv";
 
 // Load environment variables from .env file
