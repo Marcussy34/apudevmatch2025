@@ -1,0 +1,211 @@
+
+°=¨=dataSources:
+  - kind: ethereum/contract
+    mapping:
+      abis:
+        - file:
+            /: /ipfs/QmPDGVyUf5fBX65tsrZ8qMNAgEvyXLS77feT21nC6VGZjB
+          name: GrandWardenVault
+      apiVersion: 0.0.6
+      entities:
+        - User
+        - Vault
+        - Credential
+        - VaultEvent
+        - BreachAlert
+      eventHandlers:
+        - event: 'VaultCreated(indexed address,indexed bytes32,uint256)'
+          handler: handleVaultCreated
+        - event: 'VaultUpdated(indexed address,indexed bytes32,uint256)'
+          handler: handleVaultUpdated
+        - event: 'VaultAccessed(indexed address,indexed bytes32,uint256)'
+          handler: handleVaultAccessed
+        - event: 'CredentialAdded(indexed address,indexed bytes32,string,uint256)'
+          handler: handleCredentialAdded
+        - event: 'VaultBlobUpdated(indexed address,indexed bytes32,string,bytes32)'
+          handler: handleVaultBlobUpdated
+        - event: 'BreachAlert(indexed address,uint256,string)'
+          handler: handleBreachAlert
+        - event: 'GenericVaultEvent(indexed address,uint8,bytes)'
+          handler: handleGenericVaultEvent
+        - event: 'VaultEvent(indexed address,uint8,uint8,bool,bytes)'
+          handler: handleVaultFlowEvent
+        - event: 'AtomicUpdateCompleted(indexed address,indexed bytes32,bytes32)'
+          handler: handleAtomicUpdateCompleted
+        - event: 'EmergencyShutdown(indexed address,string,uint256)'
+          handler: handleEmergencyShutdown
+      file:
+        /: /ipfs/QmXYR6YfKhXsNjXrmEHb3ytRarLYG36UBiDy4UoccXoF3k
+      kind: ethereum/events
+      language: wasm/assemblyscript
+    name: GrandWardenVault
+    network: oasis
+    source:
+      abi: GrandWardenVault
+      address: '0xB6B183a041D077d5924b340EBF41EE4546fE0bcE'
+      startBlock: 12891651
+  - kind: ethereum/contract
+    mapping:
+      abis:
+        - file:
+            /: /ipfs/QmXR73NbkZhfQhXV4sYfZ2hZ5K6ULx5VTBKiAs3HizuNDz
+          name: WalletVault
+      apiVersion: 0.0.6
+      entities:
+        - User
+        - Wallet
+        - Transaction
+        - ChainBalance
+      eventHandlers:
+        - event: 'WalletImported(indexed address,indexed bytes32,string,uint256)'
+          handler: handleWalletImported
+        - event: 'BalancesFetched(indexed address,indexed bytes32,uint256)'
+          handler: handleBalancesFetched
+        - event: 'TransactionSigned(indexed address,indexed bytes32,bytes32)'
+          handler: handleTransactionSigned
+        - event: 'TransactionSigned(indexed address,indexed bytes32,bytes32,uint8)'
+          handler: handleTransactionSignedWithChain
+        - event: 'GenericVaultEvent(indexed address,uint8,bytes)'
+          handler: handleGenericVaultEvent
+        - event: 'UserFlowEvent(indexed address,uint8,uint8,bool,bytes)'
+          handler: handleUserFlowEvent
+        - event: 'ChainBalanceUpdated(indexed address,indexed bytes32,uint8,uint256)'
+          handler: handleChainBalanceUpdated
+      file:
+        /: /ipfs/QmR41Jq8mC9QjUpi5Pcy9wPzAYgoKDNZGi4EfgChdubXFU
+      kind: ethereum/events
+      language: wasm/assemblyscript
+    name: WalletVault
+    network: oasis
+    source:
+      abi: WalletVault
+      address: '0x3B7dd63D236bDB0Fd85d556d2AC70e2746cF5F82'
+      startBlock: 12891655
+  - kind: ethereum/contract
+    mapping:
+      abis:
+        - file:
+            /: /ipfs/QmZmzbgRtnxpPyBxp9HU4BwdxCN4qZodZ9kHw8zeCpviMM
+          name: DeviceRegistry
+      apiVersion: 0.0.6
+      entities:
+        - User
+        - Device
+        - AccessControl
+      eventHandlers:
+        - event: 'DeviceRegistered(indexed address,indexed bytes32,string)'
+          handler: handleDeviceRegistered
+        - event: 'DeviceAuthorized(indexed address,indexed bytes32,address)'
+          handler: handleDeviceAuthorized
+        - event: 'DeviceRevoked(indexed address,indexed bytes32,uint256)'
+          handler: handleDeviceRevoked
+        - event: 'AccessGranted(indexed address,indexed bytes32,address)'
+          handler: handleAccessGranted
+        - event: 'AccessRevoked(indexed address,indexed bytes32,address)'
+          handler: handleAccessRevoked
+        - event: 'SecurityAlert(indexed address,uint8,string,uint256)'
+          handler: handleSecurityAlert
+        - event: 'UnauthorizedAccess(indexed address,address,string)'
+          handler: handleUnauthorizedAccess
+      file:
+        /: /ipfs/QmZ3vFvqTn2KmMd4Fho4VKeLU1ekpsRMRcNPXzH9HzdcBb
+      kind: ethereum/events
+      language: wasm/assemblyscript
+    name: DeviceRegistry
+    network: oasis
+    source:
+      abi: DeviceRegistry
+      address: '0x9ec3B09A3cDc7Dd2ba8fB8F6e9Bd6C04DDfBCd2d'
+      startBlock: 12891660
+  - kind: ethereum/contract
+    mapping:
+      abis:
+        - file:
+            /: /ipfs/Qmd5rtmkY4vcTmFCyg1JK5fhHyGB1NvPb4w7sqfnbR6FGo
+          name: RecoveryManager
+      apiVersion: 0.0.6
+      entities:
+        - User
+        - RecoverySession
+        - Guardian
+      eventHandlers:
+        - event: 'RecoveryInitiated(indexed address,indexed bytes32,uint256)'
+          handler: handleRecoveryInitiated
+        - event: 'GuardianApproved(indexed address,indexed bytes32,indexed address)'
+          handler: handleGuardianApproved
+        - event: 'RecoveryCompleted(indexed address,indexed bytes32,uint256)'
+          handler: handleRecoveryCompleted
+      file:
+        /: /ipfs/QmRc9gm5GfpfDqN35mGmboF3hdS6HUEioyKGuQH6NuAHa8
+      kind: ethereum/events
+      language: wasm/assemblyscript
+    name: RecoveryManager
+    network: oasis
+    source:
+      abi: RecoveryManager
+      address: '0x58fF6e3d3D76053F2B13327A6399ECD25E363818'
+      startBlock: 12891663
+  - kind: ethereum/contract
+    mapping:
+      abis:
+        - file:
+            /: /ipfs/QmaQVm8qctc42JjnWQuDTCytjTjEhtrDfVJAJ1mh18vvEH
+          name: MultiChainRPC
+      apiVersion: 0.0.6
+      entities:
+        - User
+        - CrossChainOperation
+        - ChainConfig
+      eventHandlers:
+        - event: >-
+            CrossChainOperationStarted(indexed address,indexed
+            bytes32,uint8,uint8)
+          handler: handleCrossChainOperationStarted
+        - event: 'CrossChainOperationCompleted(indexed address,indexed bytes32,bool)'
+          handler: handleCrossChainOperationCompleted
+        - event: 'ChainBalanceUpdated(indexed address,indexed bytes32,uint8,uint256)'
+          handler: handleChainBalanceUpdated
+      file:
+        /: /ipfs/QmRULQ1A6ACEyVNcwMpnRN7DXc4imZ36V4rDKBDFm2KbL3
+      kind: ethereum/events
+      language: wasm/assemblyscript
+    name: MultiChainRPC
+    network: oasis
+    source:
+      abi: MultiChainRPC
+      address: '0x2bcaA2dDbAE6609Cbd63D3a4B3dd0af881759472'
+      startBlock: 12891666
+  - kind: ethereum/contract
+    mapping:
+      abis:
+        - file:
+            /: /ipfs/QmZ23YkHeTMWSSUz5BMb7gHp9co9cX8cwguYmEkypdWCo5
+          name: AtomicVaultManager
+      apiVersion: 0.0.6
+      entities:
+        - User
+        - AtomicOperation
+      eventHandlers:
+        - event: 'AtomicUpdateStarted(indexed address,indexed bytes32,string)'
+          handler: handleAtomicOperationStarted
+        - event: 'AtomicUpdateCompleted(indexed address,indexed bytes32,bytes32)'
+          handler: handleAtomicOperationCompleted
+        - event: 'AtomicUpdateFailed(indexed address,indexed bytes32,string)'
+          handler: handleAtomicOperationFailed
+        - event: 'OperationRolledBack(indexed address,indexed bytes32,string)'
+          handler: handleOperationReverted
+      file:
+        /: /ipfs/Qmd3UX49tadkaRnkc1Rr4h2FssHeFSxRjAG1mQrcFPdBRM
+      kind: ethereum/events
+      language: wasm/assemblyscript
+    name: AtomicVaultManager
+    network: oasis
+    source:
+      abi: AtomicVaultManager
+      address: '0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C'
+      startBlock: 12891668
+schema:
+  file:
+    /: /ipfs/QmQhmXhLfxFr8rvigHxaLDSfpvy9v3kcnkqYhTh7Y2FCBH
+specVersion: 0.0.4
+¨=
