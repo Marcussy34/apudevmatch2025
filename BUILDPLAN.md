@@ -87,24 +87,24 @@ contracts/
 
 interface IWalletVault {
     // Seed phrase import and key derivation
-    function importSeedPhrase(bytes calldata encryptedSeed, string calldata walletName) 
+    function importSeedPhrase(bytes calldata encryptedSeed, string calldata walletName)
         external returns (bytes32 walletId);
-    
+
     // BIP39/BIP44 key derivation for multiple chains
-    function deriveKeysFromSeed(bytes32 walletId, uint8[] calldata chainTypes) 
+    function deriveKeysFromSeed(bytes32 walletId, uint8[] calldata chainTypes)
         external returns (address[] memory addresses);
-    
+
     // Multi-chain balance fetching within TEE
-    function fetchWalletBalances(bytes32 walletId) 
+    function fetchWalletBalances(bytes32 walletId)
         external view returns (ChainBalance[] memory balances);
-    
+
     // Secure transaction signing
-    function signTransaction(bytes32 walletId, uint8 chainType, bytes32 txHash, bytes calldata txData) 
+    function signTransaction(bytes32 walletId, uint8 chainType, bytes32 txHash, bytes calldata txData)
         external returns (bytes memory signature);
-    
+
     // Wallet metadata management
     function updateWalletMetadata(bytes32 walletId, string calldata name, bool isActive) external;
-    
+
     // Events for user flow
     event WalletImported(address indexed user, bytes32 indexed walletId, string name, uint256 timestamp);
     event BalancesFetched(address indexed user, bytes32 indexed walletId, uint256 totalValue);
@@ -113,21 +113,21 @@ interface IWalletVault {
 
 interface IPasswordVault {
     // Add credential to existing vault
-    function addCredential(bytes32 vaultId, string calldata domain, 
+    function addCredential(bytes32 vaultId, string calldata domain,
                           string calldata username, bytes calldata encryptedPassword) external;
-    
+
     // Update entire vault blob atomically
-    function updateVaultBlob(bytes32 vaultId, bytes calldata newEncryptedBlob) 
+    function updateVaultBlob(bytes32 vaultId, bytes calldata newEncryptedBlob)
         external returns (string memory newCID);
-    
+
     // Retrieve decrypted credentials (TEE only)
-    function getCredential(bytes32 vaultId, string calldata domain) 
+    function getCredential(bytes32 vaultId, string calldata domain)
         external view returns (string memory username, string memory password);
-    
+
     // Atomic vault operations with Walrus coordination
-    function atomicVaultUpdate(bytes32 vaultId, bytes calldata newData) 
+    function atomicVaultUpdate(bytes32 vaultId, bytes calldata newData)
         external returns (string memory newCID, bytes32 suiTxHash);
-    
+
     // Events for user flow
     event CredentialAdded(address indexed user, bytes32 indexed vaultId, string domain, uint256 timestamp);
     event VaultBlobUpdated(address indexed user, bytes32 indexed vaultId, string newCID, bytes32 suiTxHash);
@@ -140,31 +140,31 @@ interface IMultiChainRPC {
         uint256 balance;      // Balance in wei
         uint256 usdValue;     // USD value (optional)
     }
-    
+
     // Fetch balances for specific address across multiple chains
-    function getMultiChainBalances(address wallet, uint8[] calldata chains) 
+    function getMultiChainBalances(address wallet, uint8[] calldata chains)
         external view returns (ChainBalance[] memory);
-    
+
     // Execute RPC call to specific chain
-    function executeChainRPC(uint8 chainType, string calldata method, bytes calldata params) 
+    function executeChainRPC(uint8 chainType, string calldata method, bytes calldata params)
         external view returns (bytes memory result);
-    
+
     // Update RPC endpoints for chains
     function updateChainRPC(uint8 chainType, string calldata rpcUrl) external;
 }
 
 interface IAtomicVaultManager {
     // Coordinate Walrus upload and Sui state update
-    function executeAtomicUpdate(bytes32 vaultId, bytes calldata newVaultData) 
+    function executeAtomicUpdate(bytes32 vaultId, bytes calldata newVaultData)
         external returns (string memory walrusCID, bytes32 suiTxHash);
-    
+
     // Rollback failed atomic operations
     function rollbackFailedUpdate(bytes32 vaultId, string calldata failedCID) external;
-    
+
     // Verify atomic operation completion
-    function verifyAtomicCompletion(bytes32 vaultId, string calldata cid, bytes32 suiTxHash) 
+    function verifyAtomicCompletion(bytes32 vaultId, string calldata cid, bytes32 suiTxHash)
         external view returns (bool completed);
-    
+
     // Events for atomic operations
     event AtomicUpdateStarted(address indexed user, bytes32 indexed vaultId, string walrusCID);
     event AtomicUpdateCompleted(address indexed user, bytes32 indexed vaultId, bytes32 suiTxHash);
@@ -579,18 +579,18 @@ export class FormDetector {
   // Detect login forms on page load
   detectLoginForms(): HTMLFormElement[] {
     const forms = document.querySelectorAll('form');
-    return Array.from(forms).filter(form => 
+    return Array.from(forms).filter(form =>
       this.hasPasswordField(form) && this.hasUsernameField(form)
     );
   }
-  
+
   // Monitor for successful form submissions
   monitorFormSubmissions(onSuccess: (credentials: Credentials) => void): void {
     document.addEventListener('submit', async (event) => {
       const form = event.target as HTMLFormElement;
       if (this.isLoginForm(form)) {
         const credentials = this.extractCredentials(form);
-        
+
         // Wait for navigation to detect success
         setTimeout(() => {
           if (this.isLoginSuccessful()) {
@@ -600,10 +600,10 @@ export class FormDetector {
       }
     });
   }
-  
+
   private isLoginSuccessful(): boolean {
     // Detect successful login by URL change, disappearing login form, etc.
-    return !document.querySelector('form[data-login-form]') && 
+    return !document.querySelector('form[data-login-form]') &&
            !document.querySelector('.error-message');
   }
 }
@@ -614,28 +614,28 @@ export class CredentialCapture {
   extractCredentials(form: HTMLFormElement): Credentials {
     const usernameField = form.querySelector('input[type="email"], input[type="text"]') as HTMLInputElement;
     const passwordField = form.querySelector('input[type="password"]') as HTMLInputElement;
-    
+
     const credentials = {
       domain: window.location.hostname,
       username: usernameField?.value || '',
       password: passwordField?.value || '',
       timestamp: Date.now()
     };
-    
+
     // Clear sensitive data from memory immediately after use
     if (passwordField) passwordField.value = '';
-    
+
     return credentials;
   }
-  
+
   // Secure memory management for credentials
   secureStore(credentials: Credentials): Promise<string> {
     // Encrypt in memory before any storage
     const encrypted = this.encryptInMemory(credentials);
-    
+
     // Clear original credentials from memory
     Object.keys(credentials).forEach(key => delete credentials[key]);
-    
+
     return this.sendToExtension(encrypted);
   }
 }
@@ -647,28 +647,28 @@ export class UIOverlay {
     return new Promise((resolve) => {
       const overlay = this.createSavePromptOverlay(credentials);
       document.body.appendChild(overlay);
-      
+
       overlay.addEventListener('save', () => {
         this.showSuccessAnimation();
         resolve(true);
       });
-      
+
       overlay.addEventListener('dismiss', () => {
         resolve(false);
       });
     });
   }
-  
+
   // Show success animation
   showSuccessAnimation(): void {
     const animation = this.createCheckmarkAnimation();
     document.body.appendChild(animation);
-    
+
     setTimeout(() => {
       animation.remove();
     }, 2000);
   }
-  
+
   // Inject Grand Warden icons in input fields
   injectFieldIcons(): void {
     const passwordFields = document.querySelectorAll('input[type="password"]');
@@ -684,7 +684,7 @@ export function useWalletBalances(walletId: string) {
   const [balances, setBalances] = useState<ChainBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   useEffect(() => {
     const fetchBalances = async () => {
       try {
@@ -699,17 +699,17 @@ export function useWalletBalances(walletId: string) {
         setLoading(false);
       }
     };
-    
+
     fetchBalances();
-    
+
     // Set up real-time balance updates via GraphQL subscription
     const subscription = subscribeToBalanceUpdates(walletId, (newBalances) => {
       setBalances(newBalances);
     });
-    
+
     return () => subscription.unsubscribe();
   }, [walletId]);
-  
+
   return { balances, loading, error };
 }
 
@@ -717,35 +717,35 @@ export function useWalletBalances(walletId: string) {
 export function usePasswordSave() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const savePassword = async (credentials: Credentials): Promise<boolean> => {
     try {
       setSaving(true);
       setError(null);
-      
+
       // Step 1: Encrypt credentials locally
       const encrypted = await encryptCredentials(credentials);
-      
+
       // Step 2: Get current vault from Walrus
       const currentVault = await walrusService.getCurrentVault();
-      
+
       // Step 3: Update vault in Sapphire TEE
       const { newCID, suiTxHash } = await sapphireContract.atomicVaultUpdate(
-        currentVault.id, 
+        currentVault.id,
         encrypted
       );
-      
+
       // Step 4: Verify atomic completion
       const completed = await sapphireContract.verifyAtomicCompletion(
-        currentVault.id, 
-        newCID, 
+        currentVault.id,
+        newCID,
         suiTxHash
       );
-      
+
       if (!completed) {
         throw new Error('Atomic operation failed to complete');
       }
-      
+
       return true;
     } catch (err) {
       setError(err.message);
@@ -754,7 +754,7 @@ export function usePasswordSave() {
       setSaving(false);
     }
   };
-  
+
   return { savePassword, saving, error };
 }
 ```
@@ -916,7 +916,7 @@ rofl-worker/
 #### Success Metrics
 
 - [ ] **User Flow Event Processing**: Vault creation and password save events processed within 10 seconds
-- [ ] **Atomic Operation Success**: >95% success rate for coordinated Sui→Sapphire operations 
+- [ ] **Atomic Operation Success**: >95% success rate for coordinated Sui→Sapphire operations
 - [ ] **Event Translation Accuracy**: 100% accuracy for user flow events with proper context preservation
 - [ ] **Failure Recovery**: Failed operations recovered within 60 seconds using retry mechanisms
 - [ ] **Real-time Performance**: End-to-end user flow completion tracking and validation working
@@ -1001,32 +1001,32 @@ export class SecureSeedPhraseInput {
     private secureMemory: ArrayBuffer;
     private inputValidator: BIP39Validator;
     private memoryProtection: MemoryProtection;
-    
+
     // Secure seed phrase input with real-time validation
     async handleSeedPhraseInput(inputElement: HTMLInputElement): Promise<SecureSeedPhrase> {
         // Enable secure input mode
         this.enableSecureInputMode(inputElement);
-        
+
         // Real-time validation as user types
         inputElement.addEventListener('input', (event) => {
             const value = (event.target as HTMLInputElement).value;
             this.validateSeedPhraseRealTime(value);
         });
-        
+
         // Handle paste events securely
         inputElement.addEventListener('paste', (event) => {
             event.preventDefault();
             this.handleSecurePaste(event, inputElement);
         });
-        
+
         return new Promise((resolve, reject) => {
             inputElement.addEventListener('submit', async (event) => {
                 try {
                     const seedPhrase = await this.extractAndValidateSeedPhrase(inputElement);
-                    
+
                     // Clear input immediately
                     this.securelyWipeInput(inputElement);
-                    
+
                     resolve(seedPhrase);
                 } catch (error) {
                     reject(error);
@@ -1034,55 +1034,55 @@ export class SecureSeedPhraseInput {
             });
         });
     }
-    
+
     // Secure memory management for seed phrases
     private async extractAndValidateSeedPhrase(input: HTMLInputElement): Promise<SecureSeedPhrase> {
         const rawValue = input.value;
-        
+
         // Validate BIP39 compliance
         if (!this.inputValidator.isValidBIP39(rawValue)) {
             throw new Error('Invalid seed phrase format');
         }
-        
+
         // Store in secure memory
         const securePhrase = await this.memoryProtection.secureStore(rawValue);
-        
+
         // Clear original value
         input.value = '';
         input.blur();
-        
+
         return securePhrase;
     }
-    
+
     // Secure paste handling
     private async handleSecurePaste(event: ClipboardEvent, input: HTMLInputElement): Promise<void> {
         const clipboardData = event.clipboardData?.getData('text') || '';
-        
+
         // Validate before setting
         if (this.inputValidator.isValidBIP39(clipboardData)) {
             input.value = clipboardData;
             this.validateSeedPhraseRealTime(clipboardData);
-            
+
             // Clear clipboard for security
             await navigator.clipboard.writeText('');
         } else {
             this.showSecurityWarning('Invalid seed phrase format detected');
         }
     }
-    
+
     // Enable secure input protections
     private enableSecureInputMode(input: HTMLInputElement): void {
         // Disable browser autocomplete
         input.setAttribute('autocomplete', 'off');
         input.setAttribute('spellcheck', 'false');
-        
+
         // Add security attributes
         input.setAttribute('data-secure-input', 'true');
-        
+
         // Prevent certain developer tools interactions
         input.addEventListener('contextmenu', (e) => e.preventDefault());
     }
-    
+
     // Secure memory wipe
     private securelyWipeInput(input: HTMLInputElement): void {
         // Multiple overwrites for security
@@ -1099,40 +1099,40 @@ export class SecureSeedPhraseImportFlow {
     private secureInput: SecureSeedPhraseInput;
     private walletVault: WalletVaultService;
     private progressTracker: ImportProgressTracker;
-    
+
     // Execute complete secure import flow
     async executeSecureImport(walletName: string): Promise<ImportResult> {
         const progress = this.progressTracker.start();
-        
+
         try {
             // Step 1: Secure seed phrase input
             progress.updateStep('Secure Input', 'Waiting for seed phrase...');
             const secureSeedPhrase = await this.secureInput.handleSeedPhraseInput();
-            
+
             // Step 2: Security validation
             progress.updateStep('Security Validation', 'Validating seed phrase security...');
             await this.validateSeedPhraseSecurity(secureSeedPhrase);
-            
+
             // Step 3: Key derivation preview
             progress.updateStep('Key Derivation', 'Deriving wallet addresses...');
             const derivedAddresses = await this.previewDerivedAddresses(secureSeedPhrase);
-            
+
             // Step 4: User confirmation
             progress.updateStep('Confirmation', 'Confirming wallet details...');
             const confirmed = await this.confirmWalletDetails(walletName, derivedAddresses);
-            
+
             if (!confirmed) {
                 throw new Error('Import cancelled by user');
             }
-            
+
             // Step 5: Secure storage in Sapphire TEE
             progress.updateStep('Secure Storage', 'Storing wallet in secure enclave...');
             const walletId = await this.walletVault.secureImport(secureSeedPhrase, walletName);
-            
+
             // Step 6: Balance fetching
             progress.updateStep('Balance Fetching', 'Fetching wallet balances...');
             const balances = await this.walletVault.fetchInitialBalances(walletId);
-            
+
             // Step 7: Success confirmation
             progress.complete({
                 walletId,
@@ -1140,45 +1140,45 @@ export class SecureSeedPhraseImportFlow {
                 balances,
                 addresses: derivedAddresses
             });
-            
+
             return {
                 success: true,
                 walletId,
                 balances,
                 message: 'Wallet imported successfully into secure vault'
             };
-            
+
         } catch (error) {
             progress.fail(error.message);
-            
+
             // Secure cleanup on failure
             await this.secureCleanup();
-            
+
             return {
                 success: false,
                 error: error.message
             };
         }
     }
-    
+
     // Validate seed phrase security
     private async validateSeedPhraseSecurity(seedPhrase: SecureSeedPhrase): Promise<void> {
         // Check entropy
         if (!this.hasAdequateEntropy(seedPhrase)) {
             throw new Error('Seed phrase has insufficient entropy');
         }
-        
+
         // Check against common weak phrases
         if (await this.isWeakSeedPhrase(seedPhrase)) {
             throw new Error('Seed phrase appears to be weak or commonly used');
         }
-        
+
         // Validate checksum
         if (!this.validateBIP39Checksum(seedPhrase)) {
             throw new Error('Seed phrase checksum validation failed');
         }
     }
-    
+
     // Preview derived addresses for user confirmation
     private async previewDerivedAddresses(seedPhrase: SecureSeedPhrase): Promise<DerivedAddresses> {
         // Derive addresses for supported chains without storing private keys
@@ -1187,18 +1187,18 @@ export class SecureSeedPhraseImportFlow {
             polygon: await this.deriveAddress(seedPhrase, ChainType.Polygon),
             sui: await this.deriveAddress(seedPhrase, ChainType.Sui),
         };
-        
+
         return addresses;
     }
-    
+
     // Secure cleanup on failure
     private async secureCleanup(): Promise<void> {
         // Wipe sensitive data from memory
         await this.secureInput.memoryWipe();
-        
+
         // Clear any temporary storage
         this.progressTracker.secureCleanup();
-        
+
         // Force garbage collection if available
         if (window.gc) {
             window.gc();
@@ -1210,60 +1210,60 @@ export class SecureSeedPhraseImportFlow {
 export class MemoryProtection {
     private sensitiveData: Map<string, ArrayBuffer>;
     private cleanupTimers: Map<string, NodeJS.Timeout>;
-    
+
     // Store sensitive data in secure memory
     async secureStore(data: string, timeoutMs: number = 300000): Promise<string> {
         const id = this.generateSecureId();
-        
+
         // Convert to ArrayBuffer for better memory control
         const encoder = new TextEncoder();
         const buffer = encoder.encode(data);
-        
+
         // Store in secure map
         this.sensitiveData.set(id, buffer);
-        
+
         // Set automatic cleanup
         const timer = setTimeout(() => {
             this.secureDelete(id);
         }, timeoutMs);
-        
+
         this.cleanupTimers.set(id, timer);
-        
+
         return id;
     }
-    
+
     // Retrieve and decrypt sensitive data
     async secureRetrieve(id: string): Promise<string> {
         const buffer = this.sensitiveData.get(id);
-        
+
         if (!buffer) {
             throw new Error('Sensitive data not found or expired');
         }
-        
+
         const decoder = new TextDecoder();
         return decoder.decode(buffer);
     }
-    
+
     // Securely delete sensitive data
     secureDelete(id: string): void {
         const buffer = this.sensitiveData.get(id);
-        
+
         if (buffer) {
             // Overwrite buffer with random data
             const randomData = new Uint8Array(buffer.byteLength);
             crypto.getRandomValues(randomData);
             new Uint8Array(buffer).set(randomData);
-            
+
             this.sensitiveData.delete(id);
         }
-        
+
         const timer = this.cleanupTimers.get(id);
         if (timer) {
             clearTimeout(timer);
             this.cleanupTimers.delete(id);
         }
     }
-    
+
     // Emergency wipe all sensitive data
     emergencyWipe(): void {
         for (const id of this.sensitiveData.keys()) {
