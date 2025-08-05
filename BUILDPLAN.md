@@ -7,7 +7,14 @@ _Based on: PLAN.md v4 + Current Project Analysis_
 
 ## Executive Summary
 
-**Grand Warden** is a privacy-first security suite combining password management and Web3 wallet security in a browser extension. The project leverages Oasis Sapphire for confidential compute, Sui for public state, and The Graph for real-time data indexing.
+**Grand Warden** is a privacy-first security suite combining password management and Web3 wallet security in a browser extension. The project leverages a carefully orchestrated technology stack where:
+
+- **Oasis Sapphire** serves as the Confidential Compute and Private Logic Layer
+- **Sui** acts as the Public Coordination and State Layer
+- **Oasis ROFL** functions as the Critical Data Bridge connecting Sui and Sapphire
+- **Walrus + Seal** provides Decentralized Storage and Access Control
+- **Sui zkLogin** enables Primary Authentication and Onboarding
+- **The Graph** operates as the Real-Time Data Layer for unified GraphQL access
 
 ### Current Status Assessment
 
@@ -106,17 +113,20 @@ contracts/
 
 ---
 
-### ⚡ Phase 1.5: Sui Infrastructure & Move Contracts
+### ⚡ Phase 1.5: Sui Public Coordination Layer & Move Contracts
 
-**Objective**: Implement Sui Move contracts for public state management, device registry, and Walrus integration with zkLogin foundation.
+**Objective**: Implement Sui as the Public Coordination and State Layer with Move contracts for device registry, vault metadata pointers, and Walrus + Seal integration, establishing the foundation for zkLogin authentication.
 
 #### Scope
 
 - **Sui Development Environment**: Move compiler, Sui CLI, and testing framework setup
-- **Move Contract Development**: Public state contracts for device registry and vault metadata
-- **Walrus + Seal Integration**: Decentralized blob storage with access control layer
-- **zkLogin Foundation**: Sui-side authentication infrastructure preparation
-- **Public State Management**: Move objects for publicly visible metadata and CID pointers
+- **Public State Management**: Move objects that represent public-facing system aspects and serve as source of truth for all public, on-chain user actions
+- **Device Registry**: Manage users' lists of authorized devices with public keys and status (active, revoked) as a public, auditable log
+- **Data Pointers**: Store public pointers (Content Identifiers, CIDs) that reference encrypted data blobs stored on Walrus
+- **Walrus (Storage) + Seal (Access Control)**: Decentralized blob storage with fine-grained access control layer
+- **Recovery Logic Coordination**: Manage guardian lists and recovery thresholds for social recovery
+- **zkLogin Foundation**: Establish seedphrase-free authentication infrastructure linked to Web2 social logins
+- **Event Source**: Act as origin for key user actions (vault creation, device registration) that feed into the data mirroring pipeline
 
 #### Technical Specifications
 
@@ -251,17 +261,17 @@ module grandwarden::walrus_manager {
 
 ---
 
-### 📊 Phase 2: Subgraph Integration
+### 📊 Phase 2: The Graph Real-Time Data Layer
 
-**Objective**: Deploy production subgraph that indexes all Grand Warden contract events from both Sapphire and Sui chains, providing a unified real-time GraphQL API.
+**Objective**: Deploy The Graph as the Real-Time Data Layer, providing unified queryable access to all system events and state changes through a GraphQL interface that indexes Sapphire events (including Sui events mirrored via ROFL).
 
 #### Scope
 
-- **Multi-Chain Subgraph Development**: Schema design for both Sapphire and Sui events
-- **Dual Event Handlers**: TypeScript mappings for Sapphire (via emulator) and Sui events (via ROFL mirror)
-- **Unified GraphQL Schema**: Complete API for frontend consumption across chains
-- **Real-time Subscriptions**: WebSocket support for live updates from both chains
-- **Cross-Chain Data Aggregation**: User statistics, breach analytics, usage metrics across Sapphire and Sui
+- **Unified Event Indexing**: Index all EVM events emitted by Sapphire contracts (including synthetic events mirrored from Sui via ROFL)
+- **Event Handler Development**: TypeScript mappings for Sapphire native events and ROFL-mirrored Sui events
+- **Unified GraphQL Interface**: Single API endpoint for frontend to query all system activity across chains
+- **Real-time Subscriptions**: WebSocket subscriptions for instant UI updates when events occur
+- **Data Aggregation**: Combine and correlate events from multiple sources into coherent user and system-level metrics
 
 #### Technical Specifications
 
@@ -332,18 +342,18 @@ subgraph/
 
 ---
 
-### 🌉 Phase 3: Frontend-Blockchain Bridge
+### 🌉 Phase 3: Frontend Integration with Coordinated Blockchain Layers
 
-**Objective**: Connect the existing React frontend to both Sapphire and Sui smart contracts, enabling full cross-chain password vault and wallet management functionality.
+**Objective**: Connect the React frontend to the coordinated blockchain architecture, enabling password vault and wallet management functionality across Sapphire (confidential compute), Sui (public coordination), and Walrus + Seal (decentralized storage with access control).
 
 #### Scope
 
-- **Multi-Chain Web3 Integration**: Ethers.js for Sapphire + Sui TypeScript SDK
-- **Cross-Chain Transaction Flows**: CRUD operations coordinated across Sapphire and Sui
-- **GraphQL Client**: Apollo Client for unified real-time data fetching
-- **Multi-Chain State Management**: Context/Redux for coordinated blockchain state
-- **Cross-Chain Error Handling**: User-friendly transaction error messages for both chains
-- **Dual-Chain Loading States**: Transaction progress indicators for multi-chain operations
+- **Coordinated Layer Integration**: Ethers.js for Sapphire (confidential compute) + Sui TypeScript SDK (public coordination)
+- **Coordinated Transaction Flows**: Operations that span Sapphire private compute, Sui public state, and Walrus storage
+- **Unified GraphQL Client**: Apollo Client consuming The Graph's real-time data layer
+- **Coordinated State Management**: Context/Redux managing state across coordinated blockchain layers
+- **Layer-Specific Error Handling**: User-friendly error messages for Sapphire, Sui, and Walrus operations
+- **Coordinated Loading States**: Transaction progress indicators across all architectural layers
 
 #### Technical Specifications
 
@@ -376,14 +386,14 @@ src/
     └── chain-sync.ts          // Cross-chain state synchronization
 ```
 
-**Key Integrations**:
+**Key Coordinated Operations**:
 
-- **Cross-Chain Password Operations**: Sapphire (private) + Sui (metadata) + Walrus (encrypted storage)
-- **Multi-Chain Wallet Management**: Sapphire private keys + Sui public pointers
-- **Device Registration**: Sui public registry + Sapphire private permissions
-- **Walrus Blob Management**: Decentralized storage with Sui access control
-- **Real-time Cross-Chain Updates**: Live breach alerts and status updates across chains
-- **Coordinated Transaction Flows**: Multi-chain transaction approval and execution
+- **Password Operations**: Sapphire (enclave-based encryption/decryption) + Sui (public metadata pointers) + Walrus (decentralized storage) + Seal (access control)
+- **Wallet Management**: Sapphire (private key custody & signing) + Sui (public pointers and device registry)
+- **Device Registration**: Sui (public auditable registry) + Sapphire (private permissions and authorization)
+- **Blob Storage Coordination**: Walrus (decentralized storage) + Seal (access control enforcement) + Sui (access policy definition)
+- **Real-time Data Flow**: Sui events → ROFL mirror → Sapphire synthetic events → The Graph indexing → Frontend updates
+- **Coordinated Transaction Flows**: Operations orchestrated across all architectural layers with proper role separation
 
 #### Dependencies
 
@@ -430,17 +440,17 @@ src/
 
 ---
 
-### 🔄 Phase 4: ROFL Sui Mirror
+### 🔄 Phase 4: ROFL Critical Data Bridge
 
-**Objective**: Implement ROFL off-chain worker to mirror Sui blockchain events into Sapphire for comprehensive cross-chain indexing.
+**Objective**: Implement ROFL as the Critical Data Bridge that connects Sui and Sapphire ecosystems, solving the problem that The Graph cannot natively index Sui by making Sui activity "visible" to the EVM-centric Graph Node.
 
 #### Scope
 
-- **ROFL Worker Development**: Trusted execution environment worker
-- **Sui Event Monitoring**: Real-time Sui blockchain event listening
-- **Cross-chain Bridge**: Emit synthetic events on Sapphire
-- **Event Translation**: Map Sui events to Sapphire event schema
-- **Reliability System**: Retry logic, error handling, monitoring
+- **Trusted Off-Chain Worker**: ROFL worker that constantly listens to Sui network for relevant events (vault creation, device changes)
+- **Cross-Chain Translation**: Translate detected Sui events into formats that Sapphire smart contracts can understand
+- **Synthetic Event Triggering**: Call specific Sapphire contract functions (e.g., `emitSyntheticEvent()`) to emit corresponding EVM events
+- **Enabling Sui Indexing**: Make Sui's activity "visible" to The Graph by mirroring events to Sapphire where they can be indexed
+- **Reliability & Monitoring**: Retry logic, error handling, and telemetry for the critical bridge functionality
 
 #### Technical Specifications
 
@@ -461,11 +471,11 @@ rofl-worker/
 
 **Key Components**:
 
-- **Sui RPC Client**: Monitor Sui for relevant events
-- **Event Queue**: Reliable event processing pipeline
-- **Sapphire Client**: Emit synthetic events to contracts
-- **State Synchronization**: Ensure event consistency
-- **Monitoring**: Health checks and alerting
+- **Sui Event Listener**: Monitor Sui network for Grand Warden events (device registration, vault creation, recovery initiation)
+- **Event Translation Engine**: Convert Sui events to Sapphire-compatible format for synthetic event emission
+- **Sapphire Integration**: Call Sapphire contract methods to emit EVM events that The Graph can index
+- **Bridge State Management**: Ensure no events are lost or duplicated during the cross-chain bridging process
+- **Health Monitoring**: Track bridge performance, event processing latency, and failure recovery
 
 #### Dependencies
 
@@ -509,18 +519,18 @@ rofl-worker/
 
 ---
 
-### 🔒 Phase 5: Security & Recovery Systems
+### 🔒 Phase 5: Security & Recovery Systems with zkLogin
 
-**Objective**: Implement comprehensive security features including Sui zkLogin authentication, cross-chain social recovery, and phishing protection leveraging the foundation built in previous phases.
+**Objective**: Implement comprehensive security features leveraging Sui zkLogin as the Primary Authentication and Onboarding Mechanism, along with coordinated social recovery and phishing protection across the established blockchain architecture.
 
 #### Scope
 
-- **Sui zkLogin Integration**: Seedphrase-free onboarding with Google/Apple using Sui authentication
-- **Cross-Chain Social Recovery**: Multi-party secret sharing coordinated across Sapphire and Sui
-- **Enhanced Walrus Security**: Advanced blob encryption and access control using established integration
-- **Phishing Detection**: Real-time website analysis and warnings
-- **Breach Monitoring**: Automated password compromise detection across chains
-- **Security Analytics**: Risk scoring and behavioral analysis using cross-chain data
+- **Primary zkLogin Authentication**: Create seedphrase-free user experience by linking account access to Web2 social logins (Google, Apple)
+- **Coordinated Social Recovery**: Multi-party secret sharing that serves as foundational component of account recovery flow
+- **Enhanced Walrus + Seal Security**: Advanced blob encryption and access control leveraging the established decentralized storage with access control layer
+- **Phishing Detection**: Real-time website analysis and warnings for operations across all blockchain layers
+- **Breach Monitoring**: Automated password compromise detection using data aggregated from The Graph's real-time data layer
+- **Security Analytics**: Risk scoring and behavioral analysis leveraging unified cross-chain data from The Graph
 
 #### Technical Specifications
 
@@ -683,54 +693,59 @@ deployment/
                                     │
                                     ▼
     ┌─────────────────────────────────────────────────────────────┐
-    │                   GraphQL API Layer                         │
+    │              The Graph (Real-Time Data Layer)               │
     │  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────┐ │
     │  │   Graph Node    │  │   Apollo Client  │  │ WebSocket   │ │
-    │  │   (localhost:   │  │   (Frontend)     │  │ Subscript.  │ │
-    │  │    8000)        │  │                  │  │             │ │
+    │  │  (localhost:    │  │   (Frontend)     │  │ Subscript.  │ │
+    │  │   8000-8040)    │  │                  │  │             │ │
     │  └─────────────────┘  └──────────────────┘  └─────────────┘ │
     └─────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
     ┌─────────────────────────────────────────────────────────────┐
-    │                Blockchain Integration                       │
+    │              Coordinated Blockchain Architecture            │
     │  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────┐ │
-    │  │ Oasis Sapphire  │  │   ROFL Worker    │  │ Sui Network │ │
-    │  │ Smart Contracts │  │ (Event Mirror)   │  │  (zkLogin)  │ │
+    │  │ Oasis Sapphire  │◄─┤   ROFL Worker    │◄─┤ Sui Network │ │
+    │  │ (Confidential   │  │ (Critical Data   │  │ (Public     │ │
+    │  │ Compute Layer)  │  │ Bridge)          │  │ Coord. Layer│ │
     │  └─────────────────┘  └──────────────────┘  └─────────────┘ │
     └─────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
     ┌─────────────────────────────────────────────────────────────┐
-    │                   Storage & Security                        │
+    │           Decentralized Storage & Access Control            │
     │  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────┐ │
-    │  │ Walrus Blob     │  │  TEE Encryption  │  │ Recovery    │ │
-    │  │ Storage         │  │  (Sapphire)      │  │ Shares      │ │
+    │  │ Walrus          │  │ Seal             │  │ zkLogin     │ │
+    │  │ (Blob Storage)  │  │ (Access Control) │  │ (Primary    │ │
+    │  │                 │  │                  │  │ Auth)       │ │
     │  └─────────────────┘  └──────────────────┘  └─────────────┘ │
     └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Data Flow Patterns
 
-**1. Password Storage Flow**:
+**1. Coordinated Password Storage Flow**:
 
 ```
-User Input → Client Encryption → Smart Contract → Event Emission →
-Subgraph Indexing → GraphQL Update → UI Refresh
+User Input → Client Encryption → Sapphire (Confidential Compute) →
+Sui (Public Metadata) → Walrus (Encrypted Storage) → Seal (Access Control) →
+Event Emission → The Graph Indexing → GraphQL Update → UI Refresh
 ```
 
-**2. Cross-Chain Event Flow**:
+**2. ROFL-Enabled Event Flow**:
 
 ```
-Sui Event → ROFL Worker → Sapphire Synthetic Event → Graph Indexing →
+Sui Event (Source) → ROFL Worker (Critical Data Bridge) →
+Sapphire Synthetic Event → The Graph Indexing →
 Real-time Subscription → UI Notification
 ```
 
-**3. Recovery Flow**:
+**3. zkLogin-Coordinated Recovery Flow**:
 
 ```
-zkLogin Auth → Share Generation → Distributed Storage → Recovery Request →
-Share Reconstruction → Account Restoration
+zkLogin Auth (Primary Authentication) → Share Generation →
+Sui (Recovery Logic) + Walrus (Distributed Storage) → Recovery Request →
+Share Reconstruction → Account Restoration Across All Layers
 ```
 
 ### API Contracts
