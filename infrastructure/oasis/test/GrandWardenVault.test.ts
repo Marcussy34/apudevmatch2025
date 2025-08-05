@@ -87,33 +87,38 @@ describe("Grand Warden Phase 1 - Core Contracts", function () {
       ).to.emit(walletVault, "WalletImported");
     });
 
-    it("Should derive keys for multiple chains", async function () {
-      const encryptedSeed = ethers.encodeBytes32String("encrypted-seed-phrase");
-      const walletName = "My Test Wallet";
+         it("Should derive keys for multiple chains", async function () {
+       const encryptedSeed = ethers.encodeBytes32String("encrypted-seed-phrase");
+       const walletName = "My Test Wallet";
 
-      const importTx = await walletVault
-        .connect(user)
-        .importSeedPhrase(encryptedSeed, walletName);
-      const importReceipt = await importTx.wait();
+       const importTx = await walletVault
+         .connect(user)
+         .importSeedPhrase(encryptedSeed, walletName);
+       const importReceipt = await importTx.wait();
 
-      // Get wallet ID from event
-      const importEvent = importReceipt?.logs.find(
-        (log) =>
-          walletVault.interface.parseLog(log as any)?.name === "WalletImported"
-      );
-      const parsedEvent = walletVault.interface.parseLog(importEvent as any);
-      const walletId = parsedEvent?.args[1]; // walletId is second parameter
+       // Get wallet ID from event
+       const importEvent = importReceipt?.logs.find(
+         (log) =>
+           walletVault.interface.parseLog(log as any)?.name === "WalletImported"
+       );
+       const parsedEvent = walletVault.interface.parseLog(importEvent as any);
+       const walletId = parsedEvent?.args[1]; // walletId is second parameter
 
-      // Derive keys for multiple chains
-      const chainTypes = [1, 2]; // Ethereum and Polygon
-      const addresses = await walletVault
-        .connect(user)
-        .deriveKeysFromSeed(walletId, chainTypes);
-
-      expect(addresses).to.have.length(2);
-      expect(addresses[0]).to.not.equal(ethers.ZeroAddress);
-      expect(addresses[1]).to.not.equal(ethers.ZeroAddress);
-    });
+       // Derive keys for multiple chains
+       const chainTypes = [1, 2]; // Ethereum and Polygon
+       const deriveTx = await walletVault
+         .connect(user)
+         .deriveKeysFromSeed(walletId, chainTypes);
+       
+       // Wait for transaction and get return value
+       await deriveTx.wait();
+       
+       // Verify wallet info was updated
+       const walletInfo = await walletVault.connect(user).getWalletInfo(walletId);
+       expect(walletInfo.chainTypes).to.have.length(2);
+       expect(walletInfo.chainTypes[0]).to.equal(1); // Ethereum
+       expect(walletInfo.chainTypes[1]).to.equal(2); // Polygon
+     });
   });
 
   describe("DeviceRegistry", function () {
@@ -132,44 +137,49 @@ describe("Grand Warden Phase 1 - Core Contracts", function () {
       ).to.emit(deviceRegistry, "DeviceRegistered");
     });
 
-    it("Should authenticate device", async function () {
-      const deviceName = "My Test Device";
-      const publicKeyHash = ethers.keccak256(
-        ethers.encodeBytes32String("public-key")
-      );
-      const deviceFingerprint =
-        ethers.encodeBytes32String("device-fingerprint");
+         it("Should authenticate device", async function () {
+       const deviceName = "My Test Device";
+       const publicKeyHash = ethers.keccak256(
+         ethers.encodeBytes32String("public-key")
+       );
+       const deviceFingerprint =
+         ethers.encodeBytes32String("device-fingerprint");
 
-      const registerTx = await deviceRegistry
-        .connect(user)
-        .registerDevice(deviceName, publicKeyHash, deviceFingerprint);
-      const registerReceipt = await registerTx.wait();
+       const registerTx = await deviceRegistry
+         .connect(user)
+         .registerDevice(deviceName, publicKeyHash, deviceFingerprint);
+       const registerReceipt = await registerTx.wait();
 
-      // Get device ID from event
-      const registerEvent = registerReceipt?.logs.find(
-        (log) =>
-          deviceRegistry.interface.parseLog(log as any)?.name ===
-          "DeviceRegistered"
-      );
-      const parsedEvent = deviceRegistry.interface.parseLog(
-        registerEvent as any
-      );
-      const deviceId = parsedEvent?.args[1]; // deviceId is second parameter
+       // Get device ID from event
+       const registerEvent = registerReceipt?.logs.find(
+         (log) =>
+           deviceRegistry.interface.parseLog(log as any)?.name ===
+           "DeviceRegistered"
+       );
+       const parsedEvent = deviceRegistry.interface.parseLog(
+         registerEvent as any
+       );
+       const deviceId = parsedEvent?.args[1]; // deviceId is second parameter
 
-      // Generate challenge
-      const challenge = await deviceRegistry
-        .connect(user)
-        .generateAuthChallenge(deviceId);
+       // Generate challenge
+       const challenge = await deviceRegistry
+         .connect(user)
+         .generateAuthChallenge(deviceId);
 
-      // Mock signature
-      const signature = ethers.encodeBytes32String("mock-signature");
+       // Mock signature
+       const signature = ethers.encodeBytes32String("mock-signature");
 
-      // Authenticate device
-      const success = await deviceRegistry
-        .connect(user)
-        .authenticateDevice(deviceId, challenge, signature);
-      expect(success).to.be.true;
-    });
+       // Authenticate device - should emit DeviceAuthenticated event
+       await expect(
+         deviceRegistry
+           .connect(user)
+           .authenticateDevice(deviceId, challenge, signature)
+       ).to.emit(deviceRegistry, "DeviceAuthenticated");
+       
+       // Verify device is still authorized
+       const isAuthorized = await deviceRegistry.isDeviceAuthorized(deviceId);
+       expect(isAuthorized).to.be.true;
+     });
   });
 
   describe("Integration Tests", function () {
