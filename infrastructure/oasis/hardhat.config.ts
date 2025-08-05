@@ -7,8 +7,27 @@ import * as dotenv from "dotenv";
 // Load environment variables from .env file
 dotenv.config();
 
+// Helper function to normalize private key format
+const normalizePrivateKey = (privateKey: string): string => {
+  // Remove 0x prefix if present
+  let key = privateKey.replace(/^0x/, "");
+
+  // If it's base64 encoded, convert to hex
+  if (key.length > 64 && !/^[0-9a-fA-F]+$/.test(key)) {
+    try {
+      const buffer = Buffer.from(key, "base64");
+      // Take only the first 32 bytes (64 hex characters) for the private key
+      key = buffer.slice(0, 32).toString("hex");
+    } catch (error) {
+      console.warn("Failed to decode base64 private key, using as-is");
+    }
+  }
+
+  return key;
+};
+
 const accounts = process.env.PRIVATE_KEY
-  ? [process.env.PRIVATE_KEY]
+  ? [normalizePrivateKey(process.env.PRIVATE_KEY)]
   : {
       mnemonic: "test test test test test test test test test test test junk",
       path: "m/44'/60'/0'/0",
