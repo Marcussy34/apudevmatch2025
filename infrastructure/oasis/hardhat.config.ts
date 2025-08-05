@@ -1,6 +1,10 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@oasisprotocol/sapphire-hardhat";
 import "@nomicfoundation/hardhat-toolbox";
+import * as dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
 
 const accounts = process.env.PRIVATE_KEY
   ? [process.env.PRIVATE_KEY]
