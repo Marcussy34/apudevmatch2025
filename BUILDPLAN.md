@@ -57,33 +57,132 @@ This plan structures development into 6 sequential phases that build incremental
 
 #### Scope
 
-- **Password Vault Contract**: Encrypted credential storage with breach detection
-- **Wallet Vault Contract**: Web3 key management with enclave signing
-- **Device Registry Contract**: Multi-device authentication and management
-- **Access Control**: Role-based permissions and recovery mechanisms
-- **Event System**: Comprehensive logging for Graph indexing
+- **Password Vault Contract**: Encrypted credential storage with breach detection, atomic vault blob management, and secure credential operations
+- **Wallet Vault Contract**: Web3 key management with BIP39/BIP44 key derivation, multi-chain private key generation, enclave-based signing, and real-time balance fetching
+- **Device Registry Contract**: Multi-device authentication and management with secure device authorization
+- **Access Control**: Role-based permissions and recovery mechanisms with atomic state updates
+- **Event System**: Comprehensive logging for Graph indexing with real-time UI notifications
+- **Multi-Chain RPC Integration**: Native support for Ethereum, Polygon, and other EVM chains within Sapphire TEE
+- **Atomic Vault Operations**: Secure blob encryption/decryption with coordinated Walrus and Sui state management
 
 #### Technical Specifications
 
 ```solidity
 // Core contracts to implement
 contracts/
-├── GrandWardenVault.sol     // Main password vault
-├── WalletVault.sol          // Web3 wallet management
+├── GrandWardenVault.sol     // Main password vault with atomic operations
+├── WalletVault.sol          // Web3 wallet management with multi-chain support
 ├── DeviceRegistry.sol       // Device authentication
 ├── RecoveryManager.sol      // Backup and recovery
+├── MultiChainRPC.sol        // Multi-chain balance and RPC integration
+├── AtomicVaultManager.sol   // Coordinated vault state management
 └── interfaces/
     ├── IGrandWarden.sol
+    ├── IWalletVault.sol     // Enhanced wallet interface
+    ├── IPasswordVault.sol   // Enhanced password interface
+    ├── IMultiChainRPC.sol   // Multi-chain RPC interface
     └── IVaultEvents.sol
+
+// Enhanced contract interfaces for user flow support
+
+interface IWalletVault {
+    // Seed phrase import and key derivation
+    function importSeedPhrase(bytes calldata encryptedSeed, string calldata walletName) 
+        external returns (bytes32 walletId);
+    
+    // BIP39/BIP44 key derivation for multiple chains
+    function deriveKeysFromSeed(bytes32 walletId, uint8[] calldata chainTypes) 
+        external returns (address[] memory addresses);
+    
+    // Multi-chain balance fetching within TEE
+    function fetchWalletBalances(bytes32 walletId) 
+        external view returns (ChainBalance[] memory balances);
+    
+    // Secure transaction signing
+    function signTransaction(bytes32 walletId, uint8 chainType, bytes32 txHash, bytes calldata txData) 
+        external returns (bytes memory signature);
+    
+    // Wallet metadata management
+    function updateWalletMetadata(bytes32 walletId, string calldata name, bool isActive) external;
+    
+    // Events for user flow
+    event WalletImported(address indexed user, bytes32 indexed walletId, string name, uint256 timestamp);
+    event BalancesFetched(address indexed user, bytes32 indexed walletId, uint256 totalValue);
+    event TransactionSigned(address indexed user, bytes32 indexed walletId, bytes32 txHash);
+}
+
+interface IPasswordVault {
+    // Add credential to existing vault
+    function addCredential(bytes32 vaultId, string calldata domain, 
+                          string calldata username, bytes calldata encryptedPassword) external;
+    
+    // Update entire vault blob atomically
+    function updateVaultBlob(bytes32 vaultId, bytes calldata newEncryptedBlob) 
+        external returns (string memory newCID);
+    
+    // Retrieve decrypted credentials (TEE only)
+    function getCredential(bytes32 vaultId, string calldata domain) 
+        external view returns (string memory username, string memory password);
+    
+    // Atomic vault operations with Walrus coordination
+    function atomicVaultUpdate(bytes32 vaultId, bytes calldata newData) 
+        external returns (string memory newCID, bytes32 suiTxHash);
+    
+    // Events for user flow
+    event CredentialAdded(address indexed user, bytes32 indexed vaultId, string domain, uint256 timestamp);
+    event VaultBlobUpdated(address indexed user, bytes32 indexed vaultId, string newCID, bytes32 suiTxHash);
+}
+
+interface IMultiChainRPC {
+    struct ChainBalance {
+        uint8 chainType;      // 1=Ethereum, 2=Polygon, 3=BSC, etc.
+        string tokenSymbol;   // ETH, MATIC, BNB, etc.
+        uint256 balance;      // Balance in wei
+        uint256 usdValue;     // USD value (optional)
+    }
+    
+    // Fetch balances for specific address across multiple chains
+    function getMultiChainBalances(address wallet, uint8[] calldata chains) 
+        external view returns (ChainBalance[] memory);
+    
+    // Execute RPC call to specific chain
+    function executeChainRPC(uint8 chainType, string calldata method, bytes calldata params) 
+        external view returns (bytes memory result);
+    
+    // Update RPC endpoints for chains
+    function updateChainRPC(uint8 chainType, string calldata rpcUrl) external;
+}
+
+interface IAtomicVaultManager {
+    // Coordinate Walrus upload and Sui state update
+    function executeAtomicUpdate(bytes32 vaultId, bytes calldata newVaultData) 
+        external returns (string memory walrusCID, bytes32 suiTxHash);
+    
+    // Rollback failed atomic operations
+    function rollbackFailedUpdate(bytes32 vaultId, string calldata failedCID) external;
+    
+    // Verify atomic operation completion
+    function verifyAtomicCompletion(bytes32 vaultId, string calldata cid, bytes32 suiTxHash) 
+        external view returns (bool completed);
+    
+    // Events for atomic operations
+    event AtomicUpdateStarted(address indexed user, bytes32 indexed vaultId, string walrusCID);
+    event AtomicUpdateCompleted(address indexed user, bytes32 indexed vaultId, bytes32 suiTxHash);
+    event AtomicUpdateFailed(address indexed user, bytes32 indexed vaultId, string reason);
+}
 ```
 
-**Key Events to Emit**:
+**Key Events to Emit for User Flow Support**:
 
 - `VaultCreated(address indexed user, bytes32 vaultId, uint256 timestamp)`
 - `DeviceRegistered(address indexed user, bytes32 deviceId, string deviceName)`
 - `BreachAlert(address indexed user, uint256 severity, string message)`
-- `WalletStored(address indexed user, bytes32 walletId, uint8 chainType)`
-- `TransactionSigned(address indexed user, bytes32 txHash, uint256 timestamp)`
+- `WalletImported(address indexed user, bytes32 walletId, string walletName, uint256 timestamp)` // For seed phrase import flow
+- `BalancesFetched(address indexed user, bytes32 walletId, uint256 totalValue)` // For real-time balance display
+- `CredentialAdded(address indexed user, bytes32 vaultId, string domain, uint256 timestamp)` // For password save flow
+- `VaultBlobUpdated(address indexed user, bytes32 vaultId, string newCID, bytes32 suiTxHash)` // For atomic updates
+- `AtomicUpdateCompleted(address indexed user, bytes32 vaultId, bytes32 suiTxHash)` // For UI confirmation
+- `TransactionSigned(address indexed user, bytes32 walletId, bytes32 txHash, uint8 chainType)` // Enhanced with chain info
 
 #### Dependencies
 
@@ -97,19 +196,27 @@ contracts/
 
 #### Success Metrics
 
-- [ ] All contracts deployed to Sapphire testnet
-- [ ] Comprehensive test suite with >90% coverage
-- [ ] Events properly emitted and verifiable
-- [ ] Gas optimization completed
-- [ ] Security audit checklist passed
+- [ ] All contracts deployed to Sapphire testnet with enhanced interfaces
+- [ ] Comprehensive test suite with >90% coverage including user flow scenarios
+- [ ] All events properly emitted and verifiable by The Graph
+- [ ] Gas optimization completed for multi-chain operations
+- [ ] Security audit checklist passed for TEE operations
+- [ ] BIP39/BIP44 key derivation working correctly
+- [ ] Multi-chain RPC integration functional (ETH, MATIC, etc.)
+- [ ] Atomic vault operations tested and reliable
+- [ ] Balance fetching performance <2 seconds
+- [ ] Seed phrase import flow complete end-to-end
 
 #### Completion Criteria
 
-1. **Functional Requirements**: All contract methods work as specified
-2. **Event Emissions**: All events fire correctly with proper indexing
-3. **Security**: No critical vulnerabilities in static analysis
-4. **Documentation**: ABI files and integration docs ready
-5. **Testing**: Integration tests pass against live testnet
+1. **Functional Requirements**: All contract methods work as specified with user flow support
+2. **Event Emissions**: All events fire correctly with proper indexing for real-time UI updates
+3. **Security**: No critical vulnerabilities in static analysis, especially for TEE operations
+4. **Documentation**: ABI files and integration docs ready with user flow examples
+5. **Testing**: Integration tests pass against live testnet including seed phrase import and password save flows
+6. **Multi-Chain Integration**: RPC calls to Ethereum and Polygon working within TEE
+7. **Atomic Operations**: Walrus coordination and Sui state updates functioning reliably
+8. **Performance**: Balance fetching and vault operations meet <2 second response time requirements
 
 ---
 
@@ -358,32 +465,298 @@ subgraph/
 #### Technical Specifications
 
 ```typescript
-// Multi-chain integration layers to implement
+// Enhanced frontend architecture for user flow support
 src/
+├── content-scripts/
+│   ├── form-detector.ts       // Detect login forms and successful submissions
+│   ├── credential-capture.ts  // Secure credential extraction from forms
+│   ├── ui-overlay.ts         // Password save prompts and notifications
+│   ├── page-injection.ts     // Grand Warden icon injection in input fields
+│   ├── autofill-handler.ts   // Automatic password filling
+│   └── security-scanner.ts   // Real-time phishing and security analysis
 ├── services/
 │   ├── chains/
-│   │   ├── sapphire.ts         // Sapphire contract interaction (Ethers.js)
-│   │   ├── sui.ts              // Sui contract interaction (Sui SDK)
-│   │   └── coordinator.ts      // Cross-chain coordination logic
-│   ├── graphql.ts             // Apollo client setup
-│   ├── encryption.ts          // Client-side encryption
-│   └── walrus.ts             // Walrus blob storage client
+│   │   ├── sapphire.ts       // Enhanced Sapphire integration with atomic operations
+│   │   ├── sui.ts            // Sui contract interaction with real-time updates
+│   │   ├── coordinator.ts    // Atomic cross-chain coordination logic
+│   │   └── multi-chain-rpc.ts // Multi-chain balance fetching service
+│   ├── graphql.ts           // Apollo client with real-time subscriptions
+│   ├── encryption.ts        // Client-side encryption with secure memory management
+│   ├── walrus.ts           // Enhanced Walrus integration with atomic uploads
+│   ├── atomic-operations.ts // Atomic vault update coordination
+│   └── balance-aggregator.ts // Real-time multi-chain balance aggregation
+├── ui/
+│   ├── wallet-import/
+│   │   ├── SeedPhraseInput.tsx    // Secure seed phrase input component
+│   │   ├── WalletBalances.tsx     // Real-time balance display
+│   │   ├── ImportProgress.tsx     // Loading states for import process
+│   │   └── SecurityWarnings.tsx   // Security notices and validations
+│   ├── password-vault/
+│   │   ├── CredentialCapture.tsx  // Password save prompt overlay
+│   │   ├── AutofillStatus.tsx     // Autofill indicators and controls
+│   │   └── SaveProgress.tsx       // Atomic save operation progress
+│   ├── notifications/
+│   │   ├── ToastManager.tsx       // Real-time notification system
+│   │   ├── ConfirmationAnimations.tsx // Success/error animations
+│   │   └── SecurityAlerts.tsx     // Breach and phishing alerts
+│   └── loading-states/
+│       ├── AtomicOperationLoader.tsx // Multi-step operation progress
+│       ├── BalanceLoader.tsx         // Balance fetching indicators
+│       └── TransactionLoader.tsx     // Cross-chain transaction progress
 ├── hooks/
-│   ├── useSapphireContracts.ts // Sapphire contract hooks
-│   ├── useSuiContracts.ts     // Sui Move contract hooks
-│   ├── useVault.ts            // Cross-chain vault operations
-│   ├── useWallet.ts           // Multi-chain wallet operations
-│   └── useDevices.ts          // Device registry (Sui + Sapphire)
+│   ├── wallet-hooks/
+│   │   ├── useSeedPhraseImport.ts    // Secure seed phrase import flow
+│   │   ├── useWalletBalances.ts      // Real-time balance fetching
+│   │   ├── useMultiChainWallet.ts    // Multi-chain wallet operations
+│   │   └── useWalletSigning.ts       // Transaction signing workflows
+│   ├── vault-hooks/
+│   │   ├── useCredentialCapture.ts   // Website credential capture
+│   │   ├── usePasswordSave.ts        // Atomic password save operations
+│   │   ├── useAutofill.ts           // Automatic password filling
+│   │   └── useVaultSync.ts          // Vault synchronization across devices
+│   ├── ui-hooks/
+│   │   ├── useToastNotifications.ts  // Real-time notification management
+│   │   ├── useLoadingStates.ts       // Multi-step operation progress
+│   │   ├── useFormDetection.ts       // Form detection and interaction
+│   │   └── useSecurityAlerts.ts      // Security warning management
+│   ├── blockchain-hooks/
+│   │   ├── useSapphireContracts.ts   // Enhanced Sapphire contract hooks
+│   │   ├── useSuiContracts.ts        // Sui Move contract hooks with real-time updates
+│   │   ├── useAtomicOperations.ts    // Atomic cross-chain operation management
+│   │   └── useGraphQLSubscriptions.ts // Real-time data subscriptions
+│   └── storage-hooks/
+│       ├── useWalrusStorage.ts       // Walrus blob management with atomic uploads
+│       ├── useDeviceSync.ts          // Device registry and synchronization
+│       └── useRecoveryShares.ts      // Recovery share management
 ├── types/
-│   ├── sapphire.ts            // Sapphire contract types
-│   ├── sui.ts                 // Sui Move contract types
-│   ├── cross-chain.ts         // Cross-chain operation types
-│   └── graphql.ts             // GraphQL generated types
+│   ├── user-flows/
+│   │   ├── wallet-import.ts          // Seed phrase import flow types
+│   │   ├── password-capture.ts       // Credential capture types
+│   │   ├── atomic-operations.ts      // Atomic operation types
+│   │   └── ui-interactions.ts        // UI interaction and animation types
+│   ├── blockchain/
+│   │   ├── sapphire.ts              // Enhanced Sapphire contract types
+│   │   ├── sui.ts                   // Sui Move contract types
+│   │   ├── multi-chain.ts           // Multi-chain balance and RPC types
+│   │   └── events.ts                // Real-time event types
+│   ├── storage/
+│   │   ├── walrus.ts               // Walrus blob storage types
+│   │   ├── vault-data.ts           // Vault data structure types
+│   │   └── encryption.ts           // Encryption and security types
+│   └── ui/
+│       ├── notifications.ts         // Toast and alert types
+│       ├── loading-states.ts        // Progress and loading indicator types
+│       └── form-detection.ts        // Form detection and interaction types
 └── utils/
-    ├── crypto.ts              // Encryption helpers
-    ├── formatting.ts          // Data formatting
-    ├── walrus-client.ts       // Walrus SDK integration
-    └── chain-sync.ts          // Cross-chain state synchronization
+    ├── security/
+    │   ├── secure-input.ts          // Secure input handling and memory management
+    │   ├── seed-phrase-validation.ts // BIP39 seed phrase validation
+    │   ├── form-security.ts         // Form detection security measures
+    │   └── phishing-detection.ts    // Real-time phishing detection
+    ├── crypto/
+    │   ├── encryption-helpers.ts    // Enhanced encryption utilities
+    │   ├── key-derivation.ts       // BIP39/BIP44 key derivation
+    │   └── secure-storage.ts       // Secure local storage management
+    ├── coordination/
+    │   ├── atomic-coordinator.ts    // Atomic cross-chain operation coordination
+    │   ├── walrus-coordinator.ts   // Walrus upload coordination
+    │   ├── sui-coordinator.ts      // Sui state update coordination
+    │   └── failure-recovery.ts     // Atomic operation failure recovery
+    ├── ui/
+    │   ├── animation-helpers.ts     // Success/error animation utilities
+    │   ├── progress-tracking.ts     // Multi-step operation progress tracking
+    │   ├── notification-manager.ts  // Toast and alert management
+    │   └── form-interaction.ts      // Form detection and interaction utilities
+    └── performance/
+        ├── balance-caching.ts       // Multi-chain balance caching
+        ├── rpc-optimization.ts     // RPC call optimization and pooling
+        └── subscription-manager.ts  // GraphQL subscription optimization
+
+// Content Script Architecture for User Flow Support
+
+// form-detector.ts - Detects login forms and submissions
+export class FormDetector {
+  // Detect login forms on page load
+  detectLoginForms(): HTMLFormElement[] {
+    const forms = document.querySelectorAll('form');
+    return Array.from(forms).filter(form => 
+      this.hasPasswordField(form) && this.hasUsernameField(form)
+    );
+  }
+  
+  // Monitor for successful form submissions
+  monitorFormSubmissions(onSuccess: (credentials: Credentials) => void): void {
+    document.addEventListener('submit', async (event) => {
+      const form = event.target as HTMLFormElement;
+      if (this.isLoginForm(form)) {
+        const credentials = this.extractCredentials(form);
+        
+        // Wait for navigation to detect success
+        setTimeout(() => {
+          if (this.isLoginSuccessful()) {
+            onSuccess(credentials);
+          }
+        }, 2000);
+      }
+    });
+  }
+  
+  private isLoginSuccessful(): boolean {
+    // Detect successful login by URL change, disappearing login form, etc.
+    return !document.querySelector('form[data-login-form]') && 
+           !document.querySelector('.error-message');
+  }
+}
+
+// credential-capture.ts - Secure credential extraction
+export class CredentialCapture {
+  // Securely extract credentials from form
+  extractCredentials(form: HTMLFormElement): Credentials {
+    const usernameField = form.querySelector('input[type="email"], input[type="text"]') as HTMLInputElement;
+    const passwordField = form.querySelector('input[type="password"]') as HTMLInputElement;
+    
+    const credentials = {
+      domain: window.location.hostname,
+      username: usernameField?.value || '',
+      password: passwordField?.value || '',
+      timestamp: Date.now()
+    };
+    
+    // Clear sensitive data from memory immediately after use
+    if (passwordField) passwordField.value = '';
+    
+    return credentials;
+  }
+  
+  // Secure memory management for credentials
+  secureStore(credentials: Credentials): Promise<string> {
+    // Encrypt in memory before any storage
+    const encrypted = this.encryptInMemory(credentials);
+    
+    // Clear original credentials from memory
+    Object.keys(credentials).forEach(key => delete credentials[key]);
+    
+    return this.sendToExtension(encrypted);
+  }
+}
+
+// ui-overlay.ts - Password save prompts
+export class UIOverlay {
+  // Show password save prompt
+  showSavePrompt(credentials: Credentials): Promise<boolean> {
+    return new Promise((resolve) => {
+      const overlay = this.createSavePromptOverlay(credentials);
+      document.body.appendChild(overlay);
+      
+      overlay.addEventListener('save', () => {
+        this.showSuccessAnimation();
+        resolve(true);
+      });
+      
+      overlay.addEventListener('dismiss', () => {
+        resolve(false);
+      });
+    });
+  }
+  
+  // Show success animation
+  showSuccessAnimation(): void {
+    const animation = this.createCheckmarkAnimation();
+    document.body.appendChild(animation);
+    
+    setTimeout(() => {
+      animation.remove();
+    }, 2000);
+  }
+  
+  // Inject Grand Warden icons in input fields
+  injectFieldIcons(): void {
+    const passwordFields = document.querySelectorAll('input[type="password"]');
+    passwordFields.forEach(field => {
+      const icon = this.createGrandWardenIcon();
+      this.positionIconInField(field as HTMLInputElement, icon);
+    });
+  }
+}
+
+// Real-time balance fetching hook
+export function useWalletBalances(walletId: string) {
+  const [balances, setBalances] = useState<ChainBalance[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchBalances = async () => {
+      try {
+        setLoading(true);
+        // Call Sapphire contract for multi-chain balance fetching
+        const result = await sapphireContract.fetchWalletBalances(walletId);
+        setBalances(result);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchBalances();
+    
+    // Set up real-time balance updates via GraphQL subscription
+    const subscription = subscribeToBalanceUpdates(walletId, (newBalances) => {
+      setBalances(newBalances);
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [walletId]);
+  
+  return { balances, loading, error };
+}
+
+// Atomic password save operation hook
+export function usePasswordSave() {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const savePassword = async (credentials: Credentials): Promise<boolean> => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      // Step 1: Encrypt credentials locally
+      const encrypted = await encryptCredentials(credentials);
+      
+      // Step 2: Get current vault from Walrus
+      const currentVault = await walrusService.getCurrentVault();
+      
+      // Step 3: Update vault in Sapphire TEE
+      const { newCID, suiTxHash } = await sapphireContract.atomicVaultUpdate(
+        currentVault.id, 
+        encrypted
+      );
+      
+      // Step 4: Verify atomic completion
+      const completed = await sapphireContract.verifyAtomicCompletion(
+        currentVault.id, 
+        newCID, 
+        suiTxHash
+      );
+      
+      if (!completed) {
+        throw new Error('Atomic operation failed to complete');
+      }
+      
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  return { savePassword, saving, error };
+}
 ```
 
 **Key Coordinated Operations**:
@@ -422,21 +795,26 @@ src/
 
 #### Success Metrics
 
-- [ ] All cross-chain password CRUD operations working
-- [ ] Multi-chain wallet storage and retrieval functional
-- [ ] Device registration working across Sui and Sapphire
-- [ ] Walrus blob storage integrated with UI
-- [ ] Real-time GraphQL subscriptions active for both chains
-- [ ] Cross-chain transaction success rate >90%
-- [ ] User error rate <8% (higher due to multi-chain complexity)
+- [ ] **User Flow #1 - Seed Phrase Import**: Complete end-to-end MetaMask import working with real-time balance display
+- [ ] **User Flow #2 - Password Save**: Form detection, credential capture, and atomic save operations functional
+- [ ] **Content Script Integration**: Form detection, UI overlays, and Grand Warden icon injection working across major websites
+- [ ] **Real-time Balance Display**: Multi-chain balance fetching <2 seconds, real-time updates via GraphQL subscriptions
+- [ ] **Atomic Operations**: Walrus upload + Sui pointer update coordination >95% success rate
+- [ ] **UI/UX Flow**: Loading states, progress indicators, and success/error animations working smoothly
+- [ ] **Security Features**: Secure input handling, memory management, and phishing detection active
+- [ ] **Cross-chain Coordination**: All coordinated operations across Sapphire, Sui, and Walrus functional
+- [ ] **Performance**: Credential save operations complete in <2 seconds with atomic guarantees
 
 #### Completion Criteria
 
-1. **Cross-Chain Feature Completeness**: All planned UI features connected to both Sapphire and Sui
-2. **Multi-Chain Data Consistency**: UI state matches coordinated blockchain state across chains
-3. **Performance**: App remains responsive during multi-chain operations
-4. **Cross-Chain Error Handling**: All failure modes handled gracefully including chain-specific errors
-5. **User Experience**: Smooth cross-chain transaction flows abstracted from technical complexity
+1. **User Flow Completeness**: Both seed phrase import and password save flows working end-to-end as described
+2. **Content Script Integration**: Form detection, credential capture, and UI overlay system fully functional
+3. **Real-time Features**: Balance fetching, progress tracking, and notification system working with <2s latency
+4. **Atomic Coordination**: Walrus + Sui atomic operations reliable with proper failure recovery
+5. **Security Implementation**: Secure input handling, memory management, and phishing detection operational
+6. **Performance Standards**: All user interactions meet responsiveness requirements (<2s for critical operations)
+7. **UI/UX Polish**: Loading states, animations, and progress indicators provide smooth user experience
+8. **Cross-Chain Data Consistency**: UI state accurately reflects coordinated blockchain state in real-time
 
 ---
 
@@ -455,27 +833,61 @@ src/
 #### Technical Specifications
 
 ```rust
-// ROFL worker structure
+// Enhanced ROFL worker structure for user flow support
 rofl-worker/
 ├── src/
-│   ├── main.rs            // Main worker entry point
-│   ├── sui_monitor.rs     // Sui blockchain monitoring
-│   ├── sapphire_bridge.rs // Sapphire event emission
-│   ├── event_mapper.rs    // Event translation logic
-│   └── config.rs          // Configuration management
-├── Cargo.toml             // Rust dependencies
-└── enclave/
-    ├── Enclave.edl        // Enclave definition
-    └── trusted/           // TEE-protected code
+│   ├── main.rs                 // Main worker entry point with user flow event prioritization
+│   ├── monitoring/
+│   │   ├── sui_monitor.rs      // Enhanced Sui blockchain monitoring for Grand Warden events
+│   │   ├── event_filter.rs     // Filter for vault creation, device registration, password saves
+│   │   ├── health_monitor.rs   // Worker health and performance monitoring
+│   │   └── metrics_collector.rs // Event processing metrics and latency tracking
+│   ├── bridging/
+│   │   ├── sapphire_bridge.rs  // Enhanced Sapphire event emission for user flows
+│   │   ├── event_mapper.rs     // Event translation with user flow context
+│   │   ├── atomic_coordinator.rs // Coordinate atomic operations across chains
+│   │   └── failure_recovery.rs // Handle failed bridge operations and retry logic
+│   ├── processing/
+│   │   ├── event_queue.rs      // Prioritized event processing queue
+│   │   ├── batch_processor.rs  // Efficient batch processing for high throughput
+│   │   ├── duplicate_filter.rs // Prevent duplicate event processing
+│   │   └── state_tracker.rs    // Track cross-chain state synchronization
+│   ├── security/
+│   │   ├── attestation.rs      // TEE attestation and verification
+│   │   ├── secure_comms.rs     // Secure communication with Sapphire
+│   │   └── audit_logger.rs     // Security audit logging
+│   └── config/
+│       ├── config.rs           // Configuration management
+│       ├── chain_config.rs     // Chain-specific configurations
+│       └── retry_config.rs     // Retry and failure handling configurations
+├── Cargo.toml                  // Enhanced Rust dependencies
+├── enclave/
+│   ├── Enclave.edl            // Enhanced enclave definition
+│   ├── trusted/
+│   │   ├── event_processor.rs  // TEE-protected event processing
+│   │   ├── crypto_ops.rs      // Cryptographic operations
+│   │   └── secure_storage.rs  // Secure temporary storage
+│   └── untrusted/
+│       ├── bridge_interface.rs // Interface to external systems
+│       └── rpc_client.rs      // RPC client implementations
+└── tests/
+    ├── integration/
+    │   ├── user_flow_tests.rs  // Test complete user flows through ROFL
+    │   ├── atomic_ops_tests.rs // Test atomic operation coordination
+    │   └── failure_recovery_tests.rs // Test failure scenarios
+    └── unit/
+        ├── event_mapping_tests.rs // Test event translation accuracy
+        └── performance_tests.rs   // Test processing performance
 ```
 
-**Key Components**:
+**Enhanced Components for User Flow Support**:
 
-- **Sui Event Listener**: Monitor Sui network for Grand Warden events (device registration, vault creation, recovery initiation)
-- **Event Translation Engine**: Convert Sui events to Sapphire-compatible format for synthetic event emission
-- **Sapphire Integration**: Call Sapphire contract methods to emit EVM events that The Graph can index
-- **Bridge State Management**: Ensure no events are lost or duplicated during the cross-chain bridging process
-- **Health Monitoring**: Track bridge performance, event processing latency, and failure recovery
+- **Priority Event Processing**: Monitor Sui network with priority queue for user flow events (vault creation, password saves, wallet imports)
+- **Atomic Operation Coordination**: Coordinate atomic operations across Sui and Sapphire to ensure data consistency
+- **Enhanced Event Translation**: Convert Sui events to Sapphire-compatible format with user flow context and metadata
+- **Failure Recovery System**: Handle failed bridge operations with retry logic, exponential backoff, and manual intervention alerts
+- **Real-time Performance Monitoring**: Track bridge performance, event processing latency, and user flow completion rates
+- **User Flow Validation**: Verify end-to-end user flow completion across both chains before marking operations as successful
 
 #### Dependencies
 
@@ -503,19 +915,23 @@ rofl-worker/
 
 #### Success Metrics
 
-- [ ] Sui events detected within 10 seconds
-- [ ] 100% event translation accuracy
-- [ ] Synthetic Sapphire events properly indexed
-- [ ] <1% event processing failure rate
-- [ ] Worker uptime >99.5%
+- [ ] **User Flow Event Processing**: Vault creation and password save events processed within 10 seconds
+- [ ] **Atomic Operation Success**: >95% success rate for coordinated Sui→Sapphire operations 
+- [ ] **Event Translation Accuracy**: 100% accuracy for user flow events with proper context preservation
+- [ ] **Failure Recovery**: Failed operations recovered within 60 seconds using retry mechanisms
+- [ ] **Real-time Performance**: End-to-end user flow completion tracking and validation working
+- [ ] **Bridge Reliability**: Worker uptime >99.5% with automatic failover and recovery
+- [ ] **User Flow Validation**: End-to-end verification of wallet import and password save flows via ROFL
 
 #### Completion Criteria
 
-1. **Event Monitoring**: All relevant Sui events captured
-2. **Translation Accuracy**: Events correctly mapped to Sapphire schema
-3. **Reliability**: Worker handles failures and restarts gracefully
-4. **Performance**: Event processing latency <30 seconds
-5. **Integration**: Subgraph successfully indexes mirrored events
+1. **User Flow Event Monitoring**: All user flow events (vault creation, password saves, wallet imports) captured and processed
+2. **Atomic Operation Coordination**: Coordinated operations across Sui and Sapphire working with >95% success rate
+3. **Translation Accuracy**: Events correctly mapped to Sapphire schema with user flow context preserved
+4. **Failure Recovery**: Robust retry mechanisms and failure recovery operational with <60 second recovery time
+5. **Performance Standards**: Event processing latency <10 seconds for critical user flow events
+6. **Integration Verification**: Subgraph successfully indexes all mirrored events with real-time UI updates working
+7. **End-to-End Validation**: Complete user flows (seed phrase import, password save) working through ROFL bridge
 
 ---
 
@@ -535,33 +951,338 @@ rofl-worker/
 #### Technical Specifications
 
 ```typescript
-// Security system structure
+// Enhanced security system structure for user flows
 src/security/
 ├── zklogin/
-│   ├── auth.ts            // zkLogin implementation
-│   ├── providers.ts       // OAuth provider integration
-│   └── verification.ts    // JWT verification
+│   ├── auth.ts            // Enhanced zkLogin implementation for seamless onboarding
+│   ├── providers.ts       // Google/Apple OAuth provider integration
+│   ├── verification.ts    // JWT verification and proof generation
+│   ├── key-linking.ts     // Link zkLogin identity to Grand Warden vault
+│   └── session-manager.ts // Secure session management across devices
+├── seed-phrase/
+│   ├── secure-input.ts    // Secure seed phrase input handling with memory protection
+│   ├── validation.ts      // BIP39 seed phrase validation and entropy checking
+│   ├── import-flow.ts     // Complete seed phrase import security flow
+│   ├── memory-protection.ts // Secure memory management for sensitive data
+│   └── derivation.ts      // Secure key derivation within browser extension
 ├── recovery/
-│   ├── shares.ts          // Secret sharing (Shamir's)
-│   ├── social.ts          // Social recovery flows
-│   └── backup.ts          // Backup generation
+│   ├── shares.ts          // Shamir's secret sharing with zkLogin integration
+│   ├── social.ts          // Social recovery flows with cross-chain coordination
+│   ├── backup.ts          // Secure backup generation and validation
+│   ├── coordinator.ts     // Recovery coordination across Sui and Sapphire
+│   └── verification.ts    // Recovery request verification and authorization
 ├── phishing/
-│   ├── detector.ts        // Real-time phishing detection
-│   ├── database.ts        // Known phishing DB
-│   └── heuristics.ts      // Behavioral analysis
-└── walrus/
-    ├── client.ts          // Walrus blob client
-    ├── acl.ts            // Access control layer
-    └── seal.ts           // Seal protocol integration
+│   ├── detector.ts        // Real-time phishing detection for user flows
+│   ├── database.ts        // Known phishing and malicious site database
+│   ├── heuristics.ts      // Behavioral analysis and suspicious activity detection
+│   ├── url-analysis.ts    // Real-time URL and domain reputation checking
+│   └── form-security.ts   // Secure form interaction and validation
+├── walrus-security/
+│   ├── client.ts          // Enhanced Walrus blob client with security features
+│   ├── acl.ts            // Advanced access control layer with device authorization
+│   ├── seal.ts           // Seal protocol integration with security monitoring
+│   ├── encryption.ts     // Additional encryption layers for sensitive blobs
+│   └── audit.ts          // Security audit logging for blob access
+├── input-security/
+│   ├── secure-forms.ts    // Secure form input handling and validation
+│   ├── memory-manager.ts  // Secure memory management for sensitive inputs
+│   ├── sanitization.ts    // Input sanitization and security validation
+│   └── clipboard-protection.ts // Secure clipboard handling for sensitive data
+└── monitoring/
+    ├── security-alerts.ts  // Real-time security alert system
+    ├── breach-detection.ts // Automated breach detection and response
+    ├── audit-logger.ts     // Comprehensive security audit logging
+    └── threat-intelligence.ts // Threat intelligence integration
+
+// Enhanced security implementations for user flows
+
+// secure-input.ts - Secure seed phrase input handling
+export class SecureSeedPhraseInput {
+    private secureMemory: ArrayBuffer;
+    private inputValidator: BIP39Validator;
+    private memoryProtection: MemoryProtection;
+    
+    // Secure seed phrase input with real-time validation
+    async handleSeedPhraseInput(inputElement: HTMLInputElement): Promise<SecureSeedPhrase> {
+        // Enable secure input mode
+        this.enableSecureInputMode(inputElement);
+        
+        // Real-time validation as user types
+        inputElement.addEventListener('input', (event) => {
+            const value = (event.target as HTMLInputElement).value;
+            this.validateSeedPhraseRealTime(value);
+        });
+        
+        // Handle paste events securely
+        inputElement.addEventListener('paste', (event) => {
+            event.preventDefault();
+            this.handleSecurePaste(event, inputElement);
+        });
+        
+        return new Promise((resolve, reject) => {
+            inputElement.addEventListener('submit', async (event) => {
+                try {
+                    const seedPhrase = await this.extractAndValidateSeedPhrase(inputElement);
+                    
+                    // Clear input immediately
+                    this.securelyWipeInput(inputElement);
+                    
+                    resolve(seedPhrase);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+    
+    // Secure memory management for seed phrases
+    private async extractAndValidateSeedPhrase(input: HTMLInputElement): Promise<SecureSeedPhrase> {
+        const rawValue = input.value;
+        
+        // Validate BIP39 compliance
+        if (!this.inputValidator.isValidBIP39(rawValue)) {
+            throw new Error('Invalid seed phrase format');
+        }
+        
+        // Store in secure memory
+        const securePhrase = await this.memoryProtection.secureStore(rawValue);
+        
+        // Clear original value
+        input.value = '';
+        input.blur();
+        
+        return securePhrase;
+    }
+    
+    // Secure paste handling
+    private async handleSecurePaste(event: ClipboardEvent, input: HTMLInputElement): Promise<void> {
+        const clipboardData = event.clipboardData?.getData('text') || '';
+        
+        // Validate before setting
+        if (this.inputValidator.isValidBIP39(clipboardData)) {
+            input.value = clipboardData;
+            this.validateSeedPhraseRealTime(clipboardData);
+            
+            // Clear clipboard for security
+            await navigator.clipboard.writeText('');
+        } else {
+            this.showSecurityWarning('Invalid seed phrase format detected');
+        }
+    }
+    
+    // Enable secure input protections
+    private enableSecureInputMode(input: HTMLInputElement): void {
+        // Disable browser autocomplete
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('spellcheck', 'false');
+        
+        // Add security attributes
+        input.setAttribute('data-secure-input', 'true');
+        
+        // Prevent certain developer tools interactions
+        input.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+    
+    // Secure memory wipe
+    private securelyWipeInput(input: HTMLInputElement): void {
+        // Multiple overwrites for security
+        for (let i = 0; i < 3; i++) {
+            input.value = ''.padStart(input.value.length, '0');
+            input.value = ''.padStart(input.value.length, '1');
+        }
+        input.value = '';
+    }
+}
+
+// import-flow.ts - Complete secure seed phrase import flow
+export class SecureSeedPhraseImportFlow {
+    private secureInput: SecureSeedPhraseInput;
+    private walletVault: WalletVaultService;
+    private progressTracker: ImportProgressTracker;
+    
+    // Execute complete secure import flow
+    async executeSecureImport(walletName: string): Promise<ImportResult> {
+        const progress = this.progressTracker.start();
+        
+        try {
+            // Step 1: Secure seed phrase input
+            progress.updateStep('Secure Input', 'Waiting for seed phrase...');
+            const secureSeedPhrase = await this.secureInput.handleSeedPhraseInput();
+            
+            // Step 2: Security validation
+            progress.updateStep('Security Validation', 'Validating seed phrase security...');
+            await this.validateSeedPhraseSecurity(secureSeedPhrase);
+            
+            // Step 3: Key derivation preview
+            progress.updateStep('Key Derivation', 'Deriving wallet addresses...');
+            const derivedAddresses = await this.previewDerivedAddresses(secureSeedPhrase);
+            
+            // Step 4: User confirmation
+            progress.updateStep('Confirmation', 'Confirming wallet details...');
+            const confirmed = await this.confirmWalletDetails(walletName, derivedAddresses);
+            
+            if (!confirmed) {
+                throw new Error('Import cancelled by user');
+            }
+            
+            // Step 5: Secure storage in Sapphire TEE
+            progress.updateStep('Secure Storage', 'Storing wallet in secure enclave...');
+            const walletId = await this.walletVault.secureImport(secureSeedPhrase, walletName);
+            
+            // Step 6: Balance fetching
+            progress.updateStep('Balance Fetching', 'Fetching wallet balances...');
+            const balances = await this.walletVault.fetchInitialBalances(walletId);
+            
+            // Step 7: Success confirmation
+            progress.complete({
+                walletId,
+                walletName,
+                balances,
+                addresses: derivedAddresses
+            });
+            
+            return {
+                success: true,
+                walletId,
+                balances,
+                message: 'Wallet imported successfully into secure vault'
+            };
+            
+        } catch (error) {
+            progress.fail(error.message);
+            
+            // Secure cleanup on failure
+            await this.secureCleanup();
+            
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+    
+    // Validate seed phrase security
+    private async validateSeedPhraseSecurity(seedPhrase: SecureSeedPhrase): Promise<void> {
+        // Check entropy
+        if (!this.hasAdequateEntropy(seedPhrase)) {
+            throw new Error('Seed phrase has insufficient entropy');
+        }
+        
+        // Check against common weak phrases
+        if (await this.isWeakSeedPhrase(seedPhrase)) {
+            throw new Error('Seed phrase appears to be weak or commonly used');
+        }
+        
+        // Validate checksum
+        if (!this.validateBIP39Checksum(seedPhrase)) {
+            throw new Error('Seed phrase checksum validation failed');
+        }
+    }
+    
+    // Preview derived addresses for user confirmation
+    private async previewDerivedAddresses(seedPhrase: SecureSeedPhrase): Promise<DerivedAddresses> {
+        // Derive addresses for supported chains without storing private keys
+        const addresses = {
+            ethereum: await this.deriveAddress(seedPhrase, ChainType.Ethereum),
+            polygon: await this.deriveAddress(seedPhrase, ChainType.Polygon),
+            sui: await this.deriveAddress(seedPhrase, ChainType.Sui),
+        };
+        
+        return addresses;
+    }
+    
+    // Secure cleanup on failure
+    private async secureCleanup(): Promise<void> {
+        // Wipe sensitive data from memory
+        await this.secureInput.memoryWipe();
+        
+        // Clear any temporary storage
+        this.progressTracker.secureCleanup();
+        
+        // Force garbage collection if available
+        if (window.gc) {
+            window.gc();
+        }
+    }
+}
+
+// memory-protection.ts - Secure memory management
+export class MemoryProtection {
+    private sensitiveData: Map<string, ArrayBuffer>;
+    private cleanupTimers: Map<string, NodeJS.Timeout>;
+    
+    // Store sensitive data in secure memory
+    async secureStore(data: string, timeoutMs: number = 300000): Promise<string> {
+        const id = this.generateSecureId();
+        
+        // Convert to ArrayBuffer for better memory control
+        const encoder = new TextEncoder();
+        const buffer = encoder.encode(data);
+        
+        // Store in secure map
+        this.sensitiveData.set(id, buffer);
+        
+        // Set automatic cleanup
+        const timer = setTimeout(() => {
+            this.secureDelete(id);
+        }, timeoutMs);
+        
+        this.cleanupTimers.set(id, timer);
+        
+        return id;
+    }
+    
+    // Retrieve and decrypt sensitive data
+    async secureRetrieve(id: string): Promise<string> {
+        const buffer = this.sensitiveData.get(id);
+        
+        if (!buffer) {
+            throw new Error('Sensitive data not found or expired');
+        }
+        
+        const decoder = new TextDecoder();
+        return decoder.decode(buffer);
+    }
+    
+    // Securely delete sensitive data
+    secureDelete(id: string): void {
+        const buffer = this.sensitiveData.get(id);
+        
+        if (buffer) {
+            // Overwrite buffer with random data
+            const randomData = new Uint8Array(buffer.byteLength);
+            crypto.getRandomValues(randomData);
+            new Uint8Array(buffer).set(randomData);
+            
+            this.sensitiveData.delete(id);
+        }
+        
+        const timer = this.cleanupTimers.get(id);
+        if (timer) {
+            clearTimeout(timer);
+            this.cleanupTimers.delete(id);
+        }
+    }
+    
+    // Emergency wipe all sensitive data
+    emergencyWipe(): void {
+        for (const id of this.sensitiveData.keys()) {
+            this.secureDelete(id);
+        }
+    }
+}
 ```
 
-**Key Features**:
+**Enhanced Security Features for User Flows**:
 
-- **zkLogin Flow**: OAuth → JWT → Zero-knowledge proof → Blockchain auth
-- **Recovery Mechanism**: Generate/store/recover secret shares
-- **Phishing Protection**: URL analysis, domain reputation, ML detection
-- **Encrypted Storage**: Client-side encryption before Walrus upload
-- **Breach Alerts**: Monitor password databases and notify users
+- **Secure Seed Phrase Import**: BIP39 validation, entropy checking, secure memory management, and multi-layer input protection
+- **Enhanced zkLogin Flow**: Seamless OAuth → JWT → Zero-knowledge proof → Blockchain auth with session management
+- **Coordinated Recovery Mechanism**: Cross-chain secret sharing with Sui recovery logic coordination and Sapphire verification
+- **Real-time Phishing Protection**: URL analysis, domain reputation, behavioral detection for all user interactions
+- **Advanced Encrypted Storage**: Multi-layer encryption before Walrus upload with enhanced access control via Seal
+- **Proactive Breach Monitoring**: Real-time password database monitoring with instant alerts via The Graph integration
+- **Secure Memory Management**: Advanced memory protection for sensitive data with automatic cleanup and emergency wipe capabilities
+- **Input Security**: Comprehensive secure input handling for forms, seed phrases, and sensitive data with clipboard protection
 
 #### Dependencies
 
@@ -590,20 +1311,24 @@ src/security/
 
 #### Success Metrics
 
-- [ ] Sui zkLogin onboarding works for Google/Apple with cross-chain coordination
-- [ ] Cross-chain social recovery successfully restores accounts on both chains
-- [ ] Enhanced Walrus security with cross-chain access control functional
-- [ ] Phishing detection catches >90% of known threats
-- [ ] Cross-chain breach alerts fire within 24 hours
-- [ ] End-to-end encryption verified across Sapphire, Sui, and Walrus
+- [ ] **Secure Seed Phrase Import**: Complete MetaMask import flow working with secure input handling and real-time validation
+- [ ] **zkLogin Primary Authentication**: Google/Apple onboarding working seamlessly with cross-chain vault linking
+- [ ] **Coordinated Social Recovery**: Cross-chain recovery working with Sui logic coordination and Sapphire verification
+- [ ] **Enhanced Security Integration**: Walrus + Seal security with multi-layer encryption and advanced access control operational
+- [ ] **Real-time Phishing Protection**: >90% threat detection accuracy with immediate warnings during user flows
+- [ ] **Proactive Breach Monitoring**: Cross-chain breach alerts firing within 24 hours via The Graph integration
+- [ ] **Memory Security**: Secure memory management for sensitive data with verified wipe capabilities and emergency cleanup
+- [ ] **Input Security**: All user inputs (seed phrases, passwords, forms) protected with comprehensive security measures
 
 #### Completion Criteria
 
-1. **Cross-Chain Authentication**: Sui zkLogin flow completely functional with Sapphire coordination
-2. **Cross-Chain Recovery**: Social recovery tested with real shares across both chains
-3. **Security**: Phishing protection actively working for cross-chain operations
-4. **Enhanced Storage**: Walrus integration with cross-chain ACLs and advanced encryption
-5. **Cross-Chain Monitoring**: Breach detection system operational across Sapphire and Sui
+1. **Secure User Onboarding**: Seed phrase import flow working end-to-end with all security measures operational
+2. **Primary Authentication**: zkLogin flow completely functional with seamless Google/Apple integration and cross-chain coordination
+3. **Coordinated Recovery**: Social recovery tested with real shares, cross-chain coordination, and recovery verification
+4. **Comprehensive Security**: Phishing protection, input security, and memory management actively protecting all user flows
+5. **Enhanced Storage Security**: Walrus + Seal integration with multi-layer encryption and advanced access control fully operational
+6. **Proactive Monitoring**: Real-time breach detection and security monitoring operational across all system components
+7. **Security Validation**: All security measures tested and verified through comprehensive security audit and penetration testing
 
 ---
 
@@ -662,19 +1387,24 @@ deployment/
 
 #### Success Metrics
 
-- [ ] Extension approved by Chrome Web Store
-- [ ] Testnet contracts deployed successfully
-- [ ] Security audit passes with no critical issues
-- [ ] Documentation complete and user-tested
-- [ ] Production monitoring operational
+- [ ] **Extension Deployment**: Browser extension approved and live in Chrome Web Store and Firefox Add-ons
+- [ ] **User Flow Validation**: Both seed phrase import and password save flows working perfectly in production environment
+- [ ] **Testnet Deployment**: All smart contracts (Sapphire + Sui) deployed and verified on testnets
+- [ ] **Security Certification**: Comprehensive security audit passed with no critical issues across all user flows
+- [ ] **Performance Validation**: All user flow performance requirements met (<2s for critical operations)
+- [ ] **Production Monitoring**: Real-time monitoring operational for all system components and user flows
+- [ ] **User Testing**: Beta users successfully completing both major user flows with <5% error rate
+- [ ] **Documentation Completeness**: User guides, developer docs, and troubleshooting guides complete and tested
 
 #### Completion Criteria
 
-1. **Extension**: Live in browser stores and installable
-2. **Contracts**: Testnet deployment verified and functional
-3. **Infrastructure**: Production services running with monitoring
-4. **Security**: Audit completed with all issues resolved
-5. **Documentation**: Complete user and developer resources
+1. **Production Extension**: Live in browser stores with both user flows working flawlessly
+2. **User Flow Validation**: Seed phrase import and password save flows tested and verified in production
+3. **Complete Deployment**: All contracts (Sapphire + Sui) deployed, ROFL worker operational, The Graph indexing live
+4. **Security Validation**: Comprehensive security audit completed with all user flow security measures verified
+5. **Performance Standards**: All user flow performance requirements met and monitored in production
+6. **User Experience**: Beta testing completed with verified user success rates and satisfaction
+7. **Operational Readiness**: Production monitoring, alerting, and support documentation complete
 
 ---
 
@@ -976,42 +1706,47 @@ module grandwarden::walrus_manager {
 
 ### Integration Testing Framework
 
-**End-to-End Test Scenarios**:
+**Enhanced End-to-End Test Scenarios for User Flows**:
 
-1. **New User Onboarding**:
+1. **Complete Seed Phrase Import Flow**:
 
-   - Install extension → zkLogin setup → Create first vault → Store password → Verify storage
+   - Install extension → Open Wallet Vault → Click "Import Existing Wallet" → Enter MetaMask seed phrase securely → See security validations → Confirm wallet name → Wait for secure TEE processing → View real-time balance fetching → Verify ETH/MATIC balances displayed → Confirm wallet in fortress state
 
-2. **Cross-Chain Event Flow**:
+2. **Complete Password Save Flow**:
 
-   - Trigger Sui event → Verify ROFL capture → Check Sapphire emission → Confirm subgraph index → See UI update
+   - Navigate to Unifi login page → Enter credentials → See Grand Warden icon in fields → Submit login successfully → See "Save password?" banner → Click "Save" → Watch atomic vault update → See checkmark animation → Verify vault updated in UI → Test autofill on return visit
 
-3. **Recovery Scenario**:
+3. **Cross-Chain Atomic Operation Flow**:
 
-   - Create account → Generate recovery shares → Simulate device loss → Recover using shares → Verify access
+   - Trigger password save → Verify Sapphire TEE processing → Confirm Walrus blob upload → Check Sui pointer update → Verify ROFL event mirroring → Confirm The Graph indexing → See real-time UI update → Validate atomic operation completion
 
-4. **Security Response**:
+4. **Security & Recovery Integration**:
 
-   - Detect breach → Generate alert → Fire UI notification → User remediation → Threat resolution
+   - Import seed phrase with zkLogin authentication → Generate social recovery shares → Store in coordinated system → Simulate device compromise → Initiate recovery flow → Verify cross-chain recovery coordination → Restore complete access to both Password and Wallet Vaults
 
-5. **Multi-Device Sync**:
-   - Register device A → Store passwords → Register device B → Verify sync → Test concurrent updates
+5. **Multi-Chain Performance Validation**:
+
+   - Import multi-chain wallet → Verify balance fetching across ETH, MATIC, Sui → Test transaction signing → Verify cross-chain coordination → Validate <2 second response times → Confirm real-time balance updates
+
+6. **Comprehensive Security Testing**:
+
+   - Test phishing detection during password save → Verify secure input handling for seed phrases → Validate memory protection and cleanup → Test breach detection and alerts → Verify all security measures during user flows
 
 ### Monitoring & Metrics
 
-**Operational Metrics**:
+**Enhanced Operational Metrics for User Flows**:
 
-- Graph Node uptime and query latency
-- Smart contract gas usage and failure rates
-- ROFL worker event processing speed
-- Extension crash rates and user errors
+- **User Flow Performance**: Seed phrase import completion time, password save operation latency, real-time balance fetch speed
+- **Cross-Chain Coordination**: Atomic operation success rates, ROFL event processing speed, Sui↔Sapphire sync latency
+- **System Reliability**: Graph Node uptime and query latency, smart contract gas usage and failure rates, extension crash rates during user flows
+- **Real-time Features**: Balance update latency, notification delivery time, UI responsiveness during operations
 
-**Security Metrics**:
+**Enhanced Security Metrics for User Flows**:
 
-- Breach detection accuracy and false positive rates
-- Recovery success rates
-- Phishing detection effectiveness
-- Contract audit findings and remediation
+- **Input Security**: Secure seed phrase handling effectiveness, memory protection validation, secure form interaction success rates
+- **Threat Detection**: Phishing detection accuracy during user flows, breach alert delivery time, false positive rates for user operations
+- **Recovery Systems**: Cross-chain recovery success rates, zkLogin authentication reliability, social recovery coordination effectiveness
+- **Audit & Compliance**: Security audit findings across user flows, penetration testing results, vulnerability remediation tracking
 
 ---
 
@@ -1019,44 +1754,42 @@ module grandwarden::walrus_manager {
 
 ### Feature Completeness Checklist
 
-**Core Password Vault**:
+**Enhanced Password Vault with User Flow Support**:
 
-- [ ] Create encrypted password entries
-- [ ] Retrieve and decrypt stored passwords
-- [ ] Update existing password entries
-- [ ] Delete password entries
-- [ ] Search and filter password vault
-- [ ] Browser autofill integration
-- [ ] Password strength analysis
-- [ ] Breach detection and alerts
+- [ ] **Complete Password Save Flow**: Form detection, credential capture, UI overlay prompts, atomic vault updates
+- [ ] **Real-time Autofill Integration**: Automatic password filling with Grand Warden icon injection and security validation
+- [ ] **Atomic CRUD Operations**: Create, read, update, delete password entries with coordinated Walrus + Sui state management
+- [ ] **Advanced Search & Filter**: Password vault search with real-time results and security categorization
+- [ ] **Proactive Security**: Password strength analysis, breach detection, and real-time security alerts
+- [ ] **Cross-Device Sync**: Seamless password synchronization across authorized devices with conflict resolution
 
-**Web3 Wallet Vault**:
+**Enhanced Web3 Wallet Vault with User Flow Support**:
 
-- [ ] Store encrypted private keys
-- [ ] Multi-chain support (EVM, Sui)
-- [ ] Transaction signing workflows
-- [ ] Key derivation and management
-- [ ] Hardware wallet integration
-- [ ] Wallet import/export functionality
+- [ ] **Complete Seed Phrase Import Flow**: Secure MetaMask import with BIP39 validation, entropy checking, and secure memory management
+- [ ] **Real-time Multi-Chain Support**: EVM, Sui, and other chains with automatic balance fetching and real-time updates
+- [ ] **Secure Transaction Signing**: TEE-based signing workflows with phishing protection and user confirmation
+- [ ] **Advanced Key Management**: BIP39/BIP44 key derivation, secure key storage, and multi-chain address generation
+- [ ] **Hardware Wallet Integration**: Support for hardware wallet import and coordination with TEE security
+- [ ] **Seamless Wallet Operations**: Import, export, backup, and recovery with cross-chain coordination
 
-**Security & Recovery**:
+**Enhanced Security & Recovery with User Flow Integration**:
 
-- [ ] zkLogin OAuth integration
-- [ ] Social recovery share generation
-- [ ] Multi-party recovery workflows
-- [ ] Phishing detection and warnings
-- [ ] Encryption key management
-- [ ] Device registration and management
+- [ ] **Primary zkLogin Authentication**: Seamless Google/Apple OAuth integration with cross-chain vault linking and session management
+- [ ] **Coordinated Social Recovery**: Cross-chain secret sharing with Sui recovery logic and Sapphire verification coordination
+- [ ] **Comprehensive Security Protection**: Real-time phishing detection, secure input handling, and memory protection during all user flows
+- [ ] **Advanced Encryption Management**: Multi-layer encryption for vault data with secure key derivation and management
+- [ ] **Intelligent Device Management**: Secure device registration, authorization, and cross-device synchronization with conflict resolution
+- [ ] **Proactive Threat Response**: Automated breach detection, real-time security alerts, and coordinated threat mitigation
 
-**Cross-Chain Infrastructure**:
+**Enhanced Cross-Chain Infrastructure for User Flow Support**:
 
-- [ ] Oasis Sapphire smart contracts (private operations)
-- [ ] Sui Move contracts (public state, device registry, metadata)
-- [ ] The Graph multi-chain subgraph indexing
-- [ ] ROFL Sui event mirroring to Sapphire
-- [ ] Real-time GraphQL subscriptions across chains
-- [ ] Walrus decentralized storage with Sui access control
-- [ ] Cross-chain state synchronization and coordination
+- [ ] **Advanced Sapphire Contracts**: TEE-based private operations with BIP39/BIP44 key derivation, multi-chain RPC integration, and atomic vault management
+- [ ] **Coordinated Sui Contracts**: Public state management, device registry, vault metadata pointers, and recovery logic coordination
+- [ ] **Unified Data Layer**: The Graph real-time indexing with multi-chain event aggregation and user flow tracking
+- [ ] **Robust ROFL Bridge**: Critical data bridge with atomic operation coordination, failure recovery, and user flow validation
+- [ ] **Real-time Subscriptions**: GraphQL subscriptions for instant UI updates during user flows with <2s latency
+- [ ] **Secure Storage Integration**: Walrus + Seal decentralized storage with advanced access control and multi-layer encryption
+- [ ] **Atomic Coordination**: Cross-chain state synchronization with atomic operations and failure recovery mechanisms
 
 ### Technical Completeness Requirements
 
@@ -1136,6 +1869,10 @@ This comprehensive build plan provides a systematic approach to completing Grand
 4. Plan security audit engagement early for multi-chain architecture
 5. Begin user research for cross-chain UX validation
 
-The infrastructure foundation is strong, and the frontend components are well-developed. With disciplined execution of this comprehensive cross-chain plan, Grand Warden can achieve its goal of becoming the premier privacy-first security suite for Web2 and Web3 credentials, leveraging the best of both Oasis Sapphire's confidential compute and Sui's efficient public state management.
+The infrastructure foundation is strong, and the frontend components are well-developed. This enhanced build plan now includes comprehensive specifications for the exact user flows described - from seamless MetaMask seed phrase import with real-time balance display to effortless website password saving with atomic cross-chain coordination.
+
+With disciplined execution of this user-flow-optimized plan, Grand Warden will deliver the described user experience: users will see their wallets imported into a "fortress" with immediate balance updates, and password saves will complete with checkmark animations in under 2 seconds, all while maintaining the highest security standards through coordinated TEE operations, atomic cross-chain state management, and comprehensive threat protection.
+
+The plan ensures that every user interaction - from secure input handling to real-time notifications - is backed by robust technical implementations that abstract the complexity of cross-chain coordination while delivering a seamless, consumer-grade experience.
 
 ---
