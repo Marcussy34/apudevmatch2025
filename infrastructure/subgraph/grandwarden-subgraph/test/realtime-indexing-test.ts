@@ -1,4 +1,8 @@
 import { ethers } from "ethers";
+import * as dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
 
 /**
  * COMPREHENSIVE REAL-TIME INDEXING TEST
@@ -127,7 +131,11 @@ class RealTimeIndexingTester {
     const tx = await this.deviceRegistry.registerDevice(
       deviceName,
       publicKeyHash,
-      deviceFingerprint
+      deviceFingerprint,
+      {
+        gasLimit: 500000,
+        gasPrice: ethers.parseUnits("100", "gwei"), // Higher gas price for Sapphire
+      }
     );
     console.log(`📤 Transaction sent: ${tx.hash}`);
 
@@ -143,7 +151,7 @@ class RealTimeIndexingTester {
     let deviceId = null;
     if (receipt.logs && receipt.logs.length > 0) {
       const eventLog = receipt.logs.find(
-        (log) =>
+        (log: any) =>
           log.address.toLowerCase() === CONFIG.DEVICE_REGISTRY.toLowerCase()
       );
 
@@ -153,7 +161,7 @@ class RealTimeIndexingTester {
             topics: eventLog.topics,
             data: eventLog.data,
           });
-          deviceId = parsed.args[1];
+          deviceId = parsed?.args[1];
           console.log(`🆔 Device ID: ${deviceId}`);
         } catch (e) {
           console.warn("Could not parse event log");
@@ -187,7 +195,7 @@ class RealTimeIndexingTester {
       throw new Error(`Subgraph query failed: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     if (data.errors) {
       throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
     }
