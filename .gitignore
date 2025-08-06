@@ -105,4 +105,12 @@ out/
 
 # Temporary files
 tmp/
-temp/ 
+temp/
+
+# Docker volumes and data
+infrastructure/subgraph/docker/data/
+**/docker/data/
+
+# Graph Protocol build outputs
+**/build/
+**/generated/ 
