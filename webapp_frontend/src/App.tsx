@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Header from './components/Header'
 import LoginPrompt from './components/LoginPrompt'
+import AuthCallback from './components/AuthCallback'
+import OAuthTest from './components/OAuthTest'
+import SimpleOAuthTest from './components/SimpleOAuthTest'
 import Dashboard from './components/Dashboard'
 import Settings from './components/Settings'
 import Alerts from './components/Alerts'
@@ -11,34 +14,53 @@ import Analytics from './components/Analytics'
 import Footer from './components/Footer'
 import ToastContainer from './components/ToastContainer'
 import { ToastProps } from './components/Toast'
+import { ZkLoginService } from './services/zklogin'
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userProfile, setUserProfile] = useState<{ name: string; email: string; suiAddress: string; provider: string } | null>(null)
   const [toasts, setToasts] = useState<ToastProps[]>([])
   const navigate = useNavigate()
   
   // Check if user is logged in on component mount
   useEffect(() => {
-    const suiAddress = localStorage.getItem('suiWalletAddress')
-    if (suiAddress) {
+    const storedProfile = ZkLoginService.getStoredUserProfile()
+    if (storedProfile) {
       setIsLoggedIn(true)
+      setUserProfile({
+        name: storedProfile.name,
+        email: storedProfile.email,
+        suiAddress: storedProfile.suiAddress,
+        provider: storedProfile.provider
+      })
     }
   }, [])
 
-  const handleSignIn = () => {
+  const handleLogin = (profile: { name: string; email: string; suiAddress: string; provider: string }) => {
     setIsLoggedIn(true)
+    setUserProfile(profile)
+    
     // Show welcome toast
     addToast({
       type: 'success',
-      title: 'Login Successful',
-      message: 'Welcome to Grand Warden!',
-      duration: 3000
+      title: 'zkLogin Successful!',
+      message: `Welcome ${profile.name}! Your Sui wallet has been created.`,
+      duration: 5000
     })
   }
 
   const handleSignOut = () => {
     setIsLoggedIn(false)
+    setUserProfile(null)
+    ZkLoginService.clearZkLoginData()
     navigate('/')
+    
+    addToast({
+      type: 'info',
+      title: 'Signed Out',
+      message: 'You have been successfully signed out.',
+      duration: 3000
+    })
   }
 
   const addToast = (toast: Omit<ToastProps, 'onClose' | 'id'>) => {
@@ -60,7 +82,7 @@ function App() {
 
   return (
     <div className="w-full h-full min-h-screen flex flex-col cyber-gradient">
-      <Header isLoggedIn={isLoggedIn} onSignOut={handleSignOut} />
+      <Header isLoggedIn={isLoggedIn} onSignOut={handleSignOut} userProfile={userProfile} />
       
       <main className="flex-1 flex flex-col overflow-auto">
         <Routes>
@@ -69,7 +91,25 @@ function App() {
             element={
               isLoggedIn ? 
                 <Navigate to="/dashboard" replace /> : 
-                <LoginPrompt onLoginClick={handleSignIn} />
+                <LoginPrompt onLogin={handleLogin} />
+            } 
+          />
+          <Route 
+            path="/auth/callback" 
+            element={
+              <AuthCallback onLogin={handleLogin} />
+            } 
+          />
+          <Route 
+            path="/oauth-test" 
+            element={
+              <OAuthTest />
+            } 
+          />
+          <Route 
+            path="/simple-oauth-test" 
+            element={
+              <SimpleOAuthTest />
             } 
           />
           <Route 

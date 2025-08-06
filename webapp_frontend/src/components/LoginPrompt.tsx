@@ -2,55 +2,63 @@ import React, { useState } from 'react'
 import { Shield, Lock, Eye, EyeOff } from 'lucide-react'
 import googleIcon from '../assets/google.svg'
 import facebookIcon from '../assets/facebook.svg'
+import { ZkLoginService } from '../services/zklogin'
 
 interface LoginPromptProps {
-  onLoginClick: () => void;
+  onLogin: (profile: { name: string; email: string; suiAddress: string; provider: string }) => void;
 }
 
-// Function to generate a random SUI wallet address
-const generateSuiAddress = () => {
-  const chars = '0123456789abcdef';
-  let address = '0x';
-  for (let i = 0; i < 64; i++) {
-    address += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return address;
-};
-
-// Function to format address with ellipsis
-const formatAddress = (address: string) => {
-  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-};
-
-const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
+const LoginPrompt: React.FC<LoginPromptProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isZkLoginLoading, setIsZkLoginLoading] = useState<string | null>(null)
   
-  // Simulate traditional login
+  // Traditional master password login (simulated)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call delay
+    // Simulate API call delay for master password login
     setTimeout(() => {
+      const simulatedProfile = {
+        name: 'Master User',
+        email: 'master@grandwarden.com',
+        suiAddress: '0x' + Math.random().toString(16).substring(2, 66),
+        provider: 'Master Password',
+      }
       setIsLoading(false)
-      onLoginClick()
+      onLogin(simulatedProfile)
     }, 1500)
   }
   
-  // Simulate zkLogin with social providers
-  const handleSocialLogin = (provider: string) => {
-    setIsZkLoginLoading(provider)
+  // Real zkLogin with Google
+  const handleGoogleZkLogin = () => {
+    setIsZkLoginLoading('google')
     
-    // Simulate zkLogin flow
-    setTimeout(() => {
+    try {
+      // Initialize zkLogin OAuth flow
+      ZkLoginService.initiateZkLoginFlow()
+    } catch (error) {
+      console.error('Error initiating zkLogin flow:', error)
       setIsZkLoginLoading(null)
-      // Set a simulated SUI wallet address in local storage
-      localStorage.setItem('zkLoginProvider', provider)
-      localStorage.setItem('suiWalletAddress', generateSuiAddress())
-      onLoginClick()
+    }
+  }
+  
+  // Simulated Facebook login (for future implementation)
+  const handleFacebookLogin = () => {
+    setIsZkLoginLoading('facebook')
+    
+    // Simulate Facebook zkLogin flow
+    setTimeout(() => {
+      const simulatedProfile = {
+        name: 'Facebook User',
+        email: 'user@facebook.com',
+        suiAddress: '0x' + Math.random().toString(16).substring(2, 66),
+        provider: 'Facebook zkLogin',
+      }
+      setIsZkLoginLoading(null)
+      onLogin(simulatedProfile)
     }, 2000)
   }
 
@@ -70,7 +78,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
           <p className="text-sm text-center text-cyber-300 mb-3">Sign in with zkLogin</p>
           <div className="space-y-3">
             <button 
-              onClick={() => handleSocialLogin('google')}
+              onClick={handleGoogleZkLogin}
               disabled={isZkLoginLoading !== null}
               className="w-full cyber-border bg-white hover:bg-gray-50 text-gray-800 font-medium py-2.5 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"
             >
@@ -80,18 +88,18 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Connecting with Google...</span>
+                  <span>Initializing zkLogin...</span>
                 </span>
               ) : (
                 <>
                   <img src={googleIcon} alt="Google" className="w-5 h-5" />
-                  <span>Continue with Google</span>
+                  <span>Continue with Google zkLogin</span>
                 </>
               )}
             </button>
             
             <button 
-              onClick={() => handleSocialLogin('facebook')}
+              onClick={handleFacebookLogin}
               disabled={isZkLoginLoading !== null}
               className="w-full cyber-border bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium py-2.5 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"
             >
