@@ -23,9 +23,15 @@ interface PasswordEntry {
 
 interface DashboardProps {
   onSignOut?: () => void
+  zkLoginState?: {
+    isLoggedIn: boolean
+    userAddress?: string
+    userInfo?: any
+    jwtToken?: string
+  }
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onSignOut, zkLoginState }) => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings' | 'alerts' | 'wallet' | 'devices' | 'analytics'>('dashboard')
   const [searchQuery, setSearchQuery] = useState('')
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set())
@@ -175,6 +181,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
         onBack={() => setCurrentView('dashboard')}
         onSignOut={handleSignOut}
         onDeviceRegistry={() => setCurrentView('devices')}
+        zkLoginState={zkLoginState}
       />
     )
   }

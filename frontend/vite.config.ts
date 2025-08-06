@@ -24,3 +24,24 @@ export default defineConfig({
   },
   publicDir: 'public'
 })
+
+// Add a separate build configuration for background script
+if (process.env.BUILD_BACKGROUND) {
+  export default defineConfig({
+    build: {
+      outDir: 'dist/assets',
+      lib: {
+        entry: resolve(__dirname, 'src/background.ts'),
+        name: 'background',
+        fileName: 'background',
+        formats: ['iife']
+      },
+      rollupOptions: {
+        output: {
+          entryFileNames: 'background.js',
+          format: 'iife'
+        }
+      }
+    }
+  })
+}

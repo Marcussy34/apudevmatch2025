@@ -1,10 +1,16 @@
 import React, { useState } from 'react'
-import { Shield, Lock, AlertTriangle, LogOut, ArrowLeft, Check, Smartphone } from 'lucide-react'
+import { Shield, Lock, AlertTriangle, LogOut, ArrowLeft, Check, Smartphone, KeySquare, User } from 'lucide-react'
 
 interface SettingsProps {
   onBack: () => void
   onSignOut: () => void
   onDeviceRegistry?: () => void
+  zkLoginState?: {
+    isLoggedIn: boolean
+    userAddress?: string
+    userInfo?: any
+    jwtToken?: string
+  }
 }
 
 interface ToggleProps {
@@ -62,7 +68,7 @@ const Toggle: React.FC<ToggleProps> = ({ id, label, description, enabled, onChan
   )
 }
 
-const Settings: React.FC<SettingsProps> = ({ onBack, onSignOut, onDeviceRegistry }) => {
+const Settings: React.FC<SettingsProps> = ({ onBack, onSignOut, onDeviceRegistry, zkLoginState }) => {
   const [settings, setSettings] = useState({
     autoLock: true,
     requireLogin: false,
@@ -166,6 +172,64 @@ const Settings: React.FC<SettingsProps> = ({ onBack, onSignOut, onDeviceRegistry
             </div>
           </div>
         </div>
+
+        {/* zkLogin Information */}
+        {zkLoginState && zkLoginState.isLoggedIn && (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2 mb-4">
+              <KeySquare className="w-5 h-5 text-primary-400" strokeWidth={1.5} />
+              <h3 className="text-cyber-100 font-semibold">zkLogin Authentication</h3>
+            </div>
+
+            <div className="cyber-border rounded-lg p-4 bg-cyber-800/30">
+              <div className="space-y-4">
+                {/* User Info */}
+                {zkLoginState.userInfo && (
+                  <div className="flex items-start space-x-3">
+                    <User className="w-5 h-5 text-cyber-400 flex-shrink-0 mt-1" strokeWidth={1.5} />
+                    <div>
+                      <h4 className="text-cyber-100 text-sm font-medium">User Profile</h4>
+                      <p className="text-cyber-400 text-xs mt-1 break-all">
+                        {zkLoginState.userInfo.name || zkLoginState.userInfo.email || zkLoginState.userInfo.sub}
+                      </p>
+                      <p className="text-cyber-500 text-xs mt-0.5">
+                        Authenticated via {zkLoginState.userInfo.iss?.includes('google') ? 'Google' : 'OAuth Provider'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sui Address */}
+                {zkLoginState.userAddress && (
+                  <div className="flex items-start space-x-3">
+                    <KeySquare className="w-5 h-5 text-cyber-400 flex-shrink-0 mt-1" strokeWidth={1.5} />
+                    <div>
+                      <h4 className="text-cyber-100 text-sm font-medium">Sui Wallet Address</h4>
+                      <div className="flex items-center space-x-1 mt-1">
+                        <p className="text-cyber-400 text-xs break-all font-mono bg-cyber-800 p-1.5 rounded">
+                          {zkLoginState.userAddress}
+                        </p>
+                        <button 
+                          className="p-1 hover:bg-cyber-700 rounded" 
+                          onClick={() => {
+                            navigator.clipboard.writeText(zkLoginState.userAddress || '')
+                            // You could show a toast here
+                          }}
+                          title="Copy address"
+                        >
+                          <Check className="w-4 h-4 text-primary-400" strokeWidth={1.5} />
+                        </button>
+                      </div>
+                      <p className="text-cyber-500 text-xs mt-1.5">
+                        Your zkLogin Wallet is securely linked to your account
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Account Section */}
         <div className="space-y-4">

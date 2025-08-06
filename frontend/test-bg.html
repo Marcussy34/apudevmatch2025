@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Background Script Tester</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #3367d6;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Background Script Test</h1>
+  <p>Use these buttons to test if the background script is properly loaded and accessible.</p>
+  
+  <div>
+    <button id="pingButton">Send PING</button>
+    <button id="authButton">Test Auth</button>
+    <button id="clearButton">Clear Log</button>
+  </div>
+  
+  <h3>Log:</h3>
+  <pre id="log"></pre>
+  
+  <script>
+    const logEl = document.getElementById('log');
+    
+    function log(message, obj) {
+      const time = new Date().toLocaleTimeString();
+      let text = `[${time}] ${message}`;
+      
+      if (obj !== undefined) {
+        if (typeof obj === 'object') {
+          text += '\n' + JSON.stringify(obj, null, 2);
+        } else {
+          text += ' ' + obj;
+        }
+      }
+      
+      logEl.textContent = text + '\n\n' + logEl.textContent;
+    }
+    
+    document.getElementById('pingButton').addEventListener('click', () => {
+      log('Sending PING message to background script...');
+      
+      try {
+        chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
+          if (chrome.runtime.lastError) {
+            log('Error:', chrome.runtime.lastError);
+            return;
+          }
+          
+          log('Received response:', response);
+        });
+      } catch (error) {
+        log('Exception:', error);
+      }
+    });
+    
+    document.getElementById('authButton').addEventListener('click', () => {
+      log('Testing auth...');
+      
+      try {
+        chrome.runtime.sendMessage({ type: 'SIMPLE_GOOGLE_AUTH' }, (response) => {
+          if (chrome.runtime.lastError) {
+            log('Error:', chrome.runtime.lastError);
+            return;
+          }
+          
+          log('Auth response:', response);
+        });
+      } catch (error) {
+        log('Exception:', error);
+      }
+    });
+    
+    document.getElementById('clearButton').addEventListener('click', () => {
+      logEl.textContent = '';
+    });
+    
+    // Log startup info
+    log('Page loaded. Extension ID:', chrome.runtime.id);
+    if (chrome.identity) {
+      log('chrome.identity API is available in this context');
+    } else {
+      log('chrome.identity API is NOT available in this context');
+    }
+  </script>
+</body>
+</html>

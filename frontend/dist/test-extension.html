@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Extension Tester</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #3367d6;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow: auto;
+    }
+    .status {
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <h1>Chrome Extension Test</h1>
+  <p>This page helps diagnose issues with your Chrome extension.</p>
+  
+  <div id="apiStatus" class="status"></div>
+  
+  <div>
+    <button id="checkExtension">Check Extension Status</button>
+    <button id="testPing">Test PING</button>
+    <button id="testAuth">Test Auth</button>
+    <button id="clearLog">Clear Log</button>
+  </div>
+  
+  <h3>Log:</h3>
+  <pre id="log"></pre>
+  
+  <script>
+    const logEl = document.getElementById('log');
+    const apiStatusEl = document.getElementById('apiStatus');
+    
+    function log(message, obj) {
+      const time = new Date().toLocaleTimeString();
+      let text = `[${time}] ${message}`;
+      
+      if (obj !== undefined) {
+        if (typeof obj === 'object') {
+          text += '\n' + JSON.stringify(obj, null, 2);
+        } else {
+          text += ' ' + obj;
+        }
+      }
+      
+      logEl.textContent = text + '\n\n' + logEl.textContent;
+    }
+    
+    function checkApiStatus() {
+      if (typeof chrome !== 'undefined') {
+        apiStatusEl.classList.add('success');
+        apiStatusEl.textContent = "✓ Chrome API is available";
+        
+        if (chrome.runtime) {
+          apiStatusEl.textContent += "\n✓ chrome.runtime is available";
+          
+          if (chrome.runtime.id) {
+            apiStatusEl.textContent += `\n✓ Extension ID: ${chrome.runtime.id}`;
+          } else {
+            apiStatusEl.textContent += "\n✗ chrome.runtime.id is not available";
+            apiStatusEl.classList.replace('success', 'error');
+          }
+        } else {
+          apiStatusEl.textContent += "\n✗ chrome.runtime is NOT available";
+          apiStatusEl.classList.replace('success', 'error');
+        }
+        
+        if (chrome.identity) {
+          apiStatusEl.textContent += "\n✓ chrome.identity is available";
+        } else {
+          apiStatusEl.textContent += "\n✗ chrome.identity is NOT available (normal for web pages)";
+        }
+      } else {
+        apiStatusEl.classList.add('error');
+        apiStatusEl.textContent = "✗ Chrome API is NOT available. This page must be loaded as part of a Chrome extension.";
+      }
+    }
+    
+    // Check status when page loads
+    checkApiStatus();
+    
+    document.getElementById('checkExtension').addEventListener('click', () => {
+      checkApiStatus();
+      log('Manual extension status check completed');
+    });
+    
+    document.getElementById('testPing').addEventListener('click', () => {
+      if (typeof chrome === 'undefined' || !chrome.runtime) {
+        log('Error: Chrome runtime not available');
+        return;
+      }
+      
+      log('Sending PING message...');
+      try {
+        chrome.runtime.sendMessage({ type: 'PING' }, (response) => {
+          if (chrome.runtime.lastError) {
+            log('Error sending ping:', chrome.runtime.lastError);
+            return;
+          }
+          log('PING response received:', response);
+        });
+      } catch (error) {
+        log('Exception in PING test:', error);
+      }
+    });
+    
+    document.getElementById('testAuth').addEventListener('click', () => {
+      if (typeof chrome === 'undefined' || !chrome.runtime) {
+        log('Error: Chrome runtime not available');
+        return;
+      }
+      
+      log('Sending auth test message...');
+      try {
+        chrome.runtime.sendMessage({ type: 'SIMPLE_GOOGLE_AUTH' }, (response) => {
+          if (chrome.runtime.lastError) {
+            log('Error in auth test:', chrome.runtime.lastError);
+            return;
+          }
+          log('Auth response received:', response);
+        });
+      } catch (error) {
+        log('Exception in auth test:', error);
+      }
+    });
+    
+    document.getElementById('clearLog').addEventListener('click', () => {
+      logEl.textContent = '';
+    });
+    
+    // Log startup info
+    log('Page loaded. Testing environment:',
+      { 
+        url: window.location.href,
+        protocol: window.location.protocol,
+        isExtension: window.location.protocol === 'chrome-extension:'
+      }
+    );
+  </script>
+</body>
+</html>

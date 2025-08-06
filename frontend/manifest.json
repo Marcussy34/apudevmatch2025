@@ -3,10 +3,14 @@
   "description": "Secure Password Manager - Your digital guardian for all your passwords",
   "version": "1.0.0",
   "manifest_version": 3,
+  "background": {
+    "service_worker": "background-bundle.js"
+  },
   "action": {
     "default_popup": "index.html",
     "default_icon": "hello_extensions.png"
   },
+  "options_page": "test-extension.html",
   "icons": {
     "16": "hello_extensions.png",
     "32": "hello_extensions.png",
@@ -15,6 +19,28 @@
   },
   "permissions": [
     "storage",
-    "activeTab"
-  ]
+    "activeTab",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://*.mystenlabs.com/*",
+    "https://fullnode.testnet.sui.io/*",
+    "https://faucet.testnet.sui.io/*",
+    "https://accounts.google.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["test-extension.html", "test-bg.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgcgk/LhW0yjV0GoZKP0N3UQ2LJzHU+C6XEaRtXlnk9FVwm5dKxcAZ+HVvOR1A3PsEFY3lFUVfvmCSmAx9PUP+P5CmF4w1oGQ30lKi3XDO9DK9mZCBWJPb8fXI+Dsj4BPQqoBoZEYKPZfHFJCLi+uJJv1iphBBIUvNulXwV95wI7nddkLtDYQWzLROgIU/1eFPJgpMCdsOmMltXw+YDNMOQhmX62XgvUJKYPx+vYYCoTJh7i3/AG1wNf4EP2GlDCBZoFdifEw/VoXZ/83HFl6IMx6xIOCSc4XpCqQDpwPqCPLpUMRfIXoNdUBBn9uQQvWlsBzuOIZBrZA01RNpJ3mnQIDAQAB",
+  "oauth2": {
+    "client_id": "36098691154-oi9pm05ra1f70ov7pb43t9c0cg94isuo.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "openid"
+    ]
+  }
 }
