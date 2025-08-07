@@ -1,0 +1,110 @@
+# Grand Warden ROFL Container Configuration
+# Docker Compose configuration for the Critical Data Bridge
+
+version: "3.8"
+
+services:
+  grand-warden-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: grand-warden-rofl-bridge
+
+    # Resource limits (matching rofl.yaml)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+    # Environment variables (non-sensitive)
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+
+      # Sui network configuration
+      - SUI_RPC_URL=https://fullnode.testnet.sui.io:443
+      - SUI_WS_URL=wss://fullnode.testnet.sui.io:443
+      - SUI_POLLING_INTERVAL_SECS=5
+      - SUI_MAX_EVENTS_PER_QUERY=100
+
+      # Sapphire network configuration
+      - SAPPHIRE_RPC_URL=https://testnet.sapphire.oasis.dev
+      - SAPPHIRE_CHAIN_ID=23295
+      - SAPPHIRE_GAS_LIMIT=1000000
+      - SAPPHIRE_GAS_PRICE=1000000000
+
+      # Contract addresses
+      - CONTRACT_ATOMIC_VAULT_MANAGER=0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C
+      - CONTRACT_GRAND_WARDEN_VAULT=0xB6B183a041D077d5924b340EBF41EE4546fE0bcE
+      - CONTRACT_WALLET_VAULT=0x3B7dd63D236bDB0Fd85d556d2AC70e2746cF5F82
+      - CONTRACT_DEVICE_REGISTRY=0x9ec3B09A3cDc7Dd2ba8fB8F6e9Bd6C04DDfBCd2d
+      - CONTRACT_RECOVERY_MANAGER=0x58fF6e3d3D76053F2B13327A6399ECD25E363818
+      - CONTRACT_MULTI_CHAIN_RPC=0x2bcaA2dDbAE6609Cbd63D3a4B3dd0af881759472
+
+      # Processing configuration
+      - QUEUE_MAX_SIZE=10000
+      - QUEUE_BATCH_SIZE=50
+      - QUEUE_PROCESSING_INTERVAL_MS=1000
+
+      # Development mode
+      - MOCK_SUI_EVENTS=true
+
+    # Environment file for development
+    env_file:
+      - .env.development
+
+    # Network configuration for external RPC access
+    networks:
+      - bridge-network
+
+    # Port exposure for metrics and health checks
+    ports:
+      - "9090:9090" # Metrics endpoint
+      - "8080:8080" # Health check endpoint
+
+    # Volume mounts for logs and temporary data
+    volumes:
+      - bridge-logs:/app/logs
+      - bridge-data:/app/data
+
+    # Health check configuration
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Security configuration
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+
+    # User configuration (non-root)
+    user: "1000:1000"
+
+# Network configuration
+networks:
+  bridge-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volume definitions
+volumes:
+  bridge-logs:
+    driver: local
+  bridge-data:
+    driver: local
+# Note: In production, secrets would be managed by ROFL CLI
+# For development, we use .env.development file

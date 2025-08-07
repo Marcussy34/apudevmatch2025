@@ -1,25 +1,21 @@
 [package]
 name = "grand-warden-rofl"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
-# Core ROFL/SGX dependencies
-sgx_tstd = "1.1.6"
-sgx_types = "1.1.6"
-sgx_tseal = "1.1.6"
-sgx_tcrypto = "1.1.6"
+# Note: SGX dependencies will be handled by official ROFL build process
+# For development testing, we use standard Rust libraries
 
 # Async runtime and web3 connectivity
 tokio = { version = "1.0", features = ["full"] }
 tokio-tungstenite = "0.20"
 reqwest = { version = "0.11", features = ["json", "stream"] }
+hyper = { version = "0.14", features = ["full"] }
 
 # Blockchain libraries
 ethers = { version = "2.0", features = ["ws", "rustls"] }
-sui-sdk = "0.54"
-sui-types = "0.54"
-sui-json-rpc-types = "0.54"
+# Note: Sui SDK will be added when Move contracts are ready
 
 # Serialization and data handling
 serde = { version = "1.0", features = ["derive"] }
