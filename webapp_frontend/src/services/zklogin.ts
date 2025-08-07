@@ -12,11 +12,13 @@ import axios from "axios";
 import { 
   CLIENT_ID, 
   REDIRECT_URI, 
-  SUI_PROVER_DEV_ENDPOINT,
+  SUI_PROVER_TESTNET_ENDPOINT,
   KEY_PAIR_SESSION_STORAGE_KEY,
   USER_SALT_LOCAL_STORAGE_KEY,
   RANDOMNESS_SESSION_STORAGE_KEY,
   MAX_EPOCH_LOCAL_STORAGE_KEY,
+  ZKLOGIN_USER_ADDRESS_KEY,
+  JWT_TOKEN_KEY,
   GOOGLE_OAUTH_BASE_URL
 } from "../constants/zklogin";
 
@@ -79,13 +81,20 @@ export class ZkLoginService {
   }
 
   // Step 5: Decode JWT Token
-  static decodeJwt(jwtToken: string): JwtPayload {
+  static decodeJwt(jwtToken: string): JwtPayload & { name?: string; email?: string } {
     return jwtDecode(jwtToken);
   }
 
   // Step 6: Generate Sui Address from JWT
   static generateSuiAddress(jwtToken: string, userSalt: string): string {
     return jwtToAddress(jwtToken, userSalt);
+  }
+
+  // Step 6.5: Validate Sui Address
+  static validateSuiAddress(address: string): boolean {
+    // Sui addresses are 64 characters long and start with 0x
+    const suiAddressRegex = /^0x[a-fA-F0-9]{64}$/;
+    return suiAddressRegex.test(address);
   }
 
   // Step 7: Get Extended Ephemeral Public Key
@@ -103,7 +112,7 @@ export class ZkLoginService {
   ): Promise<PartialZkLoginSignature> {
     try {
       const response = await axios.post(
-        SUI_PROVER_DEV_ENDPOINT,
+        SUI_PROVER_TESTNET_ENDPOINT,
         {
           jwt: jwtToken,
           extendedEphemeralPublicKey: extendedEphemeralPublicKey,
@@ -142,6 +151,17 @@ export class ZkLoginService {
     // Generate Sui address
     const suiAddress = this.generateSuiAddress(jwtToken, userSalt);
     
+    // Validate Sui address
+    if (!this.validateSuiAddress(suiAddress)) {
+      throw new Error("Generated Sui address is not valid.");
+    }
+    
+    console.log("Generated Sui Address:", suiAddress);
+    console.log("Address validation:", this.validateSuiAddress(suiAddress));
+    console.log("User Salt used:", userSalt);
+    console.log("JWT Subject (sub):", decodedJwt.sub);
+    console.log("JWT Audience (aud):", decodedJwt.aud);
+
     // Create user profile
     const userProfile: ZkLoginUserProfile = {
       name: decodedJwt.name || "zkLogin User",
@@ -190,7 +210,7 @@ export class ZkLoginService {
   }
 
   // Step 12: Handle OAuth Callback
-  static handleOAuthCallback(urlParams: URLSearchParams): ZkLoginUserProfile | null {
+  static async handleOAuthCallback(urlParams: URLSearchParams): Promise<ZkLoginUserProfile | null> {
     const idToken = urlParams.get('id_token');
     const error = urlParams.get('error');
     
@@ -205,7 +225,7 @@ export class ZkLoginService {
     }
 
     // Complete the zkLogin flow
-    return this.completeZkLoginFlow(idToken);
+    return await this.completeZkLoginFlow(idToken);
   }
 
   // Step 13: Get Stored User Profile

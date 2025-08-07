@@ -1,13 +1,13 @@
 // zkLogin Configuration Constants
-export const FULLNODE_URL = "https://fullnode.devnet.sui.io";
+export const FULLNODE_URL = "https://fullnode.testnet.sui.io";
 
 // Google OAuth Configuration
 export const CLIENT_ID = "36098691154-3j95ku5omvh399otb0id12q542st42c9.apps.googleusercontent.com";
 export const REDIRECT_URI = "http://localhost:5173/auth/callback";
 
 // Sui Network Configuration
-export const SUI_DEVNET_FAUCET = 'https://faucet.devnet.sui.io/gas';
-export const SUI_PROVER_DEV_ENDPOINT = 'https://prover-dev.mystenlabs.com/v1';
+export const SUI_TESTNET_FAUCET = 'https://faucet.testnet.sui.io/gas';
+export const SUI_PROVER_TESTNET_ENDPOINT = 'https://prover-testnet.mystenlabs.com/v1';
 
 // Storage Keys for Session/Local Storage
 export const KEY_PAIR_SESSION_STORAGE_KEY = "grand_warden_ephemeral_key_pair";
