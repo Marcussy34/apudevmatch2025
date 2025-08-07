@@ -21,8 +21,8 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 # Build dependencies (this will create Cargo.lock)
 RUN cargo build --release && rm -rf src
 
-# Copy simplified source code for testing
-COPY src/main.simple.rs ./src/main.rs
+# Copy working demo source code
+COPY src/working_demo.rs ./src/main.rs
 
 # Build the application
 RUN cargo build --release
