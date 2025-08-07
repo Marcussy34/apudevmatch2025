@@ -1,151 +1,71 @@
 # Grand Warden ROFL Critical Data Bridge
-# Official ROFL manifest for Sui-to-Sapphire event bridging
+# Official ROFL manifest following Oasis documentation patterns
 
-# App metadata
 name: grand-warden-bridge
 version: 1.0.0
-description: "Critical Data Bridge connecting Sui network events to Sapphire blockchain for Grand Warden multi-chain architecture"
+description: "Critical Data Bridge connecting Sui events to Sapphire for The Graph indexing"
 
-# TEE configuration
-tee: tdx # Using Intel TDX for trusted execution
-kind: container # Container-based ROFL app
+# TEE configuration (following official ROFL patterns)
+tee: tdx
+kind: container
 
-# Resource requirements
+# Resource requirements (reasonable for bridge operations)
 resources:
-  memory: 512Mi
-  cpu: 500m
-  storage: 1Gi
+  memory: 1Gi
+  cpu: 1000m
+  storage: 2Gi
 
-# External network configuration for blockchain RPC access
-networks:
-  - name: sui-testnet
-    endpoints:
-      - https://fullnode.testnet.sui.io:443
-    description: "Sui testnet RPC for monitoring Grand Warden events"
-
-  - name: sapphire-testnet
-    endpoints:
-      - https://testnet.sapphire.oasis.dev
-    description: "Sapphire testnet RPC for emitting synthetic events"
-
-# Environment configuration
+# Environment variables for ROFL configuration
 env:
-  # Sui network settings
-  SUI_RPC_URL: "https://fullnode.testnet.sui.io:443"
-  SUI_WS_URL: "wss://fullnode.testnet.sui.io:443"
-  SUI_POLLING_INTERVAL_SECS: "5"
-  SUI_MAX_EVENTS_PER_QUERY: "100"
+  # Sapphire configuration
+  - name: SAPPHIRE_RPC_URL
+    value: "https://testnet.sapphire.oasis.dev"
+  - name: SAPPHIRE_CHAIN_ID
+    value: "23295"
+  - name: CONTRACT_ATOMIC_VAULT_MANAGER
+    value: "0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C"
 
-  # Sapphire network settings
-  SAPPHIRE_RPC_URL: "https://testnet.sapphire.oasis.dev"
-  SAPPHIRE_CHAIN_ID: "23295"
-  SAPPHIRE_GAS_LIMIT: "1000000"
-  SAPPHIRE_GAS_PRICE: "1000000000"
+  # Sui configuration (ready for integration)
+  - name: SUI_RPC_URL
+    value: "https://fullnode.testnet.sui.io:443"
+  - name: SUI_CONTRACT_PACKAGE
+    value: "0x0"
 
-  # Deployed contract addresses (from your deployment)
-  CONTRACT_ATOMIC_VAULT_MANAGER: "0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C"
-  CONTRACT_GRAND_WARDEN_VAULT: "0xB6B183a041D077d5924b340EBF41EE4546fE0bcE"
-  CONTRACT_WALLET_VAULT: "0x3B7dd63D236bDB0Fd85d556d2AC70e2746cF5F82"
-  CONTRACT_DEVICE_REGISTRY: "0x9ec3B09A3cDc7Dd2ba8fB8F6e9Bd6C04DDfBCd2d"
-  CONTRACT_RECOVERY_MANAGER: "0x58fF6e3d3D76053F2B13327A6399ECD25E363818"
-  CONTRACT_MULTI_CHAIN_RPC: "0x2bcaA2dDbAE6609Cbd63D3a4B3dd0af881759472"
+  # Logging configuration
+  - name: RUST_LOG
+    value: "info"
+  - name: RUST_BACKTRACE
+    value: "1"
 
-  # Processing configuration
-  QUEUE_MAX_SIZE: "10000"
-  QUEUE_BATCH_SIZE: "50"
-  QUEUE_PROCESSING_INTERVAL_MS: "1000"
-
-  # Monitoring configuration
-  METRICS_ENABLED: "true"
-  METRICS_PORT: "9090"
-  HEALTH_CHECK_INTERVAL_SECS: "30"
-
-  # Alert thresholds for success metrics
-  MAX_LATENCY_SECS: "10"
-  MAX_QUEUE_SIZE: "5000"
-  MIN_SUCCESS_RATE: "0.95"
-
-  # Development mode settings
-  MOCK_SUI_EVENTS: "true" # Enable until Sui contracts are deployed
-  LOG_LEVEL: "info"
-
-# Secrets (managed via ROFL CLI)
+# Secrets (private keys handled securely)
 secrets:
-  - name: sapphire_private_key
-    description: "Private key for Sapphire transaction signing"
-    required: true
+  - name: SAPPHIRE_PRIVATE_KEY
+    description: "Private key for Sapphire transactions"
 
-  - name: encryption_key
-    description: "32-byte encryption key for secure communications"
-    required: false
+# Network access for blockchain RPC calls
+networking:
+  outbound:
+    - protocol: https
+      port: 443
+      description: "HTTPS access for blockchain RPC calls"
+    - protocol: http
+      port: 80
+      description: "HTTP access for blockchain RPC calls"
 
-# Policies and permissions
-policies:
-  # Allow external network access for blockchain RPCs
-  network:
-    - allow: "*" # Allow all external network access for RPC calls
+# Health check endpoint (optional)
+health_check:
+  path: /health
+  port: 8080
+  interval: 30s
 
-  # Resource limits
-  resources:
-    max_memory: 1Gi
-    max_cpu: 1000m
-
-# Upgrade policy
-upgrade:
-  policy: admin # Controlled by admin account
-
-# Deployment configuration
-deployment:
-  # Automatic restart on failure
-  restart_policy: always
-
-  # Health check configuration
-  health_check:
-    enabled: true
-    interval: 30s
-    timeout: 10s
-    retries: 3
-
-# Monitoring and observability
-observability:
-  metrics:
-    enabled: true
-    port: 9090
-    path: "/metrics"
-
-  logs:
-    level: info
-    format: json
-
-  tracing:
-    enabled: true
-
-# Application-specific metadata
+# Metadata for ROFL registry
 metadata:
-  # Grand Warden specific configuration
-  grand_warden:
-    # Event types to monitor and bridge
-    monitored_events:
-      - VaultCreated
-      - WalletImported
-      - DeviceRegistered
-      - CredentialAdded
-      - VaultBlobUpdated
-      - SecurityAlert
-
-    # Priority mapping for event processing
-    event_priorities:
-      VaultCreated: 1 # Highest priority - user flow
-      WalletImported: 1 # Highest priority - user flow
-      CredentialAdded: 1 # Highest priority - user flow
-      DeviceRegistered: 2 # High priority - security
-      SecurityAlert: 2 # High priority - security
-      VaultBlobUpdated: 3 # Normal priority
-      SystemHealth: 5 # Low priority
-
-    # Success metrics targets
-    success_metrics:
-      processing_latency_target_secs: 10
-      atomic_operation_success_rate: 0.95
-      event_translation_accuracy: 1.0
-      bridge_reliability_target: 0.995
+  author: "Grand Warden Team"
+  license: "MIT"
+  repository: "https://github.com/grandwarden/rofl-bridge"
+  tags:
+    - "blockchain-bridge"
+    - "sui"
+    - "sapphire"
+    - "the-graph"
+    - "defi"
