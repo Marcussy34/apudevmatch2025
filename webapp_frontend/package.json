@@ -9,7 +9,9 @@
   },
   "dependencies": {
     "@mysten/dapp-kit": "^0.17.2",
+    "@mysten/sui": "^1.37.1",
     "@mysten/sui.js": "^0.54.1",
+    "@mysten/walrus": "^0.6.0",
     "@mysten/zklogin": "^0.8.1",
     "axios": "^1.11.0",
     "bignumber.js": "^9.3.1",

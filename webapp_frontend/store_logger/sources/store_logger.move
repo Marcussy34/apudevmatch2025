@@ -1,0 +1,9 @@
+/*
+/// Module: store_logger
+module store_logger::store_logger;
+*/
+
+// For Move coding conventions, see
+// https://docs.sui.io/concepts/sui-move-concepts/conventions
+
+
