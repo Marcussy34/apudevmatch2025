@@ -9,6 +9,18 @@ import "./interfaces/IVaultEvents.sol";
 /**
  * @title AtomicVaultManager
  * @dev Coordinated vault state management with atomic operations across Walrus and Sui
+ * 
+ * ARCHITECTURE NOTE:
+ * Smart contracts cannot make HTTP requests directly, even on Sapphire. The HTTP integration
+ * functions in this contract return mock data for testing. In production, external systems
+ * must handle HTTP communications:
+ * 
+ * 1. ROFL Worker: Can make HTTPS calls to Walrus/Sui and call back into this contract
+ * 2. Frontend: Can fetch directly and call contract functions with results
+ * 3. Trusted Backend: Can act as oracle/bridge between external APIs and contract
+ * 
+ * The contract provides the coordination logic and state management, while external
+ * systems handle the actual HTTP communications with Walrus and Sui networks.
  */
 contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents, ReentrancyGuard {
     using Sapphire for *;
@@ -50,6 +62,7 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents, ReentrancyGuar
     
     // Access control
     address public owner;
+    address public roflWorker;
     bool public isPaused;
     
     // Statistics
@@ -78,6 +91,11 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents, ReentrancyGuar
 
     modifier onlyOperationOwner(bytes32 operationId) {
         require(operations[operationId].user == msg.sender, "Not operation owner");
+        _;
+    }
+
+    modifier onlyROFLWorker() {
+        require(msg.sender == roflWorker, "Not authorized ROFL worker");
         _;
     }
 
@@ -125,6 +143,7 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents, ReentrancyGuar
         require(vaultId != bytes32(0), "Invalid vault ID");
         require(newVaultData.length > 0, "Empty vault data");
         require(newVaultData.length <= walrusConfig.maxBlobSize, "Data too large");
+        require(roflWorker != address(0), "ROFL worker not set");
 
         // Generate operation ID
         bytes32 operationId = keccak256(abi.encodePacked(
@@ -140,7 +159,9 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents, ReentrancyGuar
         operation.id = operationId;
         operation.user = msg.sender;
         operation.vaultId = vaultId;
-        operation.status = OperationStatus.Pending;
+        operation.vaultData = newVaultData;
+        operation.status = OperationStatus.WalrusUploadRequested;
+        operation.exists = true;
         operation.startTime = block.timestamp;
 
         // Add to tracking arrays
@@ -148,271 +169,28 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents, ReentrancyGuar
         vaultOperations[vaultId].push(operationId);
         totalOperations++;
 
+        // Emit events for ROFL worker to pick up
+        emit WalrusUploadRequested(operationId, newVaultData, walrusConfig.baseUrl, walrusConfig.storageEpochs);
         emit AtomicUpdateStarted(msg.sender, vaultId, "");
 
-        // Step 1: Upload to Walrus
-        try this._uploadToWalrus(operationId, newVaultData) returns (string memory cid) {
-            operation.walrusCID = cid;
-            operation.status = OperationStatus.WalrusUploaded;
-            walrusCID = cid;
-            
-            // Step 2: Update Sui state
-            try this._updateSuiState(operationId, vaultId, cid) returns (bytes32 txHash) {
-                operation.suiTxHash = txHash;
-                operation.status = OperationStatus.SuiUpdated;
-                suiTxHash = txHash;
-                
-                // Step 3: Mark as completed
-                operation.status = OperationStatus.Completed;
-                operation.completionTime = block.timestamp;
-                successfulOperations++;
-                
-                emit AtomicUpdateCompleted(msg.sender, vaultId, suiTxHash);
-                return (walrusCID, suiTxHash);
-                
-            } catch Error(string memory reason) {
-                // Sui update failed, try to rollback Walrus
-                operation.status = OperationStatus.Failed;
-                failedOperations++;
-                emit AtomicUpdateFailed(msg.sender, vaultId, reason);
-                
-                // Attempt rollback
-                this._rollbackWalrus(operationId, cid);
-                revert(string(abi.encodePacked("Sui update failed: ", reason)));
-            }
-            
-        } catch Error(string memory reason) {
-            // Walrus upload failed
-            operation.status = OperationStatus.Failed;
-            failedOperations++;
-            emit AtomicUpdateFailed(msg.sender, vaultId, reason);
-            revert(string(abi.encodePacked("Walrus upload failed: ", reason)));
-        }
+        // Return empty values - actual values will be available after ROFL worker completes
+        // Users should listen to events or query operation status for completion
+        return ("", bytes32(0));
     }
 
-    /**
-     * @dev Upload data to Walrus (internal call for error handling)
-     */
-    function _uploadToWalrus(bytes32 operationId, bytes calldata data) 
-        external 
-        view 
-        returns (string memory cid) 
-    {
-        require(msg.sender == address(this), "Internal call only");
-        require(walrusConfig.isActive, "Walrus is not active");
-        require(data.length <= walrusConfig.maxBlobSize, "Data too large for Walrus");
-        
-        // Make real HTTP PUT request to Walrus publisher
-        try this._executeWalrusHTTPRequest(data) returns (string memory responseCID) {
-            return responseCID;
-        } catch {
-            // Fallback to deterministic CID generation if HTTP fails
-            bytes32 dataHash = keccak256(data);
-            string memory hashHex = _bytesToHex(dataHash);
-            
-            cid = string(abi.encodePacked(
-                "bafkreihq6urhg",
-                _substring(hashHex, 0, 20)
-            ));
-            
-            return cid;
-        }
-    }
-    
-    /**
-     * @dev Execute HTTP request to Walrus publisher
-     */
-    function _executeWalrusHTTPRequest(bytes calldata data) 
-        external 
-        view 
-        returns (string memory cid) 
-    {
-        require(msg.sender == address(this), "Internal call only");
-        
-        // Construct Walrus API URL with epochs parameter
-        string memory walrusUrl = string(abi.encodePacked(
-            walrusConfig.baseUrl,
-            "/v1/blobs?epochs=",
-            _uint256ToString(walrusConfig.storageEpochs)
-        ));
-        
-        // Prepare HTTP headers for Walrus
-        bytes memory headers = abi.encodePacked(
-            "Content-Type: application/octet-stream\r\n",
-            "Accept: application/json\r\n"
-        );
-        
-        // In real implementation, use Sapphire HTTP client to make PUT request
-        // For now, simulate the response structure
-        bytes memory walrusResponse = abi.encodePacked(
-            '{"newlyCreated":{"blobObject":{"blobId":"',
-            _generateMockBlobId(data),
-            '","size":',
-            _uint256ToString(data.length),
-            ',"certifiedEpoch":34}}}'
-        );
-        
-        // Parse CID from response
-        return _parseWalrusResponse(walrusResponse);
-    }
-    
-    /**
-     * @dev Parse Walrus API response to extract blob ID
-     */
-    function _parseWalrusResponse(bytes memory response) 
-        private 
-        pure 
-        returns (string memory blobId) 
-    {
-        // Convert response to string for parsing
-        string memory responseStr = string(response);
-        
-        // For now, extract mock blob ID
-        // In production, implement proper JSON parsing
-        return "bafkreihq6urhgmockblobid123456789";
-    }
-    
-    /**
-     * @dev Generate mock blob ID for testing
-     */
-    function _generateMockBlobId(bytes calldata data) 
-        private 
-        pure 
-        returns (string memory) 
-    {
-        bytes32 hash = keccak256(data);
-        return _bytesToHex(hash);
-    }
 
-    /**
-     * @dev Update Sui state (internal call for error handling)
-     */
-    function _updateSuiState(bytes32 operationId, bytes32 vaultId, string memory cid) 
-        external 
-        view 
-        returns (bytes32 txHash) 
-    {
-        require(msg.sender == address(this), "Internal call only");
-        require(suiConfig.isActive, "Sui is not active");
-        require(bytes(cid).length > 0, "CID cannot be empty");
-        
-        // Make real JSON-RPC call to Sui network
-        try this._executeSuiRPCCall(vaultId, cid) returns (bytes32 responseTxHash) {
-            return responseTxHash;
-        } catch {
-            // Fallback to deterministic tx hash if RPC fails
-            txHash = keccak256(abi.encodePacked(
-                operationId,
-                vaultId,
-                cid,
-                block.timestamp,
-                "sui_tx"
-            ));
-            
-            return txHash;
-        }
-    }
     
-    /**
-     * @dev Execute Sui JSON-RPC call to update vault pointer
-     */
-    function _executeSuiRPCCall(bytes32 vaultId, string memory cid) 
-        external 
-        view 
-        returns (bytes32 txHash) 
-    {
-        require(msg.sender == address(this), "Internal call only");
-        
-        // Construct Sui move call transaction
-        string memory moveCallJson = string(abi.encodePacked(
-            '{"jsonrpc":"2.0","id":1,"method":"sui_executeTransactionBlock","params":["',
-            _constructSuiTransaction(vaultId, cid),
-            '",["show_input","show_effects","show_events"],"WaitForLocalExecution"]}'
-        ));
-        
-        // Prepare HTTP headers for Sui RPC
-        bytes memory headers = abi.encodePacked(
-            "Content-Type: application/json\r\n",
-            "Accept: application/json\r\n"
-        );
-        
-        // In real implementation, use Sapphire HTTP client to make POST request
-        // For now, simulate the response structure
-        bytes memory suiResponse = abi.encodePacked(
-            '{"jsonrpc":"2.0","result":{"digest":"',
-            _generateMockDigest(vaultId, cid),
-            '","confirmedLocalExecution":true},"id":1}'
-        );
-        
-        // Parse transaction hash from response
-        return _parseSuiResponse(suiResponse);
-    }
-    
-    /**
-     * @dev Construct Sui transaction for updating vault pointer
-     */
-    function _constructSuiTransaction(bytes32 vaultId, string memory cid) 
-        private 
-        view 
-        returns (string memory) 
-    {
-        // Convert vaultId to hex string for Sui
-        string memory vaultIdHex = _bytesToHex(vaultId);
-        
-        // Construct move call to update vault object
-        return string(abi.encodePacked(
-            '{"kind":"ProgrammableTransaction","inputs":[',
-            '{"type":"object","objectId":"', vaultIdHex, '"},',
-            '{"type":"pure","valueType":"string","value":"', cid, '"}',
-            '],"transactions":[{',
-            '"kind":"MoveCall",',
-            '"target":"', suiConfig.packageId, '::vault::update_pointer",',
-            '"arguments":["Input(0)","Input(1)"]',
-            '}]}'
-        ));
-    }
-    
-    /**
-     * @dev Parse Sui RPC response to extract transaction hash
-     */
-    function _parseSuiResponse(bytes memory response) 
-        private 
-        pure 
-        returns (bytes32 txHash) 
-    {
-        // Convert response to string for parsing
-        string memory responseStr = string(response);
-        
-        // For now, return mock digest
-        // In production, implement proper JSON parsing
-        return keccak256(abi.encodePacked("sui_mock_digest", responseStr));
-    }
-    
-    /**
-     * @dev Generate mock transaction digest for testing
-     */
-    function _generateMockDigest(bytes32 vaultId, string memory cid) 
-        private 
-        pure 
-        returns (string memory) 
-    {
-        bytes32 hash = keccak256(abi.encodePacked(vaultId, cid));
-        return _bytesToHex(hash);
-    }
 
-    /**
-     * @dev Rollback Walrus upload (internal call)
-     */
-    function _rollbackWalrus(bytes32 operationId, string memory cid) external {
-        require(msg.sender == address(this), "Internal call only");
-        
-        // In real implementation, this would delete the blob from Walrus
-        // For now, we just emit an event
-        AtomicOperation storage operation = operations[operationId];
-        operation.status = OperationStatus.RolledBack;
-        
-        emit OperationRolledBack(operation.user, operationId, "Walrus rollback");
-    }
+    
+
+
+
+    
+
+    
+
+    
+
 
     /**
      * @dev Rollback failed atomic operations
@@ -734,7 +512,80 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents, ReentrancyGuar
         emit UserFlowEvent(user, flowType, step, success, data);
     }
 
+    /**
+     * @dev Set the authorized ROFL worker address
+     */
+    function setROFLWorker(address _roflWorker) external override onlyOwner {
+        require(_roflWorker != address(0), "Invalid ROFL worker address");
+        roflWorker = _roflWorker;
+        emit ROFLWorkerUpdated(_roflWorker);
+    }
+
+    /**
+     * @dev Callback for ROFL worker to report Walrus upload results
+     */
+    function reportWalrusUploadResult(
+        bytes32 operationId,
+        bool success,
+        string calldata cid,
+        string calldata errorMessage
+    ) external override onlyROFLWorker nonReentrant {
+        require(operations[operationId].exists, "Operation not found");
+        require(operations[operationId].status == OperationStatus.WalrusUploadRequested, "Invalid operation state");
+        
+        AtomicOperation storage operation = operations[operationId];
+        
+        if (success) {
+            operation.walrusCID = cid;
+            operation.status = OperationStatus.WalrusUploaded;
+            emit WalrusUploadCompleted(operationId, cid);
+            
+            // Proceed to next step - request Sui state update
+            emit SuiUpdateRequested(operationId, operation.vaultId, cid, suiConfig.rpcUrl);
+            operation.status = OperationStatus.SuiUpdateRequested;
+        } else {
+            operation.status = OperationStatus.Failed;
+            operation.errorMessage = errorMessage;
+            operation.completionTime = block.timestamp;
+            failedOperations++;
+            emit WalrusUploadFailed(operationId, errorMessage);
+            emit AtomicUpdateFailed(operation.user, operation.vaultId, errorMessage);
+        }
+    }
+
+    /**
+     * @dev Callback for ROFL worker to report Sui update results
+     */
+    function reportSuiUpdateResult(
+        bytes32 operationId,
+        bool success,
+        bytes32 txHash,
+        string calldata errorMessage
+    ) external override onlyROFLWorker nonReentrant {
+        require(operations[operationId].exists, "Operation not found");
+        require(operations[operationId].status == OperationStatus.SuiUpdateRequested, "Invalid operation state");
+        
+        AtomicOperation storage operation = operations[operationId];
+        
+        if (success) {
+            operation.suiTxHash = txHash;
+            operation.status = OperationStatus.Completed;
+            operation.completionTime = block.timestamp;
+            successfulOperations++;
+            emit SuiUpdateCompleted(operationId, txHash);
+            emit AtomicUpdateCompleted(operation.user, operation.vaultId, txHash);
+        } else {
+            operation.status = OperationStatus.Failed;
+            operation.errorMessage = errorMessage;
+            operation.completionTime = block.timestamp;
+            failedOperations++;
+            emit SuiUpdateFailed(operationId, errorMessage);
+            emit AtomicUpdateFailed(operation.user, operation.vaultId, errorMessage);
+        }
+    }
+
     // Custom events
     event GenericVaultEvent(address indexed user, uint8 eventType, bytes data);
     event UserFlowEvent(address indexed user, uint8 flowType, uint8 step, bool success, bytes data);
+    event ROFLWorkerUpdated(address indexed newROFLWorker);
 }

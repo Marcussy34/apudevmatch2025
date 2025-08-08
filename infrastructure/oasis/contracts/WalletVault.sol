@@ -153,7 +153,15 @@ contract WalletVault is IWalletVault, IVaultEvents, ReentrancyGuard {
     }
 
     /**
-     * @dev Fetch wallet balances across multiple chains within TEE
+     * @dev Get mock wallet balances (ROFL worker or frontend should handle real balance fetching)
+     * 
+     * ARCHITECTURE NOTE:
+     * This function returns mock data for testing. In production, external systems
+     * must handle multi-chain balance fetching:
+     * 
+     * 1. ROFL Worker: Can query multiple chain RPCs and aggregate results
+     * 2. Frontend: Can fetch directly from chain RPCs using derived addresses
+     * 3. Trusted Backend: Can act as oracle for balance aggregation
      */
     function fetchWalletBalances(bytes32 walletId)
         external 
@@ -172,7 +180,7 @@ contract WalletVault is IWalletVault, IVaultEvents, ReentrancyGuard {
             uint8 chainType = chains[i];
             address walletAddress = wallet.derivedAddresses[chainType];
             
-            // Simplified balance calculation - frontend will handle chain-specific details
+            // Mock balance calculation - real implementation should be done off-chain
             uint256 mockBalance = uint256(keccak256(abi.encodePacked(
                 walletAddress,
                 chainType,

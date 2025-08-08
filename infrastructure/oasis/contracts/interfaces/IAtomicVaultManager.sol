@@ -9,7 +9,9 @@ interface IAtomicVaultManager {
     // Operation status enumeration
     enum OperationStatus {
         Pending,
+        WalrusUploadRequested,
         WalrusUploaded,
+        SuiUpdateRequested,
         SuiUpdated,
         Completed,
         Failed,
@@ -21,11 +23,14 @@ interface IAtomicVaultManager {
         bytes32 id;
         address user;
         bytes32 vaultId;
+        bytes vaultData;
         string walrusCID;
         bytes32 suiTxHash;
         OperationStatus status;
         uint256 startTime;
         uint256 completionTime;
+        string errorMessage;
+        bool exists;
     }
 
     // Events for atomic operations
@@ -33,6 +38,14 @@ interface IAtomicVaultManager {
     event AtomicUpdateCompleted(address indexed user, bytes32 indexed vaultId, bytes32 suiTxHash);
     event AtomicUpdateFailed(address indexed user, bytes32 indexed vaultId, string reason);
     event OperationRolledBack(address indexed user, bytes32 indexed operationId, string reason);
+    
+    // Events for ROFL worker integration
+    event WalrusUploadRequested(bytes32 indexed operationId, bytes data, string baseUrl, uint256 epochs);
+    event WalrusUploadCompleted(bytes32 indexed operationId, string cid);
+    event WalrusUploadFailed(bytes32 indexed operationId, string reason);
+    event SuiUpdateRequested(bytes32 indexed operationId, bytes32 vaultId, string cid, string rpcUrl);
+    event SuiUpdateCompleted(bytes32 indexed operationId, bytes32 txHash);
+    event SuiUpdateFailed(bytes32 indexed operationId, string reason);
 
     /**
      * @dev Coordinate Walrus upload and Sui state update
@@ -98,4 +111,39 @@ interface IAtomicVaultManager {
      * @return paused Whether operations are currently paused
      */
     function isOperationsPaused() external view returns (bool paused);
+
+    // ROFL worker callback functions
+    /**
+     * @dev Callback for ROFL worker to report Walrus upload results
+     * @param operationId The operation identifier
+     * @param success Whether the upload succeeded
+     * @param cid The content identifier from Walrus (if successful)
+     * @param errorMessage Error details (if failed)
+     */
+    function reportWalrusUploadResult(
+        bytes32 operationId,
+        bool success,
+        string calldata cid,
+        string calldata errorMessage
+    ) external;
+
+    /**
+     * @dev Callback for ROFL worker to report Sui update results
+     * @param operationId The operation identifier
+     * @param success Whether the update succeeded
+     * @param txHash The transaction hash from Sui (if successful)
+     * @param errorMessage Error details (if failed)
+     */
+    function reportSuiUpdateResult(
+        bytes32 operationId,
+        bool success,
+        bytes32 txHash,
+        string calldata errorMessage
+    ) external;
+
+    /**
+     * @dev Set the authorized ROFL worker address
+     * @param roflWorker The ROFL worker address
+     */
+    function setROFLWorker(address roflWorker) external;
 }

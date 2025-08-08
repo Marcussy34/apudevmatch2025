@@ -10,8 +10,13 @@ describe("AtomicVaultManager", function () {
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
 
-    const AtomicVaultManager = await ethers.getContractFactory("AtomicVaultManager");
+    const AtomicVaultManager = await ethers.getContractFactory(
+      "AtomicVaultManager"
+    );
     atomicVaultManager = await AtomicVaultManager.deploy();
+
+    // Set up ROFL worker for testing (use owner as mock ROFL worker)
+    await atomicVaultManager.connect(owner).setROFLWorker(owner.address);
   });
 
   describe("Atomic Operations", function () {
@@ -21,18 +26,23 @@ describe("AtomicVaultManager", function () {
 
       await expect(
         atomicVaultManager.connect(user).executeAtomicUpdate(vaultId, vaultData)
-      ).to.emit(atomicVaultManager, "AtomicUpdateStarted");
+      ).to.emit(atomicVaultManager, "WalrusUploadRequested");
     });
 
     it("Should verify atomic completion", async function () {
       const vaultId = ethers.keccak256(ethers.toUtf8Bytes("test-vault"));
       const vaultData = ethers.toUtf8Bytes("test vault data");
 
-      const result = await atomicVaultManager.connect(user).executeAtomicUpdate.staticCall(vaultId, vaultData);
+      const result = await atomicVaultManager
+        .connect(user)
+        .executeAtomicUpdate.staticCall(vaultId, vaultData);
       const [walrusCID, suiTxHash] = result;
 
-      const isCompleted = await atomicVaultManager.verifyAtomicCompletion(vaultId, walrusCID, suiTxHash);
-      expect(isCompleted).to.be.false; // Will be false since we haven't actually executed
+      // Should return empty values since ROFL worker handles actual execution
+      expect(walrusCID).to.equal("");
+      expect(suiTxHash).to.equal(
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      );
     });
 
     it("Should get operation statistics", async function () {
@@ -50,13 +60,17 @@ describe("AtomicVaultManager", function () {
 
     it("Should handle user operations", async function () {
       const userAddress = await user.getAddress();
-      const operations = await atomicVaultManager.getUserOperations(userAddress);
+      const operations = await atomicVaultManager.getUserOperations(
+        userAddress
+      );
       expect(operations).to.have.length(0);
     });
 
     it("Should get pending operations", async function () {
       const userAddress = await user.getAddress();
-      const pendingOps = await atomicVaultManager.getPendingOperations(userAddress);
+      const pendingOps = await atomicVaultManager.getPendingOperations(
+        userAddress
+      );
       expect(pendingOps).to.have.length(0);
     });
   });
@@ -91,12 +105,14 @@ describe("AtomicVaultManager", function () {
 
     it("Should prevent non-owner from updating configs", async function () {
       await expect(
-        atomicVaultManager.connect(user).updateWalrusConfig(
-          "https://malicious-endpoint.com",
-          ethers.keccak256(ethers.toUtf8Bytes("malicious-key")),
-          1024,
-          1
-        )
+        atomicVaultManager
+          .connect(user)
+          .updateWalrusConfig(
+            "https://malicious-endpoint.com",
+            ethers.keccak256(ethers.toUtf8Bytes("malicious-key")),
+            1024,
+            1
+          )
       ).to.be.revertedWith("Not authorized");
     });
   });
@@ -104,7 +120,7 @@ describe("AtomicVaultManager", function () {
   describe("Operation Control", function () {
     it("Should allow owner to pause operations", async function () {
       await atomicVaultManager.connect(owner).pauseOperations();
-      
+
       const isPaused = await atomicVaultManager.isOperationsPaused();
       expect(isPaused).to.be.true;
 
@@ -119,7 +135,7 @@ describe("AtomicVaultManager", function () {
     it("Should allow owner to resume operations", async function () {
       await atomicVaultManager.connect(owner).pauseOperations();
       await atomicVaultManager.connect(owner).resumeOperations();
-      
+
       const isPaused = await atomicVaultManager.isOperationsPaused();
       expect(isPaused).to.be.false;
     });
@@ -148,7 +164,9 @@ describe("AtomicVaultManager", function () {
       const vaultData = ethers.toUtf8Bytes("test vault data");
 
       await expect(
-        atomicVaultManager.connect(user).executeAtomicUpdate(ethers.ZeroHash, vaultData)
+        atomicVaultManager
+          .connect(user)
+          .executeAtomicUpdate(ethers.ZeroHash, vaultData)
       ).to.be.revertedWith("Invalid vault ID");
     });
 
