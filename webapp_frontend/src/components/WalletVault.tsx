@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+<<<<<<< HEAD
 import { ArrowLeft, Wallet, Plus, Eye, EyeOff, Copy, ExternalLink, CheckCheck, User } from 'lucide-react'
 import { useCurrentAccount } from '@mysten/dapp-kit'
+=======
+import { ArrowLeft, Wallet, Plus, Eye, EyeOff, Copy, ExternalLink, CheckCheck, User, Shield, AlertCircle } from 'lucide-react'
+import { ZkLoginService } from '../services/zklogin'
+>>>>>>> origin/ivy
 
 // Function to format address with ellipsis
 const formatAddress = (address: string) => {
@@ -11,6 +16,7 @@ const formatAddress = (address: string) => {
 
 const WalletVault: React.FC = () => {
   const navigate = useNavigate()
+<<<<<<< HEAD
   const currentAccount = useCurrentAccount()
   const [suiWalletAddress, setSuiWalletAddress] = useState<string | null>(null)
   const [provider, setProvider] = useState<string | null>(null)
@@ -21,6 +27,18 @@ const WalletVault: React.FC = () => {
     const storedProvider = localStorage.getItem('zkLoginProvider')
     setProvider(storedProvider)
   }, [currentAccount])
+=======
+  const [copied, setCopied] = useState(false)
+  
+  // Get user profile from ZkLoginService
+  const userProfile = ZkLoginService.getStoredUserProfile()
+  const suiWalletAddress = userProfile?.suiAddress || null
+  const provider = userProfile?.provider || null
+  const userSalt = userProfile?.userSalt || null
+  
+  // Validate the address
+  const isAddressValid = suiWalletAddress ? ZkLoginService.validateSuiAddress(suiWalletAddress) : false
+>>>>>>> origin/ivy
   
   const handleCopyAddress = async (text: string) => {
     try {
@@ -29,6 +47,13 @@ const WalletVault: React.FC = () => {
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy: ', err)
+    }
+  }
+
+  const openSuiExplorer = () => {
+    if (suiWalletAddress) {
+      const explorerUrl = `https://suiexplorer.com/address/${suiWalletAddress}?network=testnet`
+      window.open(explorerUrl, '_blank')
     }
   }
 
@@ -61,8 +86,8 @@ const WalletVault: React.FC = () => {
                   <div className="ml-3">
                     <div className="flex items-center">
                       <h3 className="text-cyber-100 font-semibold">zkLogin Identity</h3>
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${provider === 'google' ? 'bg-red-900/20 text-red-400' : 'bg-blue-900/20 text-blue-400'}`}>
-                        {provider === 'google' ? 'Google' : 'Facebook'}
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${provider?.includes('Google') ? 'bg-red-900/20 text-red-400' : 'bg-blue-900/20 text-blue-400'}`}>
+                        {provider?.includes('Google') ? 'Google' : 'Facebook'}
                       </span>
                     </div>
                     <p className="text-cyber-400 text-xs">Seed-phrase-free authentication</p>
@@ -72,7 +97,22 @@ const WalletVault: React.FC = () => {
               
               {/* SUI Address Display */}
               <div className="p-3 rounded-lg bg-cyber-800/50 mb-4">
-                <p className="text-xs text-cyber-400 mb-1">SUI Wallet Address</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-cyber-400">SUI Wallet Address</p>
+                  <div className="flex items-center space-x-2">
+                    {isAddressValid ? (
+                      <div className="flex items-center text-green-400 text-xs">
+                        <Shield className="w-3 h-3 mr-1" />
+                        Valid
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-red-400 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Invalid
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-cyber-100 font-mono break-all">{suiWalletAddress}</p>
                   <div className="flex space-x-1 ml-2">
@@ -86,12 +126,20 @@ const WalletVault: React.FC = () => {
                         <Copy className="w-4 h-4 text-cyber-400 hover:text-primary-400" strokeWidth={1.5} />
                       )}
                     </button>
-                    <button className="p-1 hover:bg-cyber-700 rounded transition-colors">
+                    <button className="p-1 hover:bg-cyber-700 rounded transition-colors" onClick={openSuiExplorer}>
                       <ExternalLink className="w-4 h-4 text-cyber-400 hover:text-primary-400" strokeWidth={1.5} />
                     </button>
                   </div>
                 </div>
               </div>
+              
+              {/* User Salt Display */}
+              {userSalt && (
+                <div className="p-3 rounded-lg bg-cyber-800/30 mb-4">
+                  <p className="text-xs text-cyber-400 mb-1">User Salt (for debugging)</p>
+                  <p className="text-sm text-cyber-300 font-mono break-all">{userSalt}</p>
+                </div>
+              )}
               
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-cyber-800/30 p-3 rounded-lg">

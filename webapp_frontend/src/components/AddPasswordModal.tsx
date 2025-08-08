@@ -1,92 +1,120 @@
-import React, { useState, useEffect } from 'react'
-import { X, Eye, EyeOff, Globe, RefreshCw } from 'lucide-react'
+import React, { useState, useEffect } from "react";
+import { X, Eye, EyeOff, Globe, RefreshCw } from "lucide-react";
 
 export interface NewPasswordData {
-  name: string
-  url: string
-  username: string
-  password: string
+  name: string;
+  url: string;
+  username: string;
+  password: string;
 }
 
 interface AddPasswordModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (data: NewPasswordData) => void
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: NewPasswordData) => Promise<void>;
 }
 
 const generatePassword = (length: number = 16): string => {
-  const uppercaseChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  const lowercaseChars = 'abcdefghijklmnopqrstuvwxyz'
-  const numberChars = '0123456789'
-  const specialChars = '!@#$%^&*()_-+=<>?'
-  
-  const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars
-  
-  let password = ''
+  const uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lowercaseChars = "abcdefghijklmnopqrstuvwxyz";
+  const numberChars = "0123456789";
+  const specialChars = "!@#$%^&*()_-+=<>?";
+
+  const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
+
+  let password = "";
   // Ensure at least one of each type
-  password += uppercaseChars.charAt(Math.floor(Math.random() * uppercaseChars.length))
-  password += lowercaseChars.charAt(Math.floor(Math.random() * lowercaseChars.length))
-  password += numberChars.charAt(Math.floor(Math.random() * numberChars.length))
-  password += specialChars.charAt(Math.floor(Math.random() * specialChars.length))
-  
+  password += uppercaseChars.charAt(
+    Math.floor(Math.random() * uppercaseChars.length)
+  );
+  password += lowercaseChars.charAt(
+    Math.floor(Math.random() * lowercaseChars.length)
+  );
+  password += numberChars.charAt(
+    Math.floor(Math.random() * numberChars.length)
+  );
+  password += specialChars.charAt(
+    Math.floor(Math.random() * specialChars.length)
+  );
+
   // Fill the rest randomly
   for (let i = 4; i < length; i++) {
-    password += allChars.charAt(Math.floor(Math.random() * allChars.length))
+    password += allChars.charAt(Math.floor(Math.random() * allChars.length));
   }
-  
-  // Shuffle the password
-  return password.split('').sort(() => 0.5 - Math.random()).join('')
-}
 
-const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, onSave }) => {
-  const [name, setName] = useState('')
-  const [url, setUrl] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [passwordLength, setPasswordLength] = useState(16)
-  
+  // Shuffle the password
+  return password
+    .split("")
+    .sort(() => 0.5 - Math.random())
+    .join("");
+};
+
+const AddPasswordModal: React.FC<AddPasswordModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+}) => {
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordLength, setPasswordLength] = useState(16);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
     // Generate random password when modal opens
     if (isOpen) {
-      setPassword(generatePassword(passwordLength))
+      setPassword(generatePassword(passwordLength));
     }
-  }, [isOpen, passwordLength])
-  
+  }, [isOpen, passwordLength]);
+
   // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setName('')
-      setUrl('')
-      setUsername('')
-      setPassword('')
-      setShowPassword(false)
+      setName("");
+      setUrl("");
+      setUsername("");
+      setPassword("");
+      setShowPassword(false);
+      setIsSubmitting(false);
     }
-  }, [isOpen])
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     // Validate form
     if (!name || !url || !username || !password) {
-      return
+      return;
     }
-    
-    onSave({ name, url, username, password })
-    onClose()
-  }
-  
+
+    setIsSubmitting(true);
+
+    try {
+      await onSave({ name, url, username, password });
+      onClose();
+    } catch (error) {
+      console.error("Failed to save password:", error);
+      // Error handling is done in the parent component
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleGeneratePassword = () => {
-    setPassword(generatePassword(passwordLength))
-  }
-  
-  if (!isOpen) return null
+    setPassword(generatePassword(passwordLength));
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-cyber-900/80 backdrop-blur-sm">
       <div className="cyber-border rounded-xl overflow-hidden w-full max-w-lg animate-fade-in">
         <div className="p-5 border-b border-cyber-700/50 flex justify-between items-center">
-          <h3 className="text-xl font-medium text-cyber-100">Add New Password</h3>
+          <h3 className="text-xl font-medium text-cyber-100">
+            Add New Password
+          </h3>
           <button
             onClick={onClose}
             className="p-1 hover:bg-cyber-700 rounded transition-colors"
@@ -94,11 +122,14 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
             <X className="w-5 h-5 text-cyber-400" />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Name */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-cyber-300 mb-1">
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-cyber-300 mb-1"
+            >
               Site/App Name
             </label>
             <input
@@ -109,12 +140,16 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
               placeholder="e.g. Gmail, Facebook, Twitter"
               className="cyber-input"
               required
+              disabled={isSubmitting}
             />
           </div>
-          
+
           {/* URL */}
           <div>
-            <label htmlFor="url" className="block text-sm font-medium text-cyber-300 mb-1">
+            <label
+              htmlFor="url"
+              className="block text-sm font-medium text-cyber-300 mb-1"
+            >
               Website URL
             </label>
             <div className="relative">
@@ -129,13 +164,17 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
                 placeholder="e.g. gmail.com"
                 className="cyber-input pl-9"
                 required
+                disabled={isSubmitting}
               />
             </div>
           </div>
-          
+
           {/* Username */}
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-cyber-300 mb-1">
+            <label
+              htmlFor="username"
+              className="block text-sm font-medium text-cyber-300 mb-1"
+            >
               Username or Email
             </label>
             <input
@@ -146,12 +185,16 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
               placeholder="e.g. john.doe@example.com"
               className="cyber-input"
               required
+              disabled={isSubmitting}
             />
           </div>
-          
+
           {/* Password */}
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-cyber-300 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-cyber-300 mb-1"
+            >
               Password
             </label>
             <div className="relative">
@@ -162,15 +205,20 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
                 onChange={(e) => setPassword(e.target.value)}
                 className="cyber-input pr-20"
                 required
+                disabled={isSubmitting}
               />
               <div className="absolute inset-y-0 right-0 flex items-center">
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="p-1 hover:bg-cyber-700 rounded transition-colors mr-1"
+                  disabled={isSubmitting}
                 >
                   {showPassword ? (
-                    <EyeOff className="w-4 h-4 text-cyber-400" strokeWidth={1.5} />
+                    <EyeOff
+                      className="w-4 h-4 text-cyber-400"
+                      strokeWidth={1.5}
+                    />
                   ) : (
                     <Eye className="w-4 h-4 text-cyber-400" strokeWidth={1.5} />
                   )}
@@ -179,16 +227,23 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
                   type="button"
                   onClick={handleGeneratePassword}
                   className="p-1 hover:bg-cyber-700 rounded transition-colors mr-2"
+                  disabled={isSubmitting}
                 >
-                  <RefreshCw className="w-4 h-4 text-cyber-400" strokeWidth={1.5} />
+                  <RefreshCw
+                    className="w-4 h-4 text-cyber-400"
+                    strokeWidth={1.5}
+                  />
                 </button>
               </div>
             </div>
           </div>
-          
+
           {/* Password Generator Options */}
           <div className="pt-2">
-            <label htmlFor="passwordLength" className="block text-sm font-medium text-cyber-300 mb-1">
+            <label
+              htmlFor="passwordLength"
+              className="block text-sm font-medium text-cyber-300 mb-1"
+            >
               Password Length: {passwordLength}
             </label>
             <input
@@ -199,6 +254,7 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
               value={passwordLength}
               onChange={(e) => setPasswordLength(parseInt(e.target.value))}
               className="w-full bg-cyber-700 rounded-lg appearance-none cursor-pointer h-2"
+              disabled={isSubmitting}
             />
             <div className="flex justify-between text-xs text-cyber-500 mt-1">
               <span>8</span>
@@ -206,27 +262,36 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
               <span>32</span>
             </div>
           </div>
-          
+
           {/* Actions */}
           <div className="flex space-x-3 pt-4">
             <button
               type="button"
               onClick={onClose}
+              disabled={isSubmitting}
               className="cyber-button-secondary flex-1"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="cyber-button flex-1"
+              disabled={isSubmitting}
+              className="cyber-button flex-1 flex items-center justify-center space-x-2"
             >
-              Save Password
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Encrypting & Storing...</span>
+                </>
+              ) : (
+                <span>Save Password</span>
+              )}
             </button>
           </div>
         </form>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AddPasswordModal
+export default AddPasswordModal;

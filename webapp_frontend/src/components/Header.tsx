@@ -6,6 +6,7 @@ import { useCurrentAccount } from '@mysten/dapp-kit'
 interface HeaderProps {
   isLoggedIn?: boolean;
   onSignOut?: () => void;
+  userProfile?: { name: string; email: string; suiAddress: string; provider: string } | null;
 }
 
 // Function to format address with ellipsis
@@ -13,6 +14,7 @@ const formatAddress = (address: string) => {
   return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 };
 
+<<<<<<< HEAD
 const Header: React.FC<HeaderProps> = ({ isLoggedIn, onSignOut }) => {
   const currentAccount = useCurrentAccount()
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
@@ -26,18 +28,26 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onSignOut }) => {
     setProvider(storedProvider)
   }, [currentAccount])
 
+=======
+const Header: React.FC<HeaderProps> = ({ isLoggedIn, onSignOut, userProfile }) => {
+  const [copied, setCopied] = useState(false)
+
+>>>>>>> origin/ivy
   const handleCopyAddress = () => {
-    if (walletAddress) {
-      navigator.clipboard.writeText(walletAddress)
+    if (userProfile?.suiAddress) {
+      navigator.clipboard.writeText(userProfile.suiAddress)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
   }
 
   const handleSignOut = () => {
+<<<<<<< HEAD
     localStorage.removeItem('zkLoginProvider')
     setWalletAddress(null)
     setProvider(null)
+=======
+>>>>>>> origin/ivy
     if (onSignOut) {
       onSignOut()
     }
@@ -51,35 +61,33 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onSignOut }) => {
           <span className="text-xl font-bold text-cyber-100">Grand Warden</span>
         </Link>
         
-        {isLoggedIn && (
+        {isLoggedIn && userProfile && (
           <div className="flex items-center space-x-4">
-            {/* Wallet Address Display */}
-            {walletAddress && (
-              <div className="hidden sm:flex items-center space-x-2">
-                <div className="cyber-border rounded-full p-2 bg-cyber-700/30">
-                  <div className="flex items-center">
-                    <div className={`w-2 h-2 rounded-full ${provider === 'google' ? 'bg-red-500' : 'bg-blue-500'} mr-2`}></div>
-                    <span className="text-xs font-mono text-cyber-300">
-                      {formatAddress(walletAddress)}
-                    </span>
-                    <button 
-                      onClick={handleCopyAddress}
-                      className="ml-2 text-cyber-400 hover:text-cyber-200 transition-colors"
-                      title="Copy address"
-                    >
-                      {copied ? (
-                        <CheckCheck className="w-4 h-4 text-green-400" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div className="cyber-border rounded-full p-1 bg-cyber-700/30">
-                  <User className="w-6 h-6 text-primary-400" strokeWidth={1.5} />
+            {/* User Info Display */}
+            <div className="hidden sm:flex items-center space-x-2">
+              <div className="cyber-border rounded-full p-2 bg-cyber-700/30">
+                <div className="flex items-center">
+                  <div className={`w-2 h-2 rounded-full ${userProfile.provider.includes('Google') ? 'bg-red-500' : 'bg-blue-500'} mr-2`}></div>
+                  <span className="text-xs font-mono text-cyber-300">
+                    {formatAddress(userProfile.suiAddress)}
+                  </span>
+                  <button 
+                    onClick={handleCopyAddress}
+                    className="ml-2 text-cyber-400 hover:text-cyber-200 transition-colors"
+                    title="Copy address"
+                  >
+                    {copied ? (
+                      <CheckCheck className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
               </div>
-            )}
+              <div className="cyber-border rounded-full p-1 bg-cyber-700/30">
+                <User className="w-6 h-6 text-primary-400" strokeWidth={1.5} />
+              </div>
+            </div>
 
             {/* Sign Out Button */}
             <button 
