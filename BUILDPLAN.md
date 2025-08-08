@@ -53,7 +53,7 @@ This plan structures development into 6 sequential phases that build incremental
 
 ### 🏗️ Phase 1: Smart Contract Foundation
 
-**Objective**: Deploy complete Grand Warden smart contracts with proper event emissions for password vault, wallet vault, and device management.
+**Objective**: Deploy complete Grand Warden smart contracts with proper event emissions for password vault, wallet vault, and device management, including MirrorInbox for ROFL mirroring and canonical ABI.
 
 #### Scope
 
@@ -64,6 +64,7 @@ This plan structures development into 6 sequential phases that build incremental
 - **Event System**: Comprehensive logging for Graph indexing with real-time UI notifications
 - **Multi-Chain RPC Integration**: Native support for Ethereum, Polygon, and other EVM chains within Sapphire TEE
 - **Atomic Vault Operations**: Secure blob encryption/decryption with coordinated Walrus and Sui state management
+- **MirrorInbox Entry**: Dedicated entrypoint for ROFL with attestation/allowlist, idempotency (eventId), ordering (seq), and payload.version
 
 #### Technical Specifications
 
@@ -98,7 +99,7 @@ interface IWalletVault {
     function fetchWalletBalances(bytes32 walletId)
         external view returns (ChainBalance[] memory balances);
 
-    // Secure transaction signing
+    // Secure transaction signing (EVM now; Sui Ed25519 path added later)
     function signTransaction(bytes32 walletId, uint8 chainType, bytes32 txHash, bytes calldata txData)
         external returns (bytes memory signature);
 
@@ -108,7 +109,8 @@ interface IWalletVault {
     // Events for user flow
     event WalletImported(address indexed user, bytes32 indexed walletId, string name, uint256 timestamp);
     event BalancesFetched(address indexed user, bytes32 indexed walletId, uint256 totalValue);
-    event TransactionSigned(address indexed user, bytes32 indexed walletId, bytes32 txHash);
+    // Canonical ABI (includes chain type)
+    event TransactionSigned(address indexed user, bytes32 indexed walletId, bytes32 txHash, uint8 chainType);
 }
 
 interface IPasswordVault {
@@ -182,7 +184,7 @@ interface IAtomicVaultManager {
 - `CredentialAdded(address indexed user, bytes32 vaultId, string domain, uint256 timestamp)` // For password save flow
 - `VaultBlobUpdated(address indexed user, bytes32 vaultId, string newCID, bytes32 suiTxHash)` // For atomic updates
 - `AtomicUpdateCompleted(address indexed user, bytes32 vaultId, bytes32 suiTxHash)` // For UI confirmation
-- `TransactionSigned(address indexed user, bytes32 walletId, bytes32 txHash, uint8 chainType)` // Enhanced with chain info
+- `TransactionSigned(address indexed user, bytes32 walletId, bytes32 txHash, uint8 chainType)` // Canonical signature
 
 #### Dependencies
 
@@ -319,11 +321,14 @@ module grandwarden::walrus_manager {
 
 **Key Events to Emit**:
 
-- `DeviceRegistered(address indexed user, ID device_id, String device_name)`
-- `DeviceRevoked(address indexed user, ID device_id, u64 timestamp)`
-- `VaultPointerCreated(address indexed user, ID vault_id, String walrus_cid)`
-- `BlobAccessGranted(address indexed user, String blob_id, address device)`
-- `RecoveryInitiated(address indexed user, ID recovery_id, u64 threshold)`
+Include `eventId` and per-source `seq` on all events for mirroring correctness:
+
+- `DeviceRegistered(user, device_id, device_name, public_key, registered_at, eventId, seq)`
+- `DeviceStatusChanged(user, device_id, new_status, changed_at, reason?, eventId, seq)`
+- `VaultPointerCreated(user, vault_id, walrus_cid, metadata_hash, created_at, eventId, seq)`
+- `VaultPointerSet(user, vault_id, walrus_cid, metadata_hash, stage, updated_at, eventId, seq)`
+- `BlobACLUpdated(user, blob_id, policy, authorized_devices[], updated_at, eventId, seq)`
+- `RecoveryInitiated/Approved/Completed(..., eventId, seq)`
 
 #### Dependencies
 
@@ -829,6 +834,9 @@ export function usePasswordSave() {
 - **Synthetic Event Triggering**: Call specific Sapphire contract functions (e.g., `emitSyntheticEvent()`) to emit corresponding EVM events
 - **Enabling Sui Indexing**: Make Sui's activity "visible" to The Graph by mirroring events to Sapphire where they can be indexed
 - **Reliability & Monitoring**: Retry logic, error handling, and telemetry for the critical bridge functionality
+- **Idempotency & Ordering**: Durable dedupe by `eventId`, monotonic `seq` per source, exactly-once delivery
+- **Attestation/Allowlist**: Prove ROFL identity to Sapphire or use allowlisted key
+- **Durable Cursor/Replay**: Persist last processed cursor; resume without gaps/dupes
 
 #### Technical Specifications
 
