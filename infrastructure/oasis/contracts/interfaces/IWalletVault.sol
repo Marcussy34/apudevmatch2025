@@ -9,10 +9,9 @@ import "./IMultiChainRPC.sol";
  */
 interface IWalletVault {
 
-    // Events for user flow
+    // Events for user flow - TransactionSigned is declared in IVaultEvents
     event WalletImported(address indexed user, bytes32 indexed walletId, string name, uint256 timestamp);
     event BalancesFetched(address indexed user, bytes32 indexed walletId, uint256 totalValue);
-    event TransactionSigned(address indexed user, bytes32 indexed walletId, bytes32 txHash);
 
     /**
      * @dev Import seed phrase and create wallet

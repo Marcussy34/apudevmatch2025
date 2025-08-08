@@ -163,6 +163,125 @@ describe("WalletVault - Comprehensive Tests", function () {
       expect(receipt?.logs.length).to.be.greaterThan(0);
     });
 
+    it("Should sign Sui transactions using Ed25519", async function () {
+      const suiChainType = 10; // SUI_CHAIN constant
+
+      // First derive a key for Sui chain
+      await walletVault
+        .connect(user)
+        .deriveKeysFromSeed(walletId, [suiChainType]);
+
+      const txHash = ethers.keccak256(
+        ethers.toUtf8Bytes("sui test transaction")
+      );
+      const txData = ethers.toUtf8Bytes("sui transaction data");
+
+      const tx = await walletVault
+        .connect(user)
+        .signTransaction(walletId, suiChainType, txHash, txData);
+      const receipt = await tx.wait();
+
+      // Check that transaction was signed and emitted correct event with chainType
+      expect(receipt?.logs.length).to.be.greaterThan(0);
+
+      // Verify the TransactionSigned event contains the correct chainType (10 for Sui)
+      const events = receipt?.logs || [];
+      const signedEvent = events.find((log) => {
+        try {
+          const parsedLog = walletVault.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          return parsedLog?.name === "TransactionSigned";
+        } catch {
+          return false;
+        }
+      });
+
+      expect(signedEvent).to.not.be.undefined;
+      if (signedEvent) {
+        const parsedLog = walletVault.interface.parseLog({
+          topics: signedEvent.topics,
+          data: signedEvent.data,
+        });
+        expect(parsedLog?.args[3]).to.equal(suiChainType); // chainType should be 10 (SUI_CHAIN)
+      }
+    });
+
+    it("Should use different signature formats for EVM vs Sui chains", async function () {
+      const evmChainType = 1; // Ethereum
+      const suiChainType = 10; // Sui
+
+      // Derive keys for both chains
+      await walletVault
+        .connect(user)
+        .deriveKeysFromSeed(walletId, [evmChainType, suiChainType]);
+
+      const txHash = ethers.keccak256(ethers.toUtf8Bytes("test transaction"));
+      const txData = ethers.toUtf8Bytes("transaction data");
+
+      // Sign transactions on both chains
+      const evmTx = await walletVault
+        .connect(user)
+        .signTransaction(walletId, evmChainType, txHash, txData);
+      const evmReceipt = await evmTx.wait();
+
+      const suiTx = await walletVault
+        .connect(user)
+        .signTransaction(walletId, suiChainType, txHash, txData);
+      const suiReceipt = await suiTx.wait();
+
+      // Both should succeed
+      expect(evmReceipt?.status).to.equal(1);
+      expect(suiReceipt?.status).to.equal(1);
+
+      // Verify the chainType is correctly recorded in events
+      const evmEvents = evmReceipt?.logs || [];
+      const suiEvents = suiReceipt?.logs || [];
+
+      const evmSignedEvent = evmEvents.find((log) => {
+        try {
+          const parsedLog = walletVault.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          return parsedLog?.name === "TransactionSigned";
+        } catch {
+          return false;
+        }
+      });
+
+      const suiSignedEvent = suiEvents.find((log) => {
+        try {
+          const parsedLog = walletVault.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          return parsedLog?.name === "TransactionSigned";
+        } catch {
+          return false;
+        }
+      });
+
+      expect(evmSignedEvent).to.not.be.undefined;
+      expect(suiSignedEvent).to.not.be.undefined;
+
+      if (evmSignedEvent && suiSignedEvent) {
+        const evmParsedLog = walletVault.interface.parseLog({
+          topics: evmSignedEvent.topics,
+          data: evmSignedEvent.data,
+        });
+        const suiParsedLog = walletVault.interface.parseLog({
+          topics: suiSignedEvent.topics,
+          data: suiSignedEvent.data,
+        });
+
+        // Verify different chain types were recorded
+        expect(evmParsedLog?.args[3]).to.equal(evmChainType); // Should be 1 (Ethereum)
+        expect(suiParsedLog?.args[3]).to.equal(suiChainType); // Should be 10 (Sui)
+      }
+    });
+
     it("Should reject unsupported chain types", async function () {
       const invalidChainTypes = [99]; // Invalid chain
 

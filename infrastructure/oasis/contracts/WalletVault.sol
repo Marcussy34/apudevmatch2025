@@ -39,9 +39,18 @@ contract WalletVault is IWalletVault, IMultiChainRPC, IVaultEvents {
     
     // Constants
     uint256 private constant MAX_WALLETS_PER_USER = 10;
+    
+    // EVM-compatible chains (secp256k1 signatures)
     uint8 private constant ETHEREUM_CHAIN = 1;
     uint8 private constant POLYGON_CHAIN = 2;
     uint8 private constant BSC_CHAIN = 3;
+    
+    // Non-EVM chains (different signature schemes)
+    uint8 private constant SUI_CHAIN = 10;  // Ed25519 signatures
+    
+    // Signature scheme identifiers
+    uint8 private constant SIGNATURE_SCHEME_SECP256K1 = 0;
+    uint8 private constant SIGNATURE_SCHEME_ED25519 = 1;
 
     // Modifiers
     modifier onlyOwner() {
@@ -106,6 +115,16 @@ contract WalletVault is IWalletVault, IMultiChainRPC, IVaultEvents {
             isActive: true
         });
         supportedChainTypes.push(BSC_CHAIN);
+
+        // Sui
+        chainConfigs[SUI_CHAIN] = IMultiChainRPC.ChainConfig({
+            chainType: SUI_CHAIN,
+            name: "Sui",
+            rpcUrl: "https://fullnode.testnet.sui.io:443",
+            chainId: 0, // Sui doesn't use EVM-style chain IDs
+            isActive: true
+        });
+        supportedChainTypes.push(SUI_CHAIN);
     }
 
     /**
@@ -240,14 +259,15 @@ contract WalletVault is IWalletVault, IMultiChainRPC, IVaultEvents {
         Wallet storage wallet = wallets[walletId];
         require(wallet.derivedAddresses[chainType] != address(0), "Address not derived for chain");
 
-        // Mock signature - in real implementation, this would sign using private key derived from seed
-        signature = abi.encodePacked(
-            keccak256(abi.encodePacked(wallet.encryptedSeed, txHash, txData)),
-            uint8(27) // recovery id
-        );
+        // Route to appropriate signing method based on chain type
+        if (chainType == SUI_CHAIN) {
+            signature = _signTransactionEd25519(wallet, txHash, txData);
+        } else {
+            signature = _signTransactionSecp256k1(wallet, txHash, txData);
+        }
 
         wallet.lastUsed = block.timestamp;
-        emit TransactionSigned(msg.sender, walletId, txHash);
+        emit TransactionSigned(msg.sender, walletId, txHash, chainType);
         
         return signature;
     }
@@ -430,12 +450,75 @@ contract WalletVault is IWalletVault, IMultiChainRPC, IVaultEvents {
         return balances;
     }
 
+    // Signing helper functions
+
+    /**
+     * @dev Sign transaction using secp256k1 (for EVM chains)
+     * @param wallet The wallet storage reference
+     * @param txHash The transaction hash to sign  
+     * @param txData The transaction data
+     * @return signature The secp256k1 signature
+     */
+    function _signTransactionSecp256k1(Wallet storage wallet, bytes32 txHash, bytes calldata txData) 
+        private 
+        view 
+        returns (bytes memory signature) 
+    {
+        // TODO: Implement real secp256k1 signing using Sapphire EIP155Signer
+        // For now, return a properly formatted mock signature
+        // This should be replaced with actual private key derivation and ECDSA signing
+        
+        bytes32 messageHash = keccak256(abi.encodePacked(wallet.encryptedSeed, txHash, txData));
+        
+        // Mock secp256k1 signature format: r (32 bytes) + s (32 bytes) + v (1 byte)
+        signature = abi.encodePacked(
+            messageHash, // r component (mock)
+            keccak256(abi.encodePacked(messageHash, "secp256k1")), // s component (mock)
+            uint8(27) // recovery id
+        );
+        
+        return signature;
+    }
+
+    /**
+     * @dev Sign transaction using Ed25519 (for Sui chain)
+     * @param wallet The wallet storage reference
+     * @param txHash The transaction hash to sign
+     * @param txData The transaction data  
+     * @return signature The Ed25519 signature
+     */
+    function _signTransactionEd25519(Wallet storage wallet, bytes32 txHash, bytes calldata txData) 
+        private 
+        view 
+        returns (bytes memory signature) 
+    {
+        // TODO: Implement real Ed25519 signing
+        // This is a transitional implementation that generates a properly formatted
+        // Ed25519 signature structure but uses mock cryptography
+        // 
+        // Real implementation options:
+        // 1. ROFL worker with Sui TypeScript SDK (Phase 4)
+        // 2. Custom Sapphire precompile for Ed25519 (if available)
+        // 3. Host-call to external Ed25519 service
+        
+        bytes32 messageHash = keccak256(abi.encodePacked(wallet.encryptedSeed, txHash, txData));
+        
+        // Ed25519 signature format: 64 bytes (no recovery id needed)
+        signature = abi.encodePacked(
+            messageHash, // First 32 bytes of signature (mock)
+            keccak256(abi.encodePacked(messageHash, "ed25519")) // Second 32 bytes (mock)
+        );
+        
+        return signature;
+    }
+
     // Helper functions
 
     function _getChainTokenSymbol(uint8 chainType) private pure returns (string memory) {
         if (chainType == ETHEREUM_CHAIN) return "ETH";
         if (chainType == POLYGON_CHAIN) return "MATIC";
         if (chainType == BSC_CHAIN) return "BNB";
+        if (chainType == SUI_CHAIN) return "SUI";
         return "UNKNOWN";
     }
 
@@ -443,6 +526,7 @@ contract WalletVault is IWalletVault, IMultiChainRPC, IVaultEvents {
         if (chainType == ETHEREUM_CHAIN) return 3000e18; // $3000
         if (chainType == POLYGON_CHAIN) return 1e18; // $1
         if (chainType == BSC_CHAIN) return 300e18; // $300
+        if (chainType == SUI_CHAIN) return 2e18; // $2
         return 1e18;
     }
 
