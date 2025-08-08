@@ -25,7 +25,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
         <RegisterEnokiWallets />
-        <WalletProvider autoConnect={false}>
+        <WalletProvider autoConnect>
           <BrowserRouter>
             <App />
           </BrowserRouter>

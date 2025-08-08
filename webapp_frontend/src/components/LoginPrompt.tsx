@@ -42,6 +42,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
       setLoginError(null)
       if (!googleWallet) throw new Error('Google wallet not registered')
       await connect({ wallet: googleWallet })
+      try { localStorage.setItem('zkLoginProvider', 'google') } catch {}
       onLoginClick()
     } catch (e: any) {
       setLoginError(e?.message || 'Failed to start Google login')

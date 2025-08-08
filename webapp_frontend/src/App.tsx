@@ -9,6 +9,7 @@ import Alerts from './components/Alerts'
 import WalletVault from './components/WalletVault'
 import DeviceRegistry from './components/DeviceRegistry'
 import Analytics from './components/Analytics'
+import DeviceRegistryTester from './components/DeviceRegistryTester'
 import Footer from './components/Footer'
 import ToastContainer from './components/ToastContainer'
 import { ToastProps } from './components/Toast'
@@ -18,17 +19,31 @@ function App() {
   const currentAccount = useCurrentAccount()
   const isLoggedIn = useMemo(() => Boolean(currentAccount), [currentAccount])
   const [toasts, setToasts] = useState<ToastProps[]>([])
+  const [isNewUser, setIsNewUser] = useState<boolean | null>(null)
   const navigate = useNavigate()
   
   const { mutateAsync: disconnect } = useDisconnectWallet()
 
   const handleSignIn = () => {
-    // Show welcome toast
+    const address = currentAccount?.address
+    let newUser = false
+    if (address) {
+      try {
+        const key = `knownUser:${address}`
+        const seen = localStorage.getItem(key)
+        if (!seen) {
+          localStorage.setItem(key, '1')
+          newUser = true
+        }
+      } catch {}
+    }
+    setIsNewUser(newUser)
+
     addToast({
       type: 'success',
-      title: 'Login Successful',
-      message: 'Welcome to Grand Warden!',
-      duration: 3000
+      title: newUser ? 'Welcome!' : 'Welcome back!',
+      message: newUser ? 'Setting up your vault…' : 'Glad to see you again.',
+      duration: 3000,
     })
   }
 
@@ -90,6 +105,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Alerts />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/tester" 
+            element={
+              <ProtectedRoute>
+                <DeviceRegistryTester />
               </ProtectedRoute>
             } 
           />

@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Smartphone, Laptop, Tablet, Monitor, Clock, CheckCircle, XCircle, MoreVertical } from 'lucide-react'
+import DeviceRegistryTester from './DeviceRegistryTester'
 
 const DeviceRegistry: React.FC = () => {
   const navigate = useNavigate()
@@ -215,6 +216,14 @@ const DeviceRegistry: React.FC = () => {
               <button className="cyber-button w-full py-2.5">
                 Configure Recovery Kit
               </button>
+            </div>
+          </div>
+
+          {/* On-chain Contract Tester */}
+          <div className="pt-6">
+            <h2 className="text-lg font-medium text-cyber-100 mb-3">On-chain Device Registry Tester</h2>
+            <div className="cyber-border rounded-lg">
+              <DeviceRegistryTester />
             </div>
           </div>
         </div>
