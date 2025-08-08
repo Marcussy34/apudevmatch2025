@@ -2,13 +2,14 @@
 pragma solidity ^0.8.9;
 
 import "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/IVaultEvents.sol";
 
 /**
  * @title DeviceRegistry
  * @dev Multi-device authentication and management with secure device authorization
  */
-contract DeviceRegistry is IVaultEvents {
+contract DeviceRegistry is IVaultEvents, ReentrancyGuard {
     using Sapphire for *;
 
     // Device status enumeration
@@ -98,6 +99,7 @@ contract DeviceRegistry is IVaultEvents {
         bytes calldata deviceFingerprint
     ) 
         external 
+        nonReentrant
         whenNotPaused 
         returns (bytes32 deviceId) 
     {
@@ -161,6 +163,7 @@ contract DeviceRegistry is IVaultEvents {
         external 
         validDevice(deviceId) 
         onlyDeviceOwner(deviceId) 
+        nonReentrant
         whenNotPaused 
         returns (bool success) 
     {
@@ -198,6 +201,7 @@ contract DeviceRegistry is IVaultEvents {
         external 
         validDevice(deviceId) 
         onlyDeviceOwner(deviceId) 
+        nonReentrant
         whenNotPaused 
     {
         Device storage device = devices[deviceId];
@@ -232,6 +236,7 @@ contract DeviceRegistry is IVaultEvents {
         external 
         validDevice(deviceId) 
         onlyDeviceOwner(deviceId) 
+        nonReentrant
         whenNotPaused 
     {
         Device storage device = devices[deviceId];
@@ -523,11 +528,13 @@ contract DeviceRegistry is IVaultEvents {
     event GenericVaultEvent(address indexed user, uint8 eventType, bytes data);
     event UserFlowEvent(address indexed user, uint8 flowType, uint8 step, bool success, bytes data);
 
-    function pause() external onlyOwner {
+    function pause() external onlyOwner nonReentrant {
+        require(!isPaused, "Already paused");
         isPaused = true;
     }
 
-    function unpause() external onlyOwner {
+    function unpause() external onlyOwner nonReentrant {
+        require(isPaused, "Not paused");
         isPaused = false;
     }
 }

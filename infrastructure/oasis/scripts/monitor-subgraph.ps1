@@ -112,7 +112,7 @@ function Show-Stats {
         Write-Host "   WalletVault:        0x3B7dd63D236bDB0Fd85d556d2AC70e2746cF5F82" -ForegroundColor Gray
         Write-Host "   DeviceRegistry:     0x9ec3B09A3cDc7Dd2ba8fB8F6e9Bd6C04DDfBCd2d" -ForegroundColor Gray
         Write-Host "   RecoveryManager:    0x58fF6e3d3D76053F2B13327A6399ECD25E363818" -ForegroundColor Gray
-        Write-Host "   MultiChainRPC:      0x2bcaA2dDbAE6609Cbd63D3a4B3dd0af881759472" -ForegroundColor Gray
+
         Write-Host "   AtomicVaultManager: 0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C" -ForegroundColor Gray
         Write-Host ""
         Write-Host "Press Ctrl+C to stop monitoring..." -ForegroundColor Gray

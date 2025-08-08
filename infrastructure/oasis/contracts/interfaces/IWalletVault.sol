@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "./IMultiChainRPC.sol";
-
 /**
  * @title IWalletVault
  * @dev Interface for Web3 wallet management with multi-chain support
@@ -32,12 +30,12 @@ interface IWalletVault {
         external returns (address[] memory addresses);
 
     /**
-     * @dev Fetch wallet balances across multiple chains within TEE
+     * @dev Fetch wallet balances (simplified - frontend handles multi-chain logic)
      * @param walletId The wallet identifier
-     * @return balances Array of chain balances
+     * @return balances Array of balance amounts
      */
     function fetchWalletBalances(bytes32 walletId)
-        external view returns (IMultiChainRPC.ChainBalance[] memory balances);
+        external view returns (uint256[] memory balances);
 
     /**
      * @dev Sign transaction securely within TEE

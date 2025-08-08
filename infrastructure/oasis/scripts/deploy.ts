@@ -97,10 +97,7 @@ async function main() {
     // 4. Deploy RecoveryManager (Social Recovery)
     const recoveryManager = await deployContract("RecoveryManager");
 
-    // 5. Deploy MultiChainRPC (Multi-chain Balance & RPC)
-    const multiChainRPC = await deployContract("MultiChainRPC");
-
-    // 6. Deploy AtomicVaultManager (Coordinated Operations)
+    // 5. Deploy AtomicVaultManager (Coordinated Operations)
     const atomicVaultManager = await deployContract("AtomicVaultManager");
 
     console.log("🧪 Verifying deployments...\n");
@@ -158,13 +155,6 @@ async function main() {
           );
           await tx.wait();
           return "✅ Guardian addition successful";
-        },
-      },
-      {
-        name: "MultiChainRPC",
-        test: async () => {
-          const config = await multiChainRPC.getChainConfig(1);
-          return `✅ Chain config retrieved: ${config.name}`;
         },
       },
       {

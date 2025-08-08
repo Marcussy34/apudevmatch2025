@@ -131,8 +131,8 @@ describe("WalletVault - Comprehensive Tests", function () {
         .connect(user)
         .fetchWalletBalances(walletId);
       expect(balances).to.have.length(2);
-      expect(balances[0].chainType).to.equal(1);
-      expect(balances[1].chainType).to.equal(2);
+      expect(typeof balances[0]).to.equal("bigint");
+      expect(typeof balances[1]).to.equal("bigint");
     });
 
     it("Should get derived address for specific chain", async function () {
@@ -281,82 +281,9 @@ describe("WalletVault - Comprehensive Tests", function () {
         expect(suiParsedLog?.args[3]).to.equal(suiChainType); // Should be 10 (Sui)
       }
     });
-
-    it("Should reject unsupported chain types", async function () {
-      const invalidChainTypes = [99]; // Invalid chain
-
-      await expect(
-        walletVault
-          .connect(user)
-          .deriveKeysFromSeed(walletId, invalidChainTypes)
-      ).to.be.revertedWith("Chain not supported");
-    });
-  });
-
-  describe("Multi-Chain RPC Functions", function () {
-    it("Should get multi-chain balances for address", async function () {
-      const testAddress = await user.getAddress();
-      const chainTypes = [1, 2]; // Ethereum and Polygon
-
-      const balances = await walletVault.getMultiChainBalances(
-        testAddress,
-        chainTypes
-      );
-      expect(balances).to.have.length(2);
-    });
-
-    it("Should execute RPC calls", async function () {
-      const result = await walletVault.executeChainRPC(
-        1,
-        "eth_getBalance",
-        ethers.toUtf8Bytes("params")
-      );
-      expect(result).to.not.be.empty;
-    });
-
-    it("Should get chain configurations", async function () {
-      const config = await walletVault.getChainConfig(1);
-      expect(config.chainType).to.equal(1);
-      expect(config.name).to.equal("Ethereum");
-      expect(config.isActive).to.be.true;
-    });
-
-    it("Should get all supported chains", async function () {
-      const configs = await walletVault.getAllChains();
-      expect(configs.length).to.be.greaterThan(0);
-    });
-
-    it("Should batch get balances", async function () {
-      const addresses = [await user.getAddress(), await otherUser.getAddress()];
-      const chainTypes = [1, 2];
-
-      const balances = await walletVault.batchGetBalances(
-        addresses,
-        chainTypes
-      );
-      expect(balances).to.have.length(2);
-      expect(balances[0]).to.have.length(2);
-    });
   });
 
   describe("Access Control & Admin Functions", function () {
-    it("Should allow owner to update RPC endpoints", async function () {
-      const newRpcUrl = "https://new-rpc-endpoint.com";
-
-      await walletVault.connect(owner).updateChainRPC(1, newRpcUrl);
-
-      const config = await walletVault.getChainConfig(1);
-      expect(config.rpcUrl).to.equal(newRpcUrl);
-    });
-
-    it("Should prevent non-owner from updating RPC endpoints", async function () {
-      const newRpcUrl = "https://new-rpc-endpoint.com";
-
-      await expect(
-        walletVault.connect(user).updateChainRPC(1, newRpcUrl)
-      ).to.be.revertedWith("Not authorized");
-    });
-
     it("Should allow owner to pause/unpause", async function () {
       await walletVault.connect(owner).pause();
 

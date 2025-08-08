@@ -3,7 +3,8 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@oasisprotocol/sapphire-hardhat": "^2.22.2",
-    "hardhat": "^2.26.1"
+    "hardhat": "^2.26.1",
+    "solidity-coverage": "^0.8.5"
   },
   "dependencies": {
     "@oasisprotocol/sapphire-contracts": "^0.2.14",
@@ -12,5 +13,12 @@
     "bip39": "^3.1.0",
     "hdkey": "^2.1.0",
     "@ethersproject/hdnode": "^5.7.0"
+  },
+  "scripts": {
+    "test": "npx hardhat test",
+    "test:coverage": "npx hardhat coverage",
+    "test:performance": "npx hardhat test test/performance/",
+    "deploy": "npx hardhat run scripts/deploy.ts",
+    "compile": "npx hardhat compile"
   }
 }

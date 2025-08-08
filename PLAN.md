@@ -85,6 +85,7 @@ A mandatory third pillar is a **live, cross-chain data layer powered by The Grap
 
 - **Enclave-Based Operations:** Hosts the core Password Vault and Wallet Vault smart contracts. All sensitive logic, like password decryption or transaction signing, happens inside its secure enclave
 - **Private Key Custody & Signing:** Securely stores decryption keys for user vaults. When a user wants to sign a transaction (for EVM or Sui), the encrypted private key is loaded into the Sapphire enclave, used for signing, and then immediately purged. The key is never exposed
+- **Simplified Multi-Chain Support:** Provides generic transaction signing capabilities while frontend handles chain-specific RPC calls and balance fetching for better flexibility and performance
 - **Synthetic Event Emission:** Acts as the destination for the ROFL mirror. It receives translated data from Sui and emits corresponding standard EVM events (e.g., VaultCreated, DeviceRegistered, BreachAlert)
 - **Data Source for Indexing:** These EVM events emitted by Sapphire are the sole data source that The Graph indexes to build its real-time data layer
 
@@ -92,7 +93,7 @@ Implementation notes:
 
 - Add `MirrorInbox` contract (attestation/allowlist, idempotency, ordering; payload.version).
 - `GrandWardenVault`: TEE decrypt on view paths; never emit secrets.
-- `WalletVault`: real EVM signing now; Sui Ed25519 via Sapphire host-call or ROFL signer later.
+- `WalletVault`: generic transaction signing; frontend handles chain-specific details and RPC calls.
 
 #### 🌉 Oasis ROFL - Critical Data Bridge
 

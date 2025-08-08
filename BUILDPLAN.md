@@ -22,7 +22,8 @@ _Based on: PLAN.md v4 + Current Project Analysis_
 - ✅ **Frontend UI Components**: Complete React dashboard with all major components
 - ✅ **Sapphire Development Environment**: Hardhat configuration ready
 - ✅ **Browser Extension Structure**: Manifest and basic architecture complete
-- 🚧 **Smart Contracts**: Basic Vigil contract exists, need full Grand Warden implementation
+- ✅ **Smart Contracts**: Core Grand Warden contracts implemented (4/7 Phase 1 amendments complete)
+- ✅ **Multi-Chain Architecture**: Simplified to frontend-based approach (MultiChainRPC removed)
 - 🚧 **ROFL Worker**: Directory exists but no implementation
 - 🚧 **Integration Layer**: Frontend not connected to blockchain
 - 🚧 **Security Features**: zkLogin, recovery, phishing protection pending
@@ -135,25 +136,9 @@ interface IPasswordVault {
     event VaultBlobUpdated(address indexed user, bytes32 indexed vaultId, string newCID, bytes32 suiTxHash);
 }
 
-interface IMultiChainRPC {
-    struct ChainBalance {
-        uint8 chainType;      // 1=Ethereum, 2=Polygon, 3=BSC, etc.
-        string tokenSymbol;   // ETH, MATIC, BNB, etc.
-        uint256 balance;      // Balance in wei
-        uint256 usdValue;     // USD value (optional)
-    }
-
-    // Fetch balances for specific address across multiple chains
-    function getMultiChainBalances(address wallet, uint8[] calldata chains)
-        external view returns (ChainBalance[] memory);
-
-    // Execute RPC call to specific chain
-    function executeChainRPC(uint8 chainType, string calldata method, bytes calldata params)
-        external view returns (bytes memory result);
-
-    // Update RPC endpoints for chains
-    function updateChainRPC(uint8 chainType, string calldata rpcUrl) external;
-}
+// Note: MultiChainRPC functionality has been moved to frontend
+// Frontend will handle multi-chain balance fetching and RPC calls directly
+// This simplifies the smart contract architecture and reduces gas costs
 
 interface IAtomicVaultManager {
     // Coordinate Walrus upload and Sui state update
@@ -216,9 +201,9 @@ interface IAtomicVaultManager {
 3. **Security**: No critical vulnerabilities in static analysis, especially for TEE operations
 4. **Documentation**: ABI files and integration docs ready with user flow examples
 5. **Testing**: Integration tests pass against live testnet including seed phrase import and password save flows
-6. **Multi-Chain Integration**: RPC calls to Ethereum and Polygon working within TEE
+6. **Multi-Chain Architecture**: Frontend-based approach for balance fetching and chain interactions
 7. **Atomic Operations**: Walrus coordination and Sui state updates functioning reliably
-8. **Performance**: Balance fetching and vault operations meet <2 second response time requirements
+8. **Performance**: Vault operations meet <2 second response time requirements
 
 ---
 
@@ -684,8 +669,8 @@ export class UIOverlay {
   }
 }
 
-// Real-time balance fetching hook
-export function useWalletBalances(walletId: string) {
+// Real-time balance fetching hook (Frontend-based multi-chain approach)
+export function useWalletBalances(walletId: string, chainTypes: number[]) {
   const [balances, setBalances] = useState<ChainBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -694,8 +679,22 @@ export function useWalletBalances(walletId: string) {
     const fetchBalances = async () => {
       try {
         setLoading(true);
-        // Call Sapphire contract for multi-chain balance fetching
-        const result = await sapphireContract.fetchWalletBalances(walletId);
+        // Get wallet addresses from Sapphire contract
+        const addresses = await sapphireContract.getWalletAddresses(walletId, chainTypes);
+
+        // Fetch balances directly from each chain's RPC
+        const balancePromises = chainTypes.map(async (chainType, index) => {
+          const address = addresses[index];
+          const balance = await fetchChainBalance(chainType, address);
+          return {
+            chainType,
+            balance,
+            address,
+            tokenSymbol: getChainTokenSymbol(chainType)
+          };
+        });
+
+        const result = await Promise.all(balancePromises);
         setBalances(result);
         setError(null);
       } catch (err) {
@@ -707,13 +706,11 @@ export function useWalletBalances(walletId: string) {
 
     fetchBalances();
 
-    // Set up real-time balance updates via GraphQL subscription
-    const subscription = subscribeToBalanceUpdates(walletId, (newBalances) => {
-      setBalances(newBalances);
-    });
+    // Set up periodic balance updates (frontend-managed)
+    const interval = setInterval(fetchBalances, 30000); // Update every 30 seconds
 
-    return () => subscription.unsubscribe();
-  }, [walletId]);
+    return () => clearInterval(interval);
+  }, [walletId, chainTypes]);
 
   return { balances, loading, error };
 }
@@ -1812,11 +1809,12 @@ module grandwarden::walrus_manager {
 
 **Frontend Integration**:
 
-- [ ] All UI components connected to both Sapphire and Sui blockchains
+- [ ] All UI components connected to Sapphire blockchain and Sui coordination layer
+- [ ] Frontend-based multi-chain balance fetching and RPC calls implemented
 - [ ] Cross-chain error handling for all failure modes
-- [ ] Loading states for multi-chain async operations
-- [ ] State management with consistent cross-chain data
-- [ ] Performance optimization completed for multi-chain operations
+- [ ] Loading states for async operations (vault access, signing, balance updates)
+- [ ] State management with consistent data across Sapphire and Sui
+- [ ] Performance optimization completed for frontend multi-chain operations
 - [ ] Walrus blob operations integrated seamlessly
 
 **Infrastructure Reliability**:
