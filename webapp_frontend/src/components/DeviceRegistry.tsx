@@ -108,9 +108,14 @@ const DeviceRegistry: React.FC = () => {
           <h1 className="text-xl font-semibold text-cyber-100">Device Registry</h1>
         </div>
         
-        <button className="cyber-button-secondary py-2 px-3 text-sm">
-          Add Device
-        </button>
+        <div className="space-x-2">
+          <button onClick={() => navigate('/contract-test')} className="cyber-button-secondary py-2 px-3 text-sm">
+            Open Test Harness
+          </button>
+          <button className="cyber-button-secondary py-2 px-3 text-sm">
+            Add Device
+          </button>
+        </div>
       </div>
 
       {/* Content */}

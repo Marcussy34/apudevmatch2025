@@ -12,6 +12,7 @@ import WalletVault from './components/WalletVault'
 import DeviceRegistry from './components/DeviceRegistry'
 import Analytics from './components/Analytics'
 import Footer from './components/Footer'
+import ContractTestHarness from './components/ContractTestHarness'
 import ToastContainer from './components/ToastContainer'
 import { ToastProps } from './components/Toast'
 import { ZkLoginService } from './services/zklogin'
@@ -157,6 +158,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Analytics />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/contract-test" 
+            element={
+              <ProtectedRoute>
+                <ContractTestHarness />
               </ProtectedRoute>
             } 
           />
