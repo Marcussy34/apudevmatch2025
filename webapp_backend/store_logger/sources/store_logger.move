@@ -26,6 +26,14 @@ module store_logger::store_logger {
         transfer::transfer(log_cap, tx_context::sender(ctx));
     }
 
+    /// Create a new LogCap for the caller
+    public entry fun create_log_cap(ctx: &mut TxContext) {
+        let log_cap = LogCap {
+            id: object::new(ctx),
+        };
+        transfer::transfer(log_cap, tx_context::sender(ctx));
+    }
+
     /// Log a credential storage event
     public entry fun log_credential_store(
         _log_cap: &LogCap,
