@@ -1,0 +1,71 @@
+# Grand Warden ROFL Critical Data Bridge
+# Official ROFL manifest following Oasis documentation patterns
+
+name: grand-warden-bridge
+version: 1.0.0
+description: "Critical Data Bridge connecting Sui events to Sapphire for The Graph indexing"
+
+# TEE configuration (following official ROFL patterns)
+tee: tdx
+kind: container
+
+# Resource requirements (reasonable for bridge operations)
+resources:
+  memory: 1Gi
+  cpu: 1000m
+  storage: 2Gi
+
+# Environment variables for ROFL configuration
+env:
+  # Sapphire configuration
+  - name: SAPPHIRE_RPC_URL
+    value: "https://testnet.sapphire.oasis.dev"
+  - name: SAPPHIRE_CHAIN_ID
+    value: "23295"
+  - name: CONTRACT_ATOMIC_VAULT_MANAGER
+    value: "0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C"
+
+  # Sui configuration (ready for integration)
+  - name: SUI_RPC_URL
+    value: "https://fullnode.testnet.sui.io:443"
+  - name: SUI_CONTRACT_PACKAGE
+    value: "0x0"
+
+  # Logging configuration
+  - name: RUST_LOG
+    value: "info"
+  - name: RUST_BACKTRACE
+    value: "1"
+
+# Secrets (private keys handled securely)
+secrets:
+  - name: SAPPHIRE_PRIVATE_KEY
+    description: "Private key for Sapphire transactions"
+
+# Network access for blockchain RPC calls
+networking:
+  outbound:
+    - protocol: https
+      port: 443
+      description: "HTTPS access for blockchain RPC calls"
+    - protocol: http
+      port: 80
+      description: "HTTP access for blockchain RPC calls"
+
+# Health check endpoint (optional)
+health_check:
+  path: /health
+  port: 8080
+  interval: 30s
+
+# Metadata for ROFL registry
+metadata:
+  author: "Grand Warden Team"
+  license: "MIT"
+  repository: "https://github.com/grandwarden/rofl-bridge"
+  tags:
+    - "blockchain-bridge"
+    - "sui"
+    - "sapphire"
+    - "the-graph"
+    - "defi"

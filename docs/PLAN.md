@@ -26,6 +26,72 @@ A mandatory third pillar is a **live, cross-chain data layer powered by The Grap
 - **Sui zkLogin** – Seed-phrase-free onboarding (Google/Apple identity)
 - **The Graph** – Self-hosted node with custom Sapphire emulator for real-time indexing
 
+### Technology Roles & Responsibilities
+
+#### 🔵 Sui - Public Coordination and State Layer
+
+**Role:** Source of truth for all public, on-chain user actions and configurations. The client application writes directly to Sui for these operations.
+
+**Responsibilities:**
+
+- **Public State Management:** Hosts on-chain Move objects that represent the public-facing aspects of the system
+- **Device Registry:** Manages a user's list of authorized devices, including their public keys and status (active, revoked). This is a public, auditable log
+- **Data Pointers:** Stores public pointers (Content Identifiers, or CIDs) that reference the user's encrypted data blobs stored on Walrus
+- **Source of Events:** Acts as the origin for key user actions like creating a vault or registering a new device. These Sui events are the starting point for the data mirroring pipeline
+- **Recovery Logic:** Coordinates the social recovery process by managing guardian lists and recovery thresholds
+
+#### 🔐 Sui zkLogin - Primary Authentication and Onboarding Mechanism
+
+**Role:** Creates a seed-phrase-free user experience through Web2 social login integration.
+
+**Responsibilities:**
+
+- **User Onboarding:** Allows users to create a non-custodial Sui wallet address by authenticating with their existing Web2 accounts (e.g., Google, Apple)
+- **Seedless Experience:** Eliminates the need for users to manage a seed phrase, linking account access directly to their familiar social logins
+- **Account Recovery:** Serves as a foundational component of the account recovery flow, combined with social recovery shares
+
+#### 🟣 Oasis Sapphire - Confidential Compute and Private Logic Layer
+
+**Role:** Secure TEE (Trusted Execution Environment) where all sensitive data is processed and all private operations are executed.
+
+**Responsibilities:**
+
+- **Enclave-Based Operations:** Hosts the core Password Vault and Wallet Vault smart contracts. All sensitive logic, like password decryption or transaction signing, happens inside its secure enclave
+- **Private Key Custody & Signing:** Securely stores decryption keys for user vaults. When a user wants to sign a transaction (for EVM or Sui), the encrypted private key is loaded into the Sapphire enclave, used for signing, and then immediately purged. The key is never exposed
+- **Synthetic Event Emission:** Acts as the destination for the ROFL mirror. It receives translated data from Sui and emits corresponding standard EVM events (e.g., VaultCreated, DeviceRegistered, BreachAlert)
+- **Data Source for Indexing:** These EVM events emitted by Sapphire are the sole data source that The Graph indexes to build its real-time data layer
+
+#### 🌉 Oasis ROFL - Critical Data Bridge
+
+**Role:** Connects the Sui and Sapphire ecosystems, enabling a unified data view across both chains.
+
+**Responsibilities:**
+
+- **Sui Event Mirroring:** Runs as a trusted off-chain worker that constantly listens to the Sui network for relevant events (like new vaults or device changes)
+- **Cross-Chain Translation:** When a Sui event is detected, ROFL translates it into a format that the Sapphire smart contracts can understand
+- **Triggering Synthetic Events:** It calls a specific function on a Sapphire smart contract (e.g., `emitSyntheticEvent()`) which then emits the corresponding EVM event for The Graph to index
+- **Enabling Sui Indexing:** Its primary purpose is to solve the problem that The Graph cannot natively index Sui. By mirroring events to Sapphire, it makes Sui's activity "visible" to the EVM-centric Graph Node
+
+#### 💾 Walrus + Seal - Decentralized Storage and Access Control Layer
+
+**Role:** Provides secure, decentralized storage for all encrypted user data with fine-grained access control.
+
+**Responsibilities:**
+
+- **Walrus (Storage):** Provides decentralized, content-addressed blob storage. It is responsible for persistently storing the large, encrypted blobs containing the user's password vault and wallet keys
+- **Seal (Access Control):** Acts as the gatekeeper for Walrus. It enforces the access control policies defined on Sui, ensuring that only authorized devices can fetch the encrypted data blobs
+
+#### 📊 The Graph - Real-Time Data Layer
+
+**Role:** Provides unified, queryable access to all system events and state changes through GraphQL.
+
+**Responsibilities:**
+
+- **Event Indexing:** Indexes all EVM events emitted by Sapphire contracts (including synthetic events mirrored from Sui via ROFL)
+- **Real-Time Subscriptions:** Enables WebSocket subscriptions for instant UI updates when events occur
+- **Query Interface:** Provides a unified GraphQL endpoint for the frontend to query user activity, breach alerts, and system analytics
+- **Data Aggregation:** Combines and correlates events from multiple sources into coherent user and system-level metrics
+
 ---
 
 ## 2 · Expanded Problem Statement

@@ -1,0 +1,15 @@
+# Include .env files for viewing
+!.env*
+!.env.example*
+!.env.local*
+!.env.development*
+!.env.production*
+!.env.test*
+
+# Common patterns to exclude (but .env files will still be included above)
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db

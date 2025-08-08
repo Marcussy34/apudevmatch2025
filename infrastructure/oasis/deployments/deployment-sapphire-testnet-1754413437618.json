@@ -1,0 +1,51 @@
+{
+  "network": "sapphire-testnet",
+  "chainId": 23295,
+  "deployer": "0xf7BCca8B40Be368291B49afF03FF2C9700F118A6",
+  "timestamp": "2025-08-05T17:03:57.618Z",
+  "deployments": [
+    {
+      "contractName": "GrandWardenVault",
+      "address": "0xB6B183a041D077d5924b340EBF41EE4546fE0bcE",
+      "transactionHash": "0xb0ecc000ab8c370d1511ba4551c65804c2851a06c5041a9e65f3972241d7c8f8",
+      "blockNumber": 12891651,
+      "gasUsed": "3482324"
+    },
+    {
+      "contractName": "WalletVault",
+      "address": "0x3B7dd63D236bDB0Fd85d556d2AC70e2746cF5F82",
+      "transactionHash": "0xe79f81e6d9a175232d3369e676a89152c4f441cb1d3015708157c28358bc4492",
+      "blockNumber": 12891655,
+      "gasUsed": "4690126"
+    },
+    {
+      "contractName": "DeviceRegistry",
+      "address": "0x9ec3B09A3cDc7Dd2ba8fB8F6e9Bd6C04DDfBCd2d",
+      "transactionHash": "0x2fd95185be3400cb4d72456b8c6e6f13b042bea0b7de373062d3e79c95dc1821",
+      "blockNumber": 12891660,
+      "gasUsed": "3862830"
+    },
+    {
+      "contractName": "RecoveryManager",
+      "address": "0x58fF6e3d3D76053F2B13327A6399ECD25E363818",
+      "transactionHash": "0xc812c69d527000d442bc260fd7600573250ee6c90ac093737df9a1a656b5e0a6",
+      "blockNumber": 12891663,
+      "gasUsed": "4398433"
+    },
+    {
+      "contractName": "MultiChainRPC",
+      "address": "0x2bcaA2dDbAE6609Cbd63D3a4B3dd0af881759472",
+      "transactionHash": "0xd06158b42530c53d5e547eb8baba1d858105b8bac9b762ed23c3096336ebcc6a",
+      "blockNumber": 12891666,
+      "gasUsed": "5541316"
+    },
+    {
+      "contractName": "AtomicVaultManager",
+      "address": "0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C",
+      "transactionHash": "0x4915c0279210dc8be6bf9c87191b0fae05f3c740951e0378ecc4d3f639addf44",
+      "blockNumber": 12891668,
+      "gasUsed": "4808664"
+    }
+  ],
+  "totalGasUsed": "26783693"
+}
