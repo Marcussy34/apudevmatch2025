@@ -1,321 +1,285 @@
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { fromB64 } from "@mysten/sui/utils";
-import {
-  getExtendedEphemeralPublicKey,
-  getZkLoginSignature,
-} from "@mysten/zklogin";
-import {
-  KEY_PAIR_SESSION_STORAGE_KEY,
-  RANDOMNESS_SESSION_STORAGE_KEY,
-  MAX_EPOCH_LOCAL_STORAGE_KEY,
-  JWT_TOKEN_KEY,
-  USER_SALT_LOCAL_STORAGE_KEY,
-  SUI_PROVER_TESTNET_ENDPOINT,
-} from "../constants/zklogin";
-import { ZkLoginUserProfile } from "./zklogin";
+/**
+ * Backend Integration Service for Grand Warden
+ * Simplified for Enoki SDK integration
+ */
 
-export async function autoWalExchange(options: {
-  senderAddress: string;
-  amountMist?: number;
-}): Promise<{ digest: string }> {
-  const { senderAddress, amountMist = 500_000 } = options;
+import { Transaction } from "@mysten/sui/transactions";
+import { TESTNET_WALRUS_PACKAGE_CONFIG } from "@mysten/walrus";
 
-  console.log("🪙 [autoWalExchange] Starting WAL exchange for:", senderAddress);
-  console.log("💰 [autoWalExchange] Amount:", amountMist, "MIST");
-
-  // 1) Prepare tx on backend
-  console.log("📡 [autoWalExchange] Preparing transaction on backend...");
-  const prepareRes = await fetch(
-    "http://localhost:3001/api/walrus/exchange/prepare",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senderAddress, amountMist }),
-    }
-  );
-  if (!prepareRes.ok) {
-    throw new Error(`Prepare failed: ${await prepareRes.text()}`);
-  }
-  const { txBytes } = await prepareRes.json();
-  console.log(
-    "✅ [autoWalExchange] Received txBytes (base64 length):",
-    txBytes.length
-  );
-
-  // 2) Load zkLogin state from storage
-  console.log("🔑 [autoWalExchange] Loading zkLogin session data...");
-  const jwtToken = localStorage.getItem(JWT_TOKEN_KEY);
-  const userSalt = localStorage.getItem(USER_SALT_LOCAL_STORAGE_KEY);
-  const randomness = sessionStorage.getItem(RANDOMNESS_SESSION_STORAGE_KEY);
-  const maxEpochStr =
-    localStorage.getItem(MAX_EPOCH_LOCAL_STORAGE_KEY) ??
-    sessionStorage.getItem(MAX_EPOCH_LOCAL_STORAGE_KEY);
-  const ephemeralPriv = sessionStorage.getItem(KEY_PAIR_SESSION_STORAGE_KEY);
-  if (!jwtToken || !userSalt || !randomness || !maxEpochStr || !ephemeralPriv) {
-    throw new Error("Missing zkLogin session data; please log in again.");
-  }
-  const maxEpoch = Number(maxEpochStr);
-  console.log("✅ [autoWalExchange] zkLogin session data loaded");
-
-  // 3) Recreate ephemeral key and fetch zk proof
-  console.log("🔐 [autoWalExchange] Recreating ephemeral key...");
-  const ephemeral = Ed25519Keypair.fromSecretKey(ephemeralPriv);
-  const extended = getExtendedEphemeralPublicKey(ephemeral.getPublicKey());
-  console.log("✅ [autoWalExchange] Ephemeral key ready");
-
-  console.log("🔍 [autoWalExchange] Fetching zkLogin proof...");
-  const proofRes = await fetch(SUI_PROVER_TESTNET_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jwt: jwtToken,
-      extendedEphemeralPublicKey: extended,
-      maxEpoch,
-      jwtRandomness: randomness,
-      salt: userSalt,
-      keyClaimName: "sub",
-    }),
-  });
-  if (!proofRes.ok) {
-    throw new Error(`Proof fetch failed: ${await proofRes.text()}`);
-  }
-  const partial = await proofRes.json();
-  console.log("✅ [autoWalExchange] zkLogin proof fetched");
-
-  // 4) Create user signature and zkLogin signature
-  console.log("✍️ [autoWalExchange] Creating user signature...");
-  const { signature: userSignature } = await ephemeral.signTransaction(
-    fromB64(txBytes)
-  );
-  console.log("✅ [autoWalExchange] User signature created");
-
-  console.log("🔐 [autoWalExchange] Creating zkLogin signature...");
-  console.log("🔐 [autoWalExchange] zkLogin signature inputs:", {
-    partial,
-    userSignature,
-    maxEpoch,
-  });
-
-  // Validate all required parameters
-  if (!partial) {
-    throw new Error("ZK proof partial is undefined");
-  }
-  if (!userSignature) {
-    throw new Error("User signature is undefined");
-  }
-  if (!maxEpoch) {
-    throw new Error("Max epoch is undefined");
-  }
-
-  const zkLoginSignature = getZkLoginSignature({
-    inputs: partial,
-    userSignature,
-    maxEpoch,
-  });
-  console.log(
-    "✅ [autoWalExchange] zkLogin signature created (base64 length):",
-    zkLoginSignature.length
-  );
-
-  // 5) Submit
-  console.log("📤 [autoWalExchange] Submitting transaction...");
-  const submitRes = await fetch(
-    "http://localhost:3001/api/walrus/exchange/submit",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ txBytes, zkLoginSignature }),
-    }
-  );
-  if (!submitRes.ok) {
-    throw new Error(`Submit failed: ${await submitRes.text()}`);
-  }
-  const { digest } = await submitRes.json();
-  console.log("🎉 [autoWalExchange] Transaction submitted successfully!");
-  console.log("📊 [autoWalExchange] Transaction digest:", digest);
-  return { digest };
-}
-
-// Backend API configuration
-const BACKEND_API_URL = "http://localhost:3001";
-
-export interface CredentialData {
+// Types
+interface CredentialData {
   site: string;
   username: string;
   password: string;
   notes?: string;
 }
 
-export interface StorageResult {
+interface StorageResult {
   blobId: string;
   cid: string;
   transactionDigest: string;
 }
 
-export interface BackendResponse {
+interface BackendResponse<T> {
   success: boolean;
-  data: StorageResult;
-  message: string;
+  data?: T;
+  message?: string;
+  error?: string;
 }
 
-export class BackendIntegrationService {
-  /**
-   * Extract zkLogin parameters from browser storage
-   */
-  static extractZkLoginParams(): {
-    ephemeralPrivateKey: string;
-    userProfile: ZkLoginUserProfile;
-  } | null {
-    try {
-      // Get ephemeral private key from session storage
-      const ephemeralPrivateKey = sessionStorage.getItem("zklogin-keypair");
-      if (!ephemeralPrivateKey) {
-        console.error("No ephemeral private key found in session storage");
-        return null;
-      }
+interface WalBalanceResponse {
+  hasTokens: boolean;
+  balance: string;
+}
 
-      // Get user profile from localStorage
-      const userProfileStr = localStorage.getItem("userProfile");
-      if (!userProfileStr) {
-        console.error("No user profile found in localStorage");
-        return null;
-      }
+/**
+ * Store credentials in Walrus via backend
+ * Enoki handles all wallet management and transaction signing
+ */
+export async function storeCredentials(
+  credentials: CredentialData,
+  userAddress?: string
+): Promise<StorageResult> {
+  console.log("🔐 [backend] Storing credentials:", credentials.site);
 
-      const userProfile: ZkLoginUserProfile = JSON.parse(userProfileStr);
-
-      return {
-        ephemeralPrivateKey,
-        userProfile,
-      };
-    } catch (error) {
-      console.error("Failed to extract zkLogin parameters:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Store credentials with zkLogin integration
-   */
-  static async storeCredentials(
-    credentials: CredentialData
-  ): Promise<StorageResult> {
-    try {
-      console.log("🔐 Storing credentials with zkLogin integration...");
-
-      // Extract zkLogin parameters
-      const zkLoginParams = this.extractZkLoginParams();
-
-      if (!zkLoginParams) {
-        throw new Error(
-          "zkLogin parameters not available. Please log in first."
-        );
-      }
-
-      console.log("💰 zkLogin Address:", zkLoginParams.userProfile.suiAddress);
-      console.log("👤 User:", zkLoginParams.userProfile.name);
-
-      // Prepare request payload
-      const payload = {
-        credentials,
-        zkLoginParams,
-      };
-
-      // Send request to backend
-      const response = await fetch(`${BACKEND_API_URL}/api/store-credentials`, {
+  try {
+    const response = await fetch(
+      "http://localhost:3001/api/store-credentials",
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP ${response.status}: ${response.statusText}`
-        );
+        body: JSON.stringify({ credentials, userAddress }),
       }
+    );
 
-      const result: BackendResponse = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.message || "Failed to store credentials");
-      }
-
-      console.log("✅ Credentials stored successfully!");
-      console.log("📊 Results:", result.data);
-
-      return result.data;
-    } catch (error) {
-      console.error("❌ Failed to store credentials:", error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Backend error: ${errorText}`);
     }
+
+    const result: BackendResponse<StorageResult> = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Backend returned failure");
+    }
+
+    console.log("✅ [backend] Credentials stored successfully:", result.data);
+    return result.data!;
+  } catch (error) {
+    console.error("❌ [backend] Failed to store credentials:", error);
+    throw error;
   }
+}
 
-  /**
-   * Store credentials without zkLogin (simulation mode)
-   */
-  static async storeCredentialsWithoutZkLogin(
-    credentials: CredentialData
-  ): Promise<StorageResult> {
-    try {
-      console.log("🔐 Storing credentials in simulation mode...");
+/**
+ * Prepare WAL exchange transaction for Enoki signing
+ */
+export async function prepareWalExchange(
+  userAddress: string,
+  amountMist: number = 1_000_000
+): Promise<{ txBytes: string }> {
+  console.log("🪙 [backend] Preparing WAL exchange for:", userAddress);
 
-      // Send request to backend without zkLogin params
-      const payload = {
-        credentials,
-      };
-
-      const response = await fetch(`${BACKEND_API_URL}/api/store-credentials`, {
+  try {
+    const response = await fetch(
+      "http://localhost:3001/api/walrus/exchange/prepare",
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP ${response.status}: ${response.statusText}`
-        );
+        body: JSON.stringify({ userAddress, amountMist }),
       }
+    );
 
-      const result: BackendResponse = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.message || "Failed to store credentials");
-      }
-
-      console.log("✅ Credentials stored successfully (simulation mode)!");
-      console.log("📊 Results:", result.data);
-
-      return result.data;
-    } catch (error) {
-      console.error("❌ Failed to store credentials:", error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Backend error: ${errorText}`);
     }
+
+    const result: BackendResponse<{ txBytes: string }> = await response.json();
+    console.log("🔍 [backend] Raw response:", result);
+
+    if (!result.success) {
+      throw new Error(result.error || "Backend returned failure");
+    }
+
+    if (!result.data || !result.data.txBytes) {
+      console.error("❌ [backend] Invalid response structure:", result);
+      throw new Error(
+        "Backend returned invalid response structure - missing txBytes"
+      );
+    }
+
+    console.log("✅ [backend] WAL exchange transaction prepared");
+    console.log("📊 [backend] txBytes length:", result.data.txBytes.length);
+    return result.data;
+  } catch (error) {
+    console.error("❌ [backend] Failed to prepare WAL exchange:", error);
+    throw error;
   }
+}
 
-  /**
-   * Check backend service status
-   */
-  static async checkBackendStatus(): Promise<{
-    status: string;
-    walletAddress: string;
-    hasZkLoginParams: boolean;
-  }> {
-    try {
-      const response = await fetch(`${BACKEND_API_URL}/api/status`);
+/**
+ * Submit signed WAL exchange transaction
+ */
+export async function submitWalExchange(
+  txBytes: string,
+  signature: string
+): Promise<{ digest: string }> {
+  console.log("📤 [backend] Submitting signed WAL exchange transaction");
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  try {
+    const response = await fetch(
+      "http://localhost:3001/api/walrus/exchange/submit",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ txBytes, signature }),
       }
+    );
 
-      return await response.json();
-    } catch (error) {
-      console.error("❌ Failed to check backend status:", error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Backend error: ${errorText}`);
     }
+
+    const result: BackendResponse<{ digest: string }> = await response.json();
+    console.log("🔍 [backend] Submit response:", result);
+
+    if (!result.success) {
+      throw new Error(result.error || "Backend returned failure");
+    }
+
+    if (!result.data || !result.data.digest) {
+      console.error("❌ [backend] Invalid submit response structure:", result);
+      throw new Error(
+        "Backend returned invalid response structure - missing digest"
+      );
+    }
+
+    console.log(
+      "✅ [backend] WAL exchange submitted successfully:",
+      result.data
+    );
+    return result.data;
+  } catch (error) {
+    console.error("❌ [backend] Failed to submit WAL exchange:", error);
+    throw error;
+  }
+}
+
+/**
+ * Check WAL token balance for a user
+ */
+export async function checkWalBalance(
+  userAddress: string
+): Promise<WalBalanceResponse> {
+  console.log("🪙 [backend] Checking WAL balance for:", userAddress);
+
+  try {
+    const response = await fetch(
+      `http://localhost:3001/api/walrus/balance/${userAddress}`
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Backend error: ${errorText}`);
+    }
+
+    const result: BackendResponse<WalBalanceResponse> = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Backend returned failure");
+    }
+
+    console.log("✅ [backend] WAL balance checked:", result.data);
+    return result.data!;
+  } catch (error) {
+    console.error("❌ [backend] Failed to check WAL balance:", error);
+    throw error;
+  }
+}
+
+/**
+ * Complete WAL exchange flow using Enoki wallet
+ */
+export async function completeWalExchange(
+  userAddress: string,
+  signAndExecuteTransaction: any,
+  amountMist: number = 1_000_000
+): Promise<{ digest: string }> {
+  console.log("🪙 [walrus] Starting WAL exchange flow for:", userAddress);
+
+  try {
+    // Step 1: Get transaction bytes from backend (which works)
+    console.log("📋 [walrus] Step 1: Getting transaction from backend...");
+    const { txBytes } = await prepareWalExchange(userAddress, amountMist);
+
+    // Step 2: Convert transaction bytes to Transaction object
+    console.log(
+      "🔄 [walrus] Step 2: Converting transaction bytes to Transaction object..."
+    );
+    const transactionBytes = Uint8Array.from(atob(txBytes), (c) =>
+      c.charCodeAt(0)
+    );
+    const transaction = Transaction.from(transactionBytes);
+
+    // Step 3: Sign and execute with Enoki using dapp-kit hook
+    console.log("✍️ [walrus] Step 3: Signing and executing with Enoki...");
+
+    // Use the signAndExecuteTransaction hook as shown in Enoki docs
+    const result = await signAndExecuteTransaction({
+      transaction: transaction,
+    });
+
+    console.log("🎉 [walrus] WAL exchange completed successfully!");
+    console.log("📊 [walrus] Transaction result:", result);
+
+    return { digest: result.digest };
+  } catch (error) {
+    console.error("❌ [walrus] WAL exchange failed:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get backend service status
+ */
+export async function getBackendStatus(): Promise<{
+  status: string;
+  walletAddress: string;
+  hasSealClient: boolean;
+}> {
+  try {
+    const response = await fetch("http://localhost:3001/api/status");
+
+    if (!response.ok) {
+      throw new Error(`Backend status check failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("📊 [backend] Status:", result);
+    return result;
+  } catch (error) {
+    console.error("❌ [backend] Status check failed:", error);
+    throw error;
+  }
+}
+
+/**
+ * Health check for backend connectivity
+ */
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const response = await fetch("http://localhost:3001/health");
+    return response.ok;
+  } catch (error) {
+    console.error("❌ [backend] Health check failed:", error);
+    return false;
   }
 }

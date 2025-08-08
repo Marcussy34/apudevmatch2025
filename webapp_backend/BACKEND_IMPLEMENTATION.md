@@ -137,6 +137,79 @@ export class CredentialService {
 }
 ```
 
+### WAL Exchange (SUI → WAL)
+
+This backend prepares a WAL token exchange transaction that the frontend signs and executes with Enoki.
+
+- Frontend calls `POST /api/walrus/exchange/prepare` with `userAddress` and `amountMist`
+- Backend builds the transaction using the Walrus testnet exchange, returns base64 `txBytes`
+- Frontend converts `txBytes` to a `Transaction` and signs/executes using `@mysten/dapp-kit`
+- WAL balance is queried via `GET /api/walrus/balance/:userAddress`
+
+#### On-chain function
+
+- Module/function: `wal_exchange::exchange_for_wal`
+- Parameters: `(&mut Exchange, &mut Coin<SUI>, u64, &mut TxContext)`
+- Returns: `Coin<0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL>`
+
+Notes:
+
+- The function returns a single WAL coin. There is no SUI change coin returned.
+- Since `&mut Coin<SUI>` is provided, the split SUI coin persists and must be consumed; we merge it back into `tx.gas`.
+
+#### Transaction building (backend)
+
+```ts
+const tx = new Transaction();
+tx.setSenderIfNotSet(userAddress);
+const [suiForExchange] = tx.splitCoins(tx.gas, [amountMist]);
+const [walCoin] = tx.moveCall({
+  package: walExchangePackageId,
+  module: "wal_exchange",
+  function: "exchange_for_wal",
+  arguments: [tx.object(exchangeId), suiForExchange, tx.pure.u64(amountMist)],
+}) as any;
+// Consume the split SUI to avoid UnusedValueWithoutDrop
+tx.mergeCoins(tx.gas, [suiForExchange]);
+tx.transferObjects([walCoin], userAddress);
+tx.setGasBudget(5_000_000);
+const txBytes = Buffer.from(await tx.build({ client: suiClient })).toString(
+  "base64"
+);
+```
+
+#### Frontend signing with Enoki
+
+```ts
+// Convert base64 to bytes in browser
+const bytes = Uint8Array.from(atob(txBytes), (c) => c.charCodeAt(0));
+const transaction = Transaction.from(bytes);
+const result = await signAndExecuteTransaction({ transaction });
+```
+
+#### WAL balance check
+
+Canonical WAL coin type returned by the exchange on testnet:
+
+```
+0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL
+```
+
+For robustness, the backend aggregates balances across both:
+
+```
+0x8270feb7…::wal::WAL
+0x82593828…::wal::WAL
+```
+
+#### Troubleshooting tips
+
+- UnusedValueWithoutDrop: merge the split SUI coin back into `tx.gas`.
+- SecondaryIndexOutOfBounds: do not expect a second return from `exchange_for_wal`.
+- No function found: ensure the function name is `exchange_for_wal`.
+- Buffer not defined (web): use `atob` + `Uint8Array` for base64 decode.
+- dapp-kit: pass `{ transaction }`, not `{ transactionBlock }`, when using a Transaction object.
+
 ### Core Methods
 
 #### 1. `storeCredentials(credentials: CredentialData)`

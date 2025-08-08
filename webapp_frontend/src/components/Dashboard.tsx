@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -18,24 +18,20 @@ import {
   BarChart3,
   Linkedin,
   Users,
+  Coins,
 } from "lucide-react";
 import AddPasswordModal, { NewPasswordData } from "./AddPasswordModal";
-
 import AutofillStatus from "./AutofillStatus";
 import { ToastProps } from "./Toast";
-import { ZkLoginService } from "../services/zklogin";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { getExtendedEphemeralPublicKey } from "@mysten/zklogin";
-import { getZkLoginSignature } from "@mysten/zklogin";
-import { fromB64 } from "@mysten/sui/utils";
 import {
-  KEY_PAIR_SESSION_STORAGE_KEY,
-  USER_SALT_LOCAL_STORAGE_KEY,
-  RANDOMNESS_SESSION_STORAGE_KEY,
-  MAX_EPOCH_LOCAL_STORAGE_KEY,
-  JWT_TOKEN_KEY,
-  SUI_PROVER_TESTNET_ENDPOINT,
-} from "../constants/zklogin";
+  storeCredentials,
+  checkWalBalance,
+  completeWalExchange,
+} from "../services/backend-integration";
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+} from "@mysten/dapp-kit";
 
 interface PasswordEntry {
   id: number;
@@ -53,13 +49,22 @@ interface DashboardProps {
   addToast: (toast: Omit<ToastProps, "onClose" | "id">) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(
     new Set()
   );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [walBalance, setWalBalance] = useState<{
+    hasTokens: boolean;
+    balance: string;
+  } | null>(null);
+  const [isCheckingBalance, setIsCheckingBalance] = useState(false);
+  const [isExchanging, setIsExchanging] = useState(false);
   const navigate = useNavigate();
+  const currentAccount = useCurrentAccount();
+  const { mutateAsync: signAndExecuteTransaction } =
+    useSignAndExecuteTransaction();
 
   const [passwordList, setPasswordList] = useState<PasswordEntry[]>([
     {
@@ -114,6 +119,80 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
     },
   ]);
 
+  // Check WAL balance when user account changes
+  useEffect(() => {
+    if (currentAccount?.address) {
+      checkUserWalBalance();
+    }
+  }, [currentAccount?.address]);
+
+  const checkUserWalBalance = async () => {
+    if (!currentAccount?.address) return;
+
+    setIsCheckingBalance(true);
+    try {
+      const balance = await checkWalBalance(currentAccount.address);
+      setWalBalance(balance);
+      console.log("🪙 WAL balance checked:", balance);
+    } catch (error) {
+      console.error("❌ Failed to check WAL balance:", error);
+      setWalBalance({ hasTokens: false, balance: "0" });
+    } finally {
+      setIsCheckingBalance(false);
+    }
+  };
+
+  const handleWalExchange = async (): Promise<boolean> => {
+    if (!currentAccount?.address) {
+      addToast({
+        type: "error",
+        title: "No Wallet Connected",
+        message: "Please connect your wallet first",
+        duration: 5000,
+      });
+      return false;
+    }
+
+    setIsExchanging(true);
+    try {
+      console.log("🪙 Starting WAL exchange for:", currentAccount.address);
+
+      // Use the signAndExecuteTransaction hook to complete WAL exchange
+      const result = await completeWalExchange(
+        currentAccount.address,
+        signAndExecuteTransaction,
+        1_000_000 // 1 SUI for WAL tokens
+      );
+
+      console.log("✅ WAL exchange completed:", result.digest);
+
+      addToast({
+        type: "success",
+        title: "WAL Exchange Successful!",
+        message: "You now have WAL tokens for storage",
+        duration: 5000,
+      });
+
+      // Refresh balance
+      await checkUserWalBalance();
+      return true; // Indicate success
+    } catch (error) {
+      console.error("❌ WAL exchange failed:", error);
+      addToast({
+        type: "error",
+        title: "WAL Exchange Failed",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to exchange SUI for WAL tokens",
+        duration: 5000,
+      });
+      return false; // Indicate failure
+    } finally {
+      setIsExchanging(false);
+    }
+  };
+
   const getIconForUrl = (
     url: string
   ): { icon: React.ComponentType<any>; color: string } => {
@@ -139,23 +218,73 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
     try {
       console.log("🔐 Storing credential in Walrus:", newPasswordData.name);
 
-      // Get zkLogin user profile
-      const userProfile = ZkLoginService.getStoredUserProfile();
-      if (!userProfile) {
-        addToast({
-          type: "error",
-          title: "Authentication Required",
-          message: "Please log in with zkLogin to store credentials",
-          duration: 5000,
-        });
-        return;
-      }
+      // Check if user has WAL tokens
+      if (!walBalance?.hasTokens) {
+        console.log(
+          "🪙 No WAL tokens detected, starting automatic exchange..."
+        );
 
-      // Check if user has WAL tokens (should have been obtained during login)
-      console.log(
-        "🪙 Verifying WAL token availability for:",
-        userProfile.suiAddress
-      );
+        addToast({
+          type: "info",
+          title: "Getting WAL Tokens...",
+          message:
+            "Automatically exchanging SUI for WAL tokens to enable storage",
+          duration: 4000,
+        });
+
+        // Automatically trigger WAL exchange
+        try {
+          const exchangeResult = await handleWalExchange();
+
+          if (exchangeResult) {
+            // Exchange successful, wait a moment for balance to update
+            console.log(
+              "✅ WAL exchange completed, waiting for balance update..."
+            );
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            // Re-check balance to ensure we have tokens
+            await checkUserWalBalance();
+
+            if (!walBalance?.hasTokens) {
+              addToast({
+                type: "warning",
+                title: "Balance Update Required",
+                message: "Please wait a moment and try again",
+                duration: 5000,
+              });
+              return;
+            }
+
+            console.log("✅ WAL tokens confirmed, now storing credential...");
+
+            addToast({
+              type: "success",
+              title: "WAL Tokens Acquired!",
+              message: "Now storing your credential securely",
+              duration: 3000,
+            });
+          } else {
+            // Exchange failed or was cancelled
+            addToast({
+              type: "warning",
+              title: "WAL Exchange Required",
+              message: "Please get WAL tokens first to store credentials",
+              duration: 5000,
+            });
+            return;
+          }
+        } catch (exchangeError) {
+          console.error("❌ Automatic WAL exchange failed:", exchangeError);
+          addToast({
+            type: "error",
+            title: "WAL Exchange Failed",
+            message: "Please try getting WAL tokens manually first",
+            duration: 5000,
+          });
+          return;
+        }
+      }
 
       // Prepare credential data for backend
       const credentialData = {
@@ -165,141 +294,12 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
         notes: `Site: ${newPasswordData.name}`,
       };
 
-      // Get zkLogin parameters from storage (using correct key names)
-      const ephemeralPrivateKey = sessionStorage.getItem(
-        KEY_PAIR_SESSION_STORAGE_KEY
+      // Store credential in Walrus via backend (Enoki handles wallet management)
+      const result = await storeCredentials(
+        credentialData,
+        currentAccount?.address
       );
-      if (!ephemeralPrivateKey) {
-        addToast({
-          type: "error",
-          title: "Session Expired",
-          message: "Please log in again to store credentials",
-          duration: 5000,
-        });
-        return;
-      }
-
-      // Store credential in Walrus via backend
-      const response = await fetch(
-        "http://localhost:3001/api/store-credentials",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            credentials: credentialData,
-            zkLoginParams: {
-              ephemeralPrivateKey: ephemeralPrivateKey,
-              userProfile: userProfile,
-            },
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Backend error: ${errorData}`);
-      }
-
-      const result = await response.json();
-      console.log("✅ Credential stored successfully:", result.data);
-
-      // Now handle zkLogin signing for on-chain logging if needed
-      if (result.data.blobId && result.data.cid) {
-        try {
-          console.log("⛓️ Preparing zkLogin signing for on-chain logging...");
-
-          // Build logging transaction
-          const loggingPrepareRes = await fetch(
-            "http://localhost:3001/api/logging/prepare",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                blobId: result.data.blobId,
-                cid: result.data.cid,
-                userAddress: userProfile.suiAddress,
-              }),
-            }
-          );
-
-          if (loggingPrepareRes.ok) {
-            const { txBytes } = await loggingPrepareRes.json();
-
-            // Sign with zkLogin (using correct storage key names)
-            const jwtToken = localStorage.getItem(JWT_TOKEN_KEY);
-            const userSalt = localStorage.getItem(USER_SALT_LOCAL_STORAGE_KEY);
-            const randomness = sessionStorage.getItem(
-              RANDOMNESS_SESSION_STORAGE_KEY
-            );
-            const maxEpochStr =
-              localStorage.getItem(MAX_EPOCH_LOCAL_STORAGE_KEY) ??
-              sessionStorage.getItem(MAX_EPOCH_LOCAL_STORAGE_KEY);
-
-            if (
-              jwtToken &&
-              userSalt &&
-              randomness &&
-              maxEpochStr &&
-              ephemeralPrivateKey
-            ) {
-              const maxEpoch = Number(maxEpochStr);
-              const ephemeral =
-                Ed25519Keypair.fromSecretKey(ephemeralPrivateKey);
-              const extended = getExtendedEphemeralPublicKey(
-                ephemeral.getPublicKey()
-              );
-
-              // Fetch zkLogin proof
-              const proofRes = await fetch(SUI_PROVER_TESTNET_ENDPOINT, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  jwt: jwtToken,
-                  extendedEphemeralPublicKey: extended,
-                  maxEpoch,
-                  jwtRandomness: randomness,
-                  salt: userSalt,
-                  keyClaimName: "sub",
-                }),
-              });
-
-              if (proofRes.ok) {
-                const partial = await proofRes.json();
-                const { signature: userSignature } =
-                  await ephemeral.signTransaction(fromB64(txBytes));
-                const zkLoginSignature = getZkLoginSignature({
-                  inputs: partial,
-                  userSignature,
-                  maxEpoch,
-                });
-
-                // Submit zkLogin-signed logging transaction
-                const loggingSubmitRes = await fetch(
-                  "http://localhost:3001/api/logging/submit",
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ txBytes, zkLoginSignature }),
-                  }
-                );
-
-                if (loggingSubmitRes.ok) {
-                  const loggingResult = await loggingSubmitRes.json();
-                  console.log(
-                    "✅ On-chain logging successful:",
-                    loggingResult.digest
-                  );
-                }
-              }
-            }
-          }
-        } catch (loggingError) {
-          console.warn(
-            "⚠️ On-chain logging failed, but credential storage succeeded:",
-            loggingError
-          );
-        }
-      }
+      console.log("✅ Credential stored successfully:", result);
 
       // Add to local state for UI display
       const { icon, color } = getIconForUrl(newPasswordData.url);
@@ -371,6 +371,40 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden container mx-auto max-w-4xl">
+      {/* WAL Token Status */}
+      {currentAccount?.address && (
+        <div className="p-4 border-b border-cyber-700/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Coins className="w-5 h-5 text-cyber-400" strokeWidth={1.5} />
+              <span className="text-cyber-300 text-sm">
+                WAL Tokens:{" "}
+                {isCheckingBalance ? "Checking..." : walBalance?.balance || "0"}
+              </span>
+            </div>
+            {!walBalance?.hasTokens && (
+              <button
+                onClick={handleWalExchange}
+                disabled={isExchanging}
+                className="cyber-button-secondary flex items-center space-x-2 px-3 py-1.5 text-sm"
+              >
+                {isExchanging ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Exchanging...</span>
+                  </>
+                ) : (
+                  <>
+                    <Coins className="w-4 h-4" strokeWidth={1.5} />
+                    <span>Get WAL Tokens</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Search and Add Section */}
       <div className="p-4 space-y-4">
         {/* Search Bar with Alerts Button */}

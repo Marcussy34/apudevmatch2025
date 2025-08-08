@@ -22,29 +22,12 @@ interface StorageResult {
   transactionDigest: string;
 }
 
-// zkLogin types
-interface ZkLoginUserProfile {
-  name: string;
-  email: string;
-  suiAddress: string;
-  provider: string;
-  jwtToken: string;
-  userSalt: string;
-}
-
-interface ZkLoginTransactionParams {
-  ephemeralPrivateKey: string; // Base64 encoded private key from session storage
-  userProfile: ZkLoginUserProfile;
-}
-
 export class CredentialService {
   private suiClient: SuiClient;
   private keypair: Ed25519Keypair;
   private packageId: string;
   private logCapId: string;
   private sealClient: SealClient;
-  private zkLoginParams?: ZkLoginTransactionParams;
-  private usersWithTokens: Set<string> = new Set();
 
   constructor() {
     // Initialize Sui client for testnet (Seal key servers are on testnet)
@@ -52,7 +35,7 @@ export class CredentialService {
       url: "https://fullnode.testnet.sui.io:443",
     });
 
-    // Initialize with a placeholder keypair - will be replaced with zkLogin ephemeral key
+    // Initialize with a placeholder keypair - will be replaced when needed
     this.keypair = new Ed25519Keypair();
 
     // Initialize Seal client for encryption
@@ -73,349 +56,183 @@ export class CredentialService {
   }
 
   /**
-   * Set zkLogin parameters for transaction signing
+   * Build WAL exchange transaction for Enoki signing
    */
-  async setZkLoginParams(params: ZkLoginTransactionParams): Promise<void> {
-    this.zkLoginParams = params;
+  async buildWalExchangeTransaction(
+    userAddress: string,
+    amountMist: bigint = 1_000_000n
+  ): Promise<{ txBytes: string }> {
+    console.log("🪙 Building WAL exchange transaction for:", userAddress);
+    console.log("💰 Amount:", amountMist.toString(), "MIST");
 
-    // Create ephemeral keypair from the private key
     try {
-      console.log("🔑 Attempting to load ephemeral keypair...");
-      console.log("🔑 Key length:", params.ephemeralPrivateKey.length);
+      // Check if Transaction is properly imported
+      if (!Transaction) {
+        throw new Error("Transaction class is not properly imported");
+      }
+      console.log("✅ Transaction class available:", typeof Transaction);
+
+      // Check Walrus configuration
+      console.log("🔍 Walrus config:", TESTNET_WALRUS_PACKAGE_CONFIG);
       console.log(
-        "🔑 Key preview:",
-        params.ephemeralPrivateKey.substring(0, 20) + "..."
+        "🔍 Exchange IDs:",
+        TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds
       );
 
-      // Try different approaches to load the key
-      let keyBytes: Uint8Array;
-
-      try {
-        // First try: if it's a Sui private key string (starts with suiprivkey1q)
-        if (params.ephemeralPrivateKey.startsWith("suiprivkey1q")) {
-          this.keypair = Ed25519Keypair.fromSecretKey(
-            params.ephemeralPrivateKey
-          );
-          console.log("🔑 Sui private key string decode successful");
-        } else {
-          // Second try: direct base64 decode
-          keyBytes = fromB64(params.ephemeralPrivateKey);
-          console.log(
-            "🔑 Direct base64 decode successful, bytes length:",
-            keyBytes.length
-          );
-          this.keypair = Ed25519Keypair.fromSecretKey(keyBytes);
-        }
-      } catch (base64Error) {
-        console.log("🔑 Direct decode failed, trying alternative...");
-
-        // Third try: if it's a JSON string, parse it first
-        try {
-          const parsed = JSON.parse(params.ephemeralPrivateKey);
-          if (parsed.privateKey) {
-            if (parsed.privateKey.startsWith("suiprivkey1q")) {
-              this.keypair = Ed25519Keypair.fromSecretKey(parsed.privateKey);
-              console.log(
-                "🔑 JSON parse + Sui private key string decode successful"
-              );
-            } else {
-              keyBytes = fromB64(parsed.privateKey);
-              console.log(
-                "🔑 JSON parse + base64 decode successful, bytes length:",
-                keyBytes.length
-              );
-              this.keypair = Ed25519Keypair.fromSecretKey(keyBytes);
-            }
-          } else {
-            throw new Error("No privateKey field in JSON");
-          }
-        } catch (jsonError) {
-          console.log("🔑 JSON parse failed, trying raw bytes...");
-
-          // Fourth try: treat as raw hex string
-          try {
-            keyBytes = fromHex(params.ephemeralPrivateKey);
-            console.log(
-              "🔑 Hex decode successful, bytes length:",
-              keyBytes.length
-            );
-            this.keypair = Ed25519Keypair.fromSecretKey(keyBytes);
-          } catch (hexError) {
-            throw new Error(
-              `All key formats failed: base64=${base64Error}, json=${jsonError}, hex=${hexError}`
-            );
-          }
-        }
+      // Resolve exchange package and object IDs
+      const exchangeId = TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[3];
+      if (!exchangeId) {
+        throw new Error("Exchange ID not found in Walrus configuration");
       }
+      console.log("🪙 Using exchange ID:", exchangeId);
 
-      console.log("🔑 zkLogin ephemeral keypair loaded successfully");
-      console.log("🔑 Address:", this.keypair.getPublicKey().toSuiAddress());
+      const exchangeObjResp = await this.suiClient.core.getObjects({
+        objectIds: [exchangeId],
+      });
+      const exchangeObj = exchangeObjResp.objects.find(
+        (o: any) => !(o instanceof Error)
+      );
+      if (!exchangeObj || !("type" in exchangeObj)) {
+        throw new Error("Failed to load walrus exchange object");
+      }
+      const walExchangePackageId = parseStructTag(
+        (exchangeObj as any).type
+      ).address;
 
-      // Get test SUI tokens for the signer address (ensures the sender has gas)
-      await this.getTestTokens(this.keypair.getPublicKey().toSuiAddress());
+      console.log("📦 Exchange package ID:", walExchangePackageId);
+      console.log("🪙 Exchange object ID:", exchangeId);
+
+      // Build transaction for Enoki signing
+      console.log("🔨 Creating new Transaction...");
+      const tx = new Transaction();
+      console.log("✅ Transaction created:", tx);
+      console.log(
+        "🔍 Transaction methods:",
+        Object.getOwnPropertyNames(Object.getPrototypeOf(tx))
+      );
+
+      tx.setSenderIfNotSet(userAddress);
+
+      const [suiForExchange] = tx.splitCoins(tx.gas, [amountMist]);
+
+      const [walCoin] = tx.moveCall({
+        package: walExchangePackageId,
+        module: "wal_exchange",
+        function: "exchange_for_wal",
+        arguments: [
+          tx.object(exchangeId),
+          suiForExchange,
+          tx.pure.u64(amountMist),
+        ],
+      }) as any;
+
+      // The function takes &mut Coin<SUI>, so the split coin still exists afterwards.
+      // Merge it back into gas to avoid UnusedValueWithoutDrop.
+      tx.mergeCoins(tx.gas, [suiForExchange]);
+
+      tx.transferObjects([walCoin], userAddress);
+      tx.setGasBudget(5_000_000);
+
+      const bytes = await tx.build({ client: this.suiClient });
+      const txBytes = Buffer.from(bytes).toString("base64");
+
+      console.log("✅ WAL exchange transaction built successfully");
+      console.log("📊 Transaction bytes length:", txBytes.length);
+
+      return { txBytes };
     } catch (error) {
-      console.error("❌ Failed to load zkLogin ephemeral keypair:", error);
-      throw new Error("Invalid zkLogin ephemeral private key");
+      console.error("❌ Failed to build WAL exchange transaction:", error);
+      throw error;
     }
   }
 
   /**
-   * Get test SUI tokens from faucet for new users
+   * Submit signed transaction (from Enoki)
    */
-  private async getTestTokens(userAddress: string): Promise<void> {
-    // Check if user already received tokens
-    if (this.usersWithTokens.has(userAddress)) {
-      console.log("💰 User already has test tokens:", userAddress);
-      return;
-    }
+  async submitSignedTransaction(
+    txBytes: string,
+    signature: string
+  ): Promise<{ digest: string }> {
+    console.log("📤 Submitting signed transaction...");
 
     try {
-      console.log("💰 Getting test SUI tokens for new user:", userAddress);
+      const result = await this.suiClient.executeTransactionBlock({
+        transactionBlock: txBytes,
+        signature: signature,
+        options: { showEffects: true, showEvents: true },
+      });
 
-      // Try multiple faucet endpoints
-      const faucetEndpoints = [
-        "https://faucet.testnet.sui.io/gas",
-        "https://faucet.testnet.sui.io/v1/gas",
-        "https://faucet.testnet.sui.io/api/v1/gas",
+      console.log("✅ Transaction submitted successfully:", result.digest);
+      return { digest: result.digest };
+    } catch (error) {
+      console.error("❌ Failed to submit transaction:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if user has WAL tokens
+   */
+  async checkWalTokens(
+    userAddress: string
+  ): Promise<{ hasTokens: boolean; balance: bigint }> {
+    try {
+      // Known WAL coin types on testnet. The exchange function currently returns:
+      // 0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL
+      // Keep the older package ID as fallback in case of migrations.
+      const walCoinTypes = [
+        "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
+        "0x82593828ed3fcb8c6a235eac9abd0adbe9c5f9bbffa9b1e7a45cdd884481ef9f::wal::WAL",
       ];
 
-      let res = null;
-      let lastError = null;
-
-      for (const endpoint of faucetEndpoints) {
+      let totalWAL = 0n;
+      for (const coinType of walCoinTypes) {
         try {
-          console.log(`💰 Trying faucet endpoint: ${endpoint}`);
-          res = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              FixedAmountRequest: {
-                recipient: userAddress,
-              },
-            }),
+          const walCoins = await this.suiClient.getCoins({
+            owner: userAddress,
+            coinType,
           });
-
-          if (res.ok) {
-            console.log(
-              `✅ Faucet request successful with endpoint: ${endpoint}`
-            );
-            break;
-          } else {
-            lastError = `HTTP ${res.status}: ${res.statusText}`;
-            console.log(`⚠️ Faucet endpoint ${endpoint} failed: ${lastError}`);
-          }
-        } catch (error) {
-          lastError = error instanceof Error ? error.message : String(error);
-          console.log(`⚠️ Faucet endpoint ${endpoint} error: ${lastError}`);
-        }
-      }
-
-      if (!res || !res.ok) {
-        console.warn("⚠️ All faucet endpoints failed:", lastError);
-      } else {
-        const data = await res.json();
-        console.log("💰 Faucet response:", data);
-
-        if (data.error) {
-          console.warn("⚠️ Faucet returned error:", data.error);
-        } else {
-          console.log("✅ Test SUI tokens sent successfully to:", userAddress);
-
-          // Mark user as having received tokens
-          this.usersWithTokens.add(userAddress);
-
-          // Wait a moment for the transaction to be processed
-          console.log("⏳ Waiting for transaction to be processed...");
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
-      }
-
-      console.log("✅ Test SUI tokens sent successfully to:", userAddress);
-
-      // Mark user as having received tokens
-      this.usersWithTokens.add(userAddress);
-
-      // Wait a moment for the transaction to be processed
-      console.log("⏳ Waiting for transaction to be processed...");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch (error) {
-      console.warn("⚠️ Failed to get test tokens:", error);
-    }
-
-    // Do not auto-exchange for WAL here; zkLogin signing must happen client-side.
-    // The frontend should call the prepare/submit endpoints to complete exchange.
-  }
-
-  /**
-   * Fund a zkLogin address with SUI from faucet (optional - won't fail if funding fails)
-   */
-  async fundZkLoginAddress(senderAddress: string): Promise<void> {
-    console.log(
-      "💰 Funding zkLogin address with SUI from faucet:",
-      senderAddress
-    );
-
-    // Fund the zkLogin address with SUI from faucet
-    const faucetEndpoints = [
-      "https://faucet.testnet.sui.io/gas",
-      "https://faucet.testnet.sui.io/v1/gas",
-    ];
-
-    let fundingSuccess = false;
-    for (const endpoint of faucetEndpoints) {
-      try {
-        console.log(`💰 Trying faucet endpoint: ${endpoint}`);
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            FixedAmountRequest: { recipient: senderAddress },
-          }),
-        });
-
-        if (res.ok) {
-          console.log(
-            `✅ Faucet request successful with endpoint: ${endpoint}`
+          const sumForType = walCoins.data.reduce(
+            (sum, coin) => sum + BigInt(coin.balance),
+            0n
           );
-          fundingSuccess = true;
-          break;
-        } else {
-          console.log(
-            `⚠️ Faucet endpoint ${endpoint} failed: HTTP ${res.status}`
-          );
+          totalWAL += sumForType;
+        } catch (innerErr) {
+          // Ignore individual coinType errors, continue checking others
         }
-      } catch (error) {
-        console.log(`⚠️ Faucet endpoint ${endpoint} error:`, error);
       }
-    }
 
-    if (fundingSuccess) {
-      // Wait for the faucet transaction to be processed
-      console.log("⏳ Waiting for faucet transaction to be processed...");
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      console.log("✅ zkLogin address funded successfully");
-    } else {
-      console.warn(
-        "⚠️ Faucet funding failed - continuing anyway (user may already have SUI)"
+      console.log(
+        "🪙 WAL token check for",
+        userAddress,
+        ":",
+        totalWAL.toString()
       );
+      return { hasTokens: totalWAL > 0n, balance: totalWAL };
+    } catch (error) {
+      console.warn("⚠️ Could not check WAL token balance:", error);
+      return { hasTokens: false, balance: 0n };
     }
-  }
-
-  /**
-   * Build a WAL exchange transaction for a zkLogin sender and return tx bytes (base64)
-   */
-  async buildWalExchangeTransaction(options: {
-    senderAddress: string;
-    amountMist?: bigint;
-  }): Promise<{ txBytes: string }> {
-    const { senderAddress, amountMist = 1_000_000n } = options; // default small amount
-
-    // Ensure we have zkLogin params (for context), but we don't sign here
-    if (!senderAddress) {
-      throw new Error("Missing senderAddress for WAL exchange tx");
-    }
-    console.log("🔨 Building WAL exchange transaction...");
-
-    // Resolve exchange package and object IDs
-    const exchangeId = TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[3];
-    const exchangeObjResp = await this.suiClient.core.getObjects({
-      objectIds: [exchangeId],
-    });
-    const exchangeObj = exchangeObjResp.objects.find(
-      (o: any) => !(o instanceof Error)
-    );
-    if (!exchangeObj || !("type" in exchangeObj)) {
-      throw new Error("Failed to load walrus exchange object");
-    }
-    const walExchangePackageId = parseStructTag(
-      (exchangeObj as any).type
-    ).address;
-
-    console.log("📦 Exchange package ID:", walExchangePackageId);
-    console.log("🪙 Exchange object ID:", exchangeId);
-
-    // Build transaction without signing
-    const tx = new Transaction();
-    tx.setSenderIfNotSet(senderAddress);
-
-    const [suiForExchange] = tx.splitCoins(tx.gas, [amountMist]);
-
-    const [walCoin, suiChange] = tx.moveCall({
-      package: walExchangePackageId,
-      module: "wal_exchange",
-      function: "exchange_for_wal",
-      arguments: [
-        tx.object(exchangeId),
-        suiForExchange,
-        tx.pure.u64(amountMist),
-      ],
-    }) as any;
-
-    if (suiChange) {
-      tx.mergeCoins(tx.gas, [suiChange]);
-    }
-    tx.transferObjects([walCoin], senderAddress);
-    tx.setGasBudget(5_000_000);
-
-    const bytes = await tx.build({ client: this.suiClient });
-    const txBytes = Buffer.from(bytes).toString("base64");
-
-    console.log("✅ Transaction built successfully");
-    console.log("📊 Transaction bytes length:", txBytes.length);
-
-    return { txBytes };
-  }
-
-  /**
-   * Submit a zkLogin-signed transaction (base64 tx bytes + serialized zkLogin signature)
-   */
-  async submitZkLoginSignedTransaction(params: {
-    txBytes: string;
-    zkLoginSignature: string;
-  }): Promise<{ digest: string }> {
-    const { txBytes, zkLoginSignature } = params;
-    const result = await this.suiClient.executeTransactionBlock({
-      transactionBlock: txBytes,
-      signature: zkLoginSignature,
-      options: { showEffects: true, showEvents: true },
-    });
-    return { digest: result.digest };
   }
 
   /**
    * Store encrypted credentials on Walrus and log the event on Sui
    */
-  async storeCredentials(credentials: CredentialData): Promise<StorageResult> {
+  async storeCredentials(
+    credentials: CredentialData,
+    userAddress?: string
+  ): Promise<StorageResult> {
     try {
       console.log("🔐 Starting credential storage process...");
 
-      // Verify user has WAL tokens for storage
-      if (this.zkLoginParams) {
-        const userAddress = this.zkLoginParams.userProfile.suiAddress;
-        console.log("🪙 Verifying WAL token availability for:", userAddress);
-
-        try {
-          // Check WAL token balance
-          const walCoins = await this.suiClient.getCoins({
-            owner: userAddress,
-            coinType:
-              "0x82593828ed3fcb8c6a235eac9abd0adbe9c5f9bbffa9b1e7a45cdd884481ef9f::wal::WAL",
-          });
-
-          if (walCoins.data.length === 0) {
-            console.warn("⚠️ User has no WAL tokens - storage may fail");
-            console.log("💡 User should complete WAL exchange first");
-          } else {
-            const totalWAL = walCoins.data.reduce(
-              (sum, coin) => sum + BigInt(coin.balance),
-              0n
-            );
-            console.log("✅ User has WAL tokens:", totalWAL.toString());
-          }
-        } catch (error) {
-          console.warn("⚠️ Could not verify WAL token balance:", error);
+      // Check WAL tokens if user address provided
+      if (userAddress) {
+        const { hasTokens, balance } = await this.checkWalTokens(userAddress);
+        if (!hasTokens) {
+          console.warn("⚠️ User has no WAL tokens - storage may fail");
+          console.log("💡 User should complete WAL exchange first");
+        } else {
+          console.log("✅ User has WAL tokens:", balance.toString());
         }
       }
 
@@ -425,7 +242,7 @@ export class CredentialService {
       // Step 2: Upload to Walrus
       const { blobId, cid } = await this.uploadToWalrus(encryptedData);
 
-      // Step 3: Log the storage event on Sui
+      // Step 3: Log the storage event on Sui (simplified - no zkLogin complexity)
       const transactionDigest = await this.logOnChain(blobId, cid);
 
       console.log("✅ Credentials stored successfully!");
@@ -486,8 +303,11 @@ export class CredentialService {
     console.log("📤 Uploading to Walrus using HTTP API...");
 
     try {
-      // Use Walrus HTTP API instead of CLI
+      // Use Walrus HTTP API: try aggregator first, then known publishers
+      const aggregatorUrl =
+        process.env.WALRUS_URL?.trim() || "https://testnet-v2.wal.app";
       const walrusPublishers = [
+        aggregatorUrl,
         "https://publisher1.walrus.space",
         "https://publisher2.staketab.org",
         "https://publisher3.redundex.com",
@@ -502,12 +322,10 @@ export class CredentialService {
       for (const publisher of walrusPublishers) {
         try {
           console.log(`📤 Trying Walrus publisher: ${publisher}`);
-
+          const body = Buffer.from(encryptedData);
           const response = await fetch(`${publisher}/v1/blobs?epochs=10`, {
             method: "PUT",
-            body: new Blob([encryptedData.slice()], {
-              type: "application/octet-stream",
-            }),
+            body,
             headers: {
               "Content-Type": "application/octet-stream",
             },
@@ -529,23 +347,19 @@ export class CredentialService {
       }
 
       if (!uploadSuccess) {
-        console.warn("⚠️ All Walrus publishers failed - using simulation");
-        console.warn("⚠️ This is a fallback for development/testing");
-
-        // Generate a mock blob ID and CID for development
+        console.warn(
+          "⚠️ All Walrus endpoints failed - using simulation fallback"
+        );
+        // Simulation fallback to avoid blocking dev while endpoints are down
         const mockBlobId = `blob_${Date.now()}_${Math.random()
           .toString(36)
           .substr(2, 9)}`;
-        const mockCid = `cid_${Date.now()}_${Math.random()
-          .toString(36)
-          .substr(2, 9)}`;
-
+        const mockCid = mockBlobId;
         console.log("📤 Using simulated Walrus upload:", {
           blobId: mockBlobId,
           cid: mockCid,
           dataSize: encryptedData.length,
         });
-
         return {
           blobId: mockBlobId,
           cid: mockCid,
@@ -583,71 +397,20 @@ export class CredentialService {
   }
 
   /**
-   * Log credential storage event on-chain using zkLogin signing
+   * Log credential storage event on-chain (simplified - no zkLogin)
    */
   private async logOnChain(blobId: string, cid: string): Promise<string> {
     console.log("⛓️ Logging event on Sui...");
 
     try {
-      if (!this.zkLoginParams) {
-        // Fall back to simulation when zkLogin params are not set
-        console.log(
-          "⛓️ zkLogin parameters not set - simulating on-chain logging"
-        );
-        console.log("⛓️ Blob ID:", blobId);
-        console.log("⛓️ CID:", cid);
-        console.log("⛓️ User Address:", this.getWalletAddress());
+      // For now, simulate on-chain logging since Enoki handles transaction signing
+      console.log("⛓️ Simulating on-chain logging (Enoki handles signing)");
+      console.log("⛓️ Blob ID:", blobId);
+      console.log("⛓️ CID:", cid);
 
-        const mockDigest = `0x${Math.random().toString(16).substr(2, 64)}`;
-        console.log("⛓️ Transaction Digest (simulated):", mockDigest);
-        console.log(
-          "⛓️ Note: Set zkLogin parameters for real on-chain logging"
-        );
-
-        return mockDigest;
-      }
-
-      const userAddress = this.zkLoginParams.userProfile.suiAddress;
-      console.log("⛓️ Using zkLogin address:", userAddress);
-      console.log("⛓️ User:", this.zkLoginParams.userProfile.name);
-
-      // Build transaction for on-chain logging
-      console.log("⛓️ Building on-chain logging transaction...");
-      const logTx = new Transaction();
-      logTx.setSenderIfNotSet(userAddress);
-
-      // Convert strings to bytes for the Move function
-      const blobIdBytes = new TextEncoder().encode(blobId);
-      const cidBytes = new TextEncoder().encode(cid);
-      const userAddressBytes = new TextEncoder().encode(userAddress);
-
-      logTx.moveCall({
-        target: `${this.packageId}::store_logger::log_credential_store`,
-        arguments: [
-          logTx.object(this.logCapId), // Use existing LogCap
-          logTx.pure(userAddressBytes), // user_address
-          logTx.pure(blobIdBytes), // walrus_blob_id
-          logTx.pure(cidBytes), // walrus_cid
-        ],
-      });
-
-      logTx.setGasBudget(5_000_000);
-
-      // Build transaction bytes for zkLogin signing
-      const txBytes = await logTx.build({ client: this.suiClient });
-      const txBytesBase64 = Buffer.from(txBytes).toString("base64");
-
-      console.log("⛓️ Transaction built, returning bytes for zkLogin signing");
-      console.log("⛓️ Transaction bytes length:", txBytesBase64.length);
-
-      // Return the transaction bytes - the frontend will need to sign this with zkLogin
-      // For now, we'll simulate the signing process
-      console.log("⛓️ Note: zkLogin signing should be done on frontend");
-      console.log("⛓️ Transaction bytes:", txBytesBase64);
-
-      // Simulate successful transaction for now
       const mockDigest = `0x${Math.random().toString(16).substr(2, 64)}`;
-      console.log("⛓️ Transaction Digest (simulated zkLogin):", mockDigest);
+      console.log("⛓️ Transaction Digest (simulated):", mockDigest);
+      console.log("⛓️ Note: Enoki will handle actual transaction signing");
 
       return mockDigest;
     } catch (error) {
@@ -657,35 +420,13 @@ export class CredentialService {
   }
 
   /**
-   * Get the wallet address for this service
+   * Get the service status
    */
-  getWalletAddress(): string {
-    // Return the zkLogin address if available, otherwise the current keypair address
-    if (this.zkLoginParams) {
-      return this.zkLoginParams.userProfile.suiAddress;
-    }
-    return this.keypair.getPublicKey().toSuiAddress();
-  }
-
-  /**
-   * Test the service with sample credentials
-   */
-  async testStorage(): Promise<void> {
-    console.log("🧪 Testing credential storage...");
-
-    const testCredentials: CredentialData = {
-      site: "gmail.com",
-      username: "test@example.com",
-      password: "testPassword123!",
-      notes: "Test credential for development",
+  getStatus(): { walletAddress: string; hasSealClient: boolean } {
+    return {
+      walletAddress: this.keypair.getPublicKey().toSuiAddress(),
+      hasSealClient: !!this.sealClient,
     };
-
-    try {
-      const result = await this.storeCredentials(testCredentials);
-      console.log("🧪 Test completed successfully!");
-      console.log("Results:", result);
-    } catch (error) {
-      console.error("🧪 Test failed:", error);
-    }
   }
+
 }
