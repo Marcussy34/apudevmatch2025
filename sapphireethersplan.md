@@ -55,8 +55,10 @@ Grand Warden is currently using regular `ethers` for all Oasis Sapphire interact
 
 ```bash
 cd infrastructure/oasis
-npm install
+npm install @oasisprotocol/sapphire-ethers-v6 ethers@6.x
 ```
+
+> **⚠️ Important**: The official documentation requires both packages to be installed together, with ethers@6.x as a peer dependency.
 
 ### 1.2 Verify Installation
 
@@ -73,6 +75,13 @@ npm list @oasisprotocol/sapphire-ethers-v6
 - [ ] Package successfully installed without conflicts
 - [ ] No version conflicts with existing ethers package
 - [ ] TypeScript types available in IDE
+
+> **⚠️ CRITICAL VERSION COMPATIBILITY**:
+>
+> - This package requires ethers@6.x as a peer dependency
+> - Always use the named imports: `wrapEthersProvider`, `wrapEthersSigner`
+> - The old `sapphire.wrap()` pattern is deprecated
+> - Verify installation with official documentation at https://docs.oasis.io/sapphire/
 
 ---
 
@@ -101,7 +110,10 @@ const vault = new ethers.Contract(vaultAddress, vaultAbi, wallet);
 
 ```typescript
 import { ethers } from "ethers";
-import * as sapphire from "@oasisprotocol/sapphire-ethers-v6";
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
 
 async function liveTest() {
   console.log("🚀 LIVE CONTRACT INTERACTION TEST (WITH ENCRYPTION)");
@@ -113,14 +125,14 @@ async function liveTest() {
   );
 
   // CRITICAL: Wrap provider for automatic encryption
-  const provider = sapphire.wrap(baseProvider);
+  const provider = wrapEthersProvider(baseProvider);
 
   // CRITICAL: Wrap wallet for encrypted signing
   const baseWallet = new ethers.Wallet(
     "89299a570d0d8959c788417b88f3a214b8d68001fba2eb10672199001caebb7b",
     provider
   );
-  const wallet = sapphire.wrap(baseWallet);
+  const wallet = wrapEthersSigner(baseWallet);
 
   const vaultAddress = "0xB6B183a041D077d5924b340EBF41EE4546fE0bcE";
   const vaultAbi = [
@@ -165,7 +177,10 @@ async function liveTest() {
 
 ```typescript
 // At the top of the file, add:
-import * as sapphire from "@oasisprotocol/sapphire-ethers-v6";
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
 
 // Wrap the deployer when deploying to Sapphire networks:
 async function deployContract(
@@ -187,7 +202,7 @@ async function deployContract(
     console.log(
       `🔐 Wrapping deployer for Sapphire network (chainId: ${network.chainId})`
     );
-    actualDeployer = sapphire.wrap(deployer);
+    actualDeployer = wrapEthersSigner(deployer);
   }
 
   const ContractFactory = await ethers.getContractFactory(contractName);
@@ -218,7 +233,10 @@ async function deployContract(
 
 ```typescript
 import { ethers } from "hardhat"; // Keep for deployment
-import * as sapphire from "@oasisprotocol/sapphire-ethers-v6"; // Add for Sapphire
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6"; // Add for Sapphire
 
 // Add this helper function to every script:
 async function getSapphireWrappedSigner(signer: any) {
@@ -229,7 +247,7 @@ async function getSapphireWrappedSigner(signer: any) {
 
   if (isSapphireNetwork) {
     console.log(`🔐 Using Sapphire encryption for network ${network.chainId}`);
-    return sapphire.wrap(signer);
+    return wrapEthersSigner(signer);
   }
 
   return signer;
@@ -258,7 +276,10 @@ const wrappedDeployer = await getSapphireWrappedSigner(deployer);
 ```typescript
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import * as sapphire from "@oasisprotocol/sapphire-ethers-v6";
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
 import { ContractName } from "../typechain-types";
 
 describe("ContractName (with Sapphire Encryption)", function () {
@@ -274,7 +295,7 @@ describe("ContractName (with Sapphire Encryption)", function () {
     );
 
     if (isSapphireNetwork) {
-      return sapphire.wrap(signer);
+      return wrapEthersSigner(signer);
     }
     return signer;
   }
@@ -321,7 +342,10 @@ Create: `infrastructure/oasis/test/SapphireEncryption.test.ts`
 ```typescript
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import * as sapphire from "@oasisprotocol/sapphire-ethers-v6";
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
 
 describe("Sapphire Encryption Verification", function () {
   let contract: any;
@@ -333,7 +357,7 @@ describe("Sapphire Encryption Verification", function () {
 
     // Create both wrapped and unwrapped signers for comparison
     regularSigner = signer;
-    encryptedSigner = sapphire.wrap(signer);
+    encryptedSigner = wrapEthersSigner(signer);
 
     // Deploy a simple test contract
     const TestContract = await ethers.getContractFactory("GrandWardenVault");
@@ -389,7 +413,10 @@ describe("Sapphire Encryption Verification", function () {
 
 ```typescript
 import { ethers } from "ethers";
-import * as sapphire from "@oasisprotocol/sapphire-ethers-v6";
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
 
 // Sapphire Network Configuration
 export const SAPPHIRE_NETWORKS = {
@@ -422,7 +449,7 @@ export class SapphireProvider {
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
 
     // CRITICAL: Wrap for automatic encryption
-    this.wrappedProvider = sapphire.wrap(this.provider);
+    this.wrappedProvider = wrapEthersProvider(this.provider);
   }
 
   getProvider() {
@@ -433,7 +460,7 @@ export class SapphireProvider {
     const wallet = new ethers.Wallet(privateKey, this.wrappedProvider);
 
     // CRITICAL: Wrap wallet for encrypted signing
-    return sapphire.wrap(wallet);
+    return wrapEthersSigner(wallet);
   }
 
   async connectBrowserWallet() {
@@ -445,7 +472,7 @@ export class SapphireProvider {
     const signer = await browserProvider.getSigner();
 
     // CRITICAL: Wrap browser wallet signer
-    return sapphire.wrap(signer);
+    return wrapEthersSigner(signer);
   }
 }
 
@@ -781,7 +808,7 @@ Grand Warden uses @oasisprotocol/sapphire-ethers-v6 to ensure all sensitive data
 
 ## Key Principles
 
-1. **Always Wrap Providers**: Use `sapphire.wrap()` for all Sapphire network interactions
+1. **Always Wrap Providers**: Use `wrapEthersProvider()` and `wrapEthersSigner()` for all Sapphire network interactions
 2. **Encrypt Sensitive Data**: Password vault and wallet operations require encryption
 3. **Test with Real Networks**: Local testing may not catch encryption issues
 
@@ -790,9 +817,12 @@ Grand Warden uses @oasisprotocol/sapphire-ethers-v6 to ensure all sensitive data
 ### Basic Provider Setup
 
 ```typescript
-import * as sapphire from "@oasisprotocol/sapphire-ethers-v6";
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
 
-const provider = sapphire.wrap(
+const provider = wrapEthersProvider(
   new ethers.JsonRpcProvider("https://testnet.sapphire.oasis.io")
 );
 ```
@@ -801,7 +831,7 @@ const provider = sapphire.wrap(
 ### Wallet Signing
 
 ```typescript
-const wallet = sapphire.wrap(new ethers.Wallet(privateKey, provider));
+const wallet = wrapEthersSigner(new ethers.Wallet(privateKey, provider));
 ```
 
 ### Contract Interactions
@@ -842,7 +872,7 @@ All tests automatically use encryption when running on Sapphire networks.
  */
 export function createSapphireProvider(network: string) {
   const baseProvider = new ethers.JsonRpcProvider(getRpcUrl(network));
-  return sapphire.wrap(baseProvider); // CRITICAL: This enables encryption
+  return wrapEthersProvider(baseProvider); // CRITICAL: This enables encryption
 }
 ````
 
@@ -1031,6 +1061,45 @@ npm run test:performance
 1. **Performance optimized**: Minimal encryption overhead
 2. **Comprehensive logging**: Encryption status visible in logs
 3. **Error handling**: Graceful failure for encryption issues
+
+---
+
+## 📝 IMPORTANT CORRECTIONS BASED ON OFFICIAL DOCS
+
+### Updated Import Patterns (CRITICAL)
+
+The migration plan has been updated based on official Oasis Sapphire documentation:
+
+**✅ CORRECT (Updated):**
+
+```typescript
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
+
+// For providers
+const provider = wrapEthersProvider(baseProvider);
+
+// For signers/wallets
+const signer = wrapEthersSigner(baseSigner);
+```
+
+**❌ DEPRECATED (Old Pattern):**
+
+```typescript
+import * as sapphire from "@oasisprotocol/sapphire-ethers-v6";
+
+// These patterns are deprecated
+const provider = sapphire.wrap(baseProvider);
+const signer = sapphire.wrap(baseSigner);
+```
+
+### Installation Requirements
+
+- **Peer Dependency**: ethers@6.x must be installed alongside the sapphire package
+- **Version Compatibility**: Always verify with latest official documentation
+- **Import Style**: Use named imports for better tree-shaking and type safety
 
 ---
 
