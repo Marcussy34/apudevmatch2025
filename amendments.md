@@ -71,36 +71,6 @@ Purpose: a terse, actionable checklist for the next engineer/agent to bring the 
   - Add latency tests for signature turnaround (include RPC/network effects if feasible) and define KPI extraction (p95 < 2s).
   - Add coverage tooling (solidity‑coverage) and target >90% including failure cases (bad attestation, dup emits, rollback).
 
-### Phase 2 — Subgraph Integration
-
-- **Emulator receipts bug**
-
-  - File: `infrastructure/subgraph/docker/emulator/index.js`.
-  - Issue: inside `getBlockReceipts`, logs array is overwritten per log.
-  - Fix: build a `normalizedLogs` array and assign once: `txReceipt.logs = normalizedLogs;`.
-  - Acceptance: graph‑node indexes without decode errors; historical and latest receipts work.
-
-- **Enable non‑fatal errors**
-
-  - File: `infrastructure/subgraph/grandwarden-subgraph/subgraph.yaml`.
-  - Fix: add `features: [nonFatalErrors]` under each `mapping` (if supported by your node version).
-  - Acceptance: transient decode errors do not halt indexing; logs show non‑fatal handling.
-
-- **Reorg/lag handling**
-
-  - Add a temporary toggle in emulator to drop/alter receipts for N blocks; provide a test or script to simulate a small reorg.
-  - Acceptance: subgraph reconverges without double counts after reorg simulation.
-
-- **Latency evidence**
-
-  - Provide a recorded run where WS subscriptions deliver events <2s p95 from tx mined; include raw logs/metrics and a short note in `TEST_RESULTS.md`.
-
-- **Stable chain identity**
-
-  - File: `infrastructure/subgraph/docker/emulator/index.js`.
-  - Fix: ensure `eth_chainId` returns a stable value (e.g., `0x5afe`) and is consistent across restarts; proxy other calls unchanged.
-  - Acceptance: Graph Node treats the network as stable; queries across restarts don’t create split deployments.
-
 ### Phase 4 — ROFL Sui Mirror
 
 - **Identity & trust**
@@ -151,14 +121,6 @@ Purpose: a terse, actionable checklist for the next engineer/agent to bring the 
 
   - Implement real Walrus upload + Sui pointer update; finalize/rollback paths; extend tests.
 
-- `infrastructure/subgraph/docker/emulator/index.js`
-
-  - Fix logs normalization (do not overwrite the logs array).
-
-- `infrastructure/subgraph/grandwarden-subgraph/subgraph.yaml`
-
-  - Add `features: [nonFatalErrors]` under each mapping; keep only the event signature(s) you support.
-
 - `infrastructure/rofl-worker/src/main.rs`
   - Add idempotency (eventId/seq), ordering checks, durable cursor, metrics; integrate Sui client and signer where marked TODO/mock.
 
@@ -167,5 +129,4 @@ Purpose: a terse, actionable checklist for the next engineer/agent to bring the 
 - One canonical `TransactionSigned` signature across contracts/ABI/subgraph.
 - One working Ed25519 Sui signing path with demo.
 - Atomic ops execute real Walrus→Sui flow with rollback and tests.
-- Emulator receipts fixed; subgraph has non‑fatal errors enabled; reorg drill passes.
 - ROFL mirror enforces identity, idempotency, ordering, and has replay + metrics.
