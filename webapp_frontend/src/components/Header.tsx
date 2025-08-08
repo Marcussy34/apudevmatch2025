@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Shield, LogOut, User, Copy, CheckCheck } from 'lucide-react'
+import { useCurrentAccount } from '@mysten/dapp-kit'
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -13,23 +14,17 @@ const formatAddress = (address: string) => {
 };
 
 const Header: React.FC<HeaderProps> = ({ isLoggedIn, onSignOut }) => {
+  const currentAccount = useCurrentAccount()
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
   const [provider, setProvider] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  // Load wallet address from localStorage when component mounts
+  // Sync from dapp-kit current account; fallback to any previously stored provider
   useEffect(() => {
-    if (isLoggedIn) {
-      const storedAddress = localStorage.getItem('suiWalletAddress')
-      const storedProvider = localStorage.getItem('zkLoginProvider')
-      if (storedAddress) {
-        setWalletAddress(storedAddress)
-      }
-      if (storedProvider) {
-        setProvider(storedProvider)
-      }
-    }
-  }, [isLoggedIn])
+    setWalletAddress(currentAccount?.address ?? null)
+    const storedProvider = localStorage.getItem('zkLoginProvider')
+    setProvider(storedProvider)
+  }, [currentAccount])
 
   const handleCopyAddress = () => {
     if (walletAddress) {
@@ -40,7 +35,6 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onSignOut }) => {
   }
 
   const handleSignOut = () => {
-    localStorage.removeItem('suiWalletAddress')
     localStorage.removeItem('zkLoginProvider')
     setWalletAddress(null)
     setProvider(null)

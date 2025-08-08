@@ -2,25 +2,14 @@ import React, { useState } from 'react'
 import { Shield, Lock, Eye, EyeOff } from 'lucide-react'
 import googleIcon from '../assets/google.svg'
 import facebookIcon from '../assets/facebook.svg'
+import { useConnectWallet, useWallets } from '@mysten/dapp-kit'
+import { isEnokiWallet } from '@mysten/enoki'
 
 interface LoginPromptProps {
   onLoginClick: () => void;
 }
 
-// Function to generate a random SUI wallet address
-const generateSuiAddress = () => {
-  const chars = '0123456789abcdef';
-  let address = '0x';
-  for (let i = 0; i < 64; i++) {
-    address += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return address;
-};
-
-// Function to format address with ellipsis
-const formatAddress = (address: string) => {
-  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-};
+// (Removed unused mock address helpers)
 
 const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
   const [password, setPassword] = useState('')
@@ -40,18 +29,24 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
     }, 1500)
   }
   
-  // Simulate zkLogin with social providers
-  const handleSocialLogin = (provider: string) => {
+  const { mutateAsync: connect } = useConnectWallet()
+  const wallets = useWallets().filter(isEnokiWallet)
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const googleWallet = wallets.find((w: any) => w.provider === 'google')
+
+  // zkLogin with Enoki via dapp-kit popup: Google only for now
+  const handleSocialLogin = async (provider: string) => {
+    if (provider !== 'google') return
     setIsZkLoginLoading(provider)
-    
-    // Simulate zkLogin flow
-    setTimeout(() => {
-      setIsZkLoginLoading(null)
-      // Set a simulated SUI wallet address in local storage
-      localStorage.setItem('zkLoginProvider', provider)
-      localStorage.setItem('suiWalletAddress', generateSuiAddress())
+    try {
+      setLoginError(null)
+      if (!googleWallet) throw new Error('Google wallet not registered')
+      await connect({ wallet: googleWallet })
       onLoginClick()
-    }, 2000)
+    } catch (e: any) {
+      setLoginError(e?.message || 'Failed to start Google login')
+      setIsZkLoginLoading(null)
+    }
   }
 
   return (
@@ -71,7 +66,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
           <div className="space-y-3">
             <button 
               onClick={() => handleSocialLogin('google')}
-              disabled={isZkLoginLoading !== null}
+              disabled={isZkLoginLoading !== null || !googleWallet}
               className="w-full cyber-border bg-white hover:bg-gray-50 text-gray-800 font-medium py-2.5 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"
             >
               {isZkLoginLoading === 'google' ? (
@@ -85,7 +80,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
               ) : (
                 <>
                   <img src={googleIcon} alt="Google" className="w-5 h-5" />
-                  <span>Continue with Google</span>
+                  <span>{googleWallet ? 'Continue with Google' : 'Google not available'}</span>
                 </>
               )}
             </button>
@@ -112,6 +107,10 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
             </button>
           </div>
         </div>
+
+        {loginError && (
+          <p className="text-sm text-red-400 text-center mb-4">{loginError}</p>
+        )}
         
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">

@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Shield, User, LogOut, Lock, Bell, Smartphone, Download, Cloud, Key, MousePointer } from 'lucide-react'
+import { useCurrentAccount } from '@mysten/dapp-kit'
 
 interface SettingsProps {
   onSignOut?: () => void;
@@ -8,6 +9,7 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ onSignOut }) => {
   const navigate = useNavigate()
+  const currentAccount = useCurrentAccount()
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden container mx-auto max-w-4xl">
@@ -31,14 +33,17 @@ const Settings: React.FC<SettingsProps> = ({ onSignOut }) => {
           <div className="space-y-3">
             <h2 className="text-lg font-medium text-cyber-100">Account</h2>
             
-            <div className="cyber-border rounded-lg overflow-hidden">
+              <div className="cyber-border rounded-lg overflow-hidden">
               <div className="flex items-center p-4 hover:bg-cyber-700/20 transition-colors cursor-pointer">
                 <div className="p-2 bg-cyber-700/50 rounded-lg">
                   <User className="w-5 h-5 text-primary-400" strokeWidth={1.5} />
                 </div>
                 <div className="ml-3 flex-1">
-                  <p className="text-sm font-medium text-cyber-200">Profile</p>
-                  <p className="text-xs text-cyber-400">Manage your account details</p>
+                    <p className="text-sm font-medium text-cyber-200">Profile</p>
+                    <p className="text-xs text-cyber-400">Manage your account details</p>
+                    {currentAccount?.address && (
+                      <p className="text-xs text-cyber-500 font-mono mt-1 break-all">{currentAccount.address}</p>
+                    )}
                 </div>
               </div>
               

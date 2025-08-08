@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { useCurrentAccount, useDisconnectWallet } from '@mysten/dapp-kit'
 import Header from './components/Header'
 import LoginPrompt from './components/LoginPrompt'
 import Dashboard from './components/Dashboard'
@@ -11,22 +12,17 @@ import Analytics from './components/Analytics'
 import Footer from './components/Footer'
 import ToastContainer from './components/ToastContainer'
 import { ToastProps } from './components/Toast'
+import AuthRedirect from './components/AuthRedirect'
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const currentAccount = useCurrentAccount()
+  const isLoggedIn = useMemo(() => Boolean(currentAccount), [currentAccount])
   const [toasts, setToasts] = useState<ToastProps[]>([])
   const navigate = useNavigate()
   
-  // Check if user is logged in on component mount
-  useEffect(() => {
-    const suiAddress = localStorage.getItem('suiWalletAddress')
-    if (suiAddress) {
-      setIsLoggedIn(true)
-    }
-  }, [])
+  const { mutateAsync: disconnect } = useDisconnectWallet()
 
   const handleSignIn = () => {
-    setIsLoggedIn(true)
     // Show welcome toast
     addToast({
       type: 'success',
@@ -37,7 +33,7 @@ function App() {
   }
 
   const handleSignOut = () => {
-    setIsLoggedIn(false)
+    disconnect()
     navigate('/')
   }
 
@@ -80,6 +76,7 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route path="/auth/callback" element={<AuthRedirect />} />
           <Route 
             path="/settings" 
             element={

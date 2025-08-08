@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Wallet, Plus, Eye, EyeOff, Copy, ExternalLink, CheckCheck, User } from 'lucide-react'
+import { useCurrentAccount } from '@mysten/dapp-kit'
 
 // Function to format address with ellipsis
 const formatAddress = (address: string) => {
@@ -10,23 +11,16 @@ const formatAddress = (address: string) => {
 
 const WalletVault: React.FC = () => {
   const navigate = useNavigate()
+  const currentAccount = useCurrentAccount()
   const [suiWalletAddress, setSuiWalletAddress] = useState<string | null>(null)
   const [provider, setProvider] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   
   useEffect(() => {
-    // Retrieve SUI wallet address from localStorage
-    const storedAddress = localStorage.getItem('suiWalletAddress')
+    setSuiWalletAddress(currentAccount?.address ?? null)
     const storedProvider = localStorage.getItem('zkLoginProvider')
-    
-    if (storedAddress) {
-      setSuiWalletAddress(storedAddress)
-    }
-    
-    if (storedProvider) {
-      setProvider(storedProvider)
-    }
-  }, [])
+    setProvider(storedProvider)
+  }, [currentAccount])
   
   const handleCopyAddress = async (text: string) => {
     try {
