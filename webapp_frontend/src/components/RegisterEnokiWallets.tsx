@@ -5,15 +5,22 @@ import { isEnokiNetwork, registerEnokiWallets } from '@mysten/enoki'
 // Registers Enoki wallets (Google) for the current network/client
 export default function RegisterEnokiWallets() {
   const { client, network } = useSuiClientContext()
+  const enokiApiKey = (import.meta as any).env?.VITE_ENOKI_PUBLIC_API_KEY as string | undefined
+  const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined
 
   useEffect(() => {
     if (!isEnokiNetwork(network)) return
+    if (!enokiApiKey || !googleClientId) {
+      // eslint-disable-next-line no-console
+      console.warn('Missing VITE_ENOKI_PUBLIC_API_KEY or VITE_GOOGLE_CLIENT_ID in your Vite env. Create webapp_frontend/.env with these keys.')
+      return
+    }
 
     const { unregister } = registerEnokiWallets({
-      apiKey: 'enoki_public_da74b7bcded6cab783272e31da4853bb',
+      apiKey: enokiApiKey,
       providers: {
         google: {
-          clientId: '36098691154-3j95ku5omvh399otb0id12q542st42c9.apps.googleusercontent.com',
+          clientId: googleClientId,
         },
       },
       client,
