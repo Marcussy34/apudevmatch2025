@@ -1,12 +1,26 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
+import { useRouter } from "next/router";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { motion } from "motion/react";
 import { Shield, Brain, Palette, Video } from "lucide-react";
 import { useInView } from "motion/react";
-import { Modal, ModalBody, ModalContent, ModalFooter, ModalTrigger } from "@/components/ui/animated-modal";
+import {
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalTrigger,
+} from "@/components/ui/animated-modal";
 import { useState, useEffect, useRef } from "react";
 import ParticlesJS from "@/components/ParticlesJS";
 import { GlobeDemo } from "@/components/GlobeDemo";
@@ -15,14 +29,14 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800", "900"],
-  display: 'swap',
+  display: "swap",
 });
 
 const interTight = Inter({
   variable: "--font-inter-tight",
   subsets: ["latin"],
   weight: ["600", "700", "800", "900"],
-  display: 'swap',
+  display: "swap",
 });
 
 // Define the Bento Grid features
@@ -30,7 +44,8 @@ const features = [
   {
     Icon: Shield,
     name: "Decentralized & Encrypted",
-    description: "Your passwords are kept private with powerful Seal encryption and stored on the secure, decentralized Walrus network.",
+    description:
+      "Your passwords are kept private with powerful Seal encryption and stored on the secure, decentralized Walrus network.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-1",
@@ -45,27 +60,35 @@ const features = [
   {
     Icon: Brain,
     name: "Confidential AI",
-    description: "Advanced algorithm analyzes password strength within a secure environment (ROFL). Your actual credentials are never exposed, ensuring complete confidentiality during the process.",
+    description:
+      "Advanced algorithm analyzes password strength within a secure environment (ROFL). Your actual credentials are never exposed, ensuring complete confidentiality during the process.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-1",
     background: (
       <div className="absolute inset-0 bg-gradient-to-br from-gray-700/30 to-gray-800/40 opacity-60 group-hover:opacity-80 transition-opacity duration-300">
         <div className="absolute top-8 left-8 w-3 h-3 bg-gray-400 rounded-full animate-ping"></div>
-        <div className="absolute top-12 right-16 w-2 h-2 bg-gray-500 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
+        <div
+          className="absolute top-12 right-16 w-2 h-2 bg-gray-500 rounded-full animate-ping"
+          style={{ animationDelay: "0.5s" }}
+        ></div>
         <div className="absolute bottom-16 left-16 w-4 h-4 bg-gray-400 rounded-full animate-pulse"></div>
         <div className="absolute bottom-8 right-8 w-6 h-6 border border-gray-400/40 rounded-full animate-pulse"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <div className="w-20 h-20 border-2 border-gray-400/30 rounded-full animate-spin"></div>
-          <div className="absolute inset-2 border-2 border-gray-500/30 rounded-full animate-spin" style={{animationDirection: 'reverse'}}></div>
+          <div
+            className="absolute inset-2 border-2 border-gray-500/30 rounded-full animate-spin"
+            style={{ animationDirection: "reverse" }}
+          ></div>
         </div>
       </div>
     ),
   },
   {
     Icon: Palette,
-    name: "NFT Security Portrait", 
-    description: "Get a unique NFT that represents your current security risk level. This on-chain badge serves as a verifiable record of your security posture.",
+    name: "NFT Security Portrait",
+    description:
+      "Get a unique NFT that represents your current security risk level. This on-chain badge serves as a verifiable record of your security posture.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-2",
@@ -73,9 +96,15 @@ const features = [
       <div className="absolute inset-0 bg-gradient-to-br from-gray-700/30 to-gray-800/40 opacity-60 group-hover:opacity-80 transition-opacity duration-300">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-gray-500/20 to-gray-600/20 rounded-full transform rotate-45 animate-pulse"></div>
-          <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-tl from-gray-600/20 to-gray-500/20 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+          <div
+            className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-tl from-gray-600/20 to-gray-500/20 rounded-full animate-pulse"
+            style={{ animationDelay: "1s" }}
+          ></div>
           <div className="absolute top-1/3 right-1/4 w-16 h-16 border-2 border-gray-400/30 rounded-lg transform rotate-12 animate-bounce"></div>
-          <div className="absolute bottom-1/3 left-1/4 w-12 h-12 border-2 border-gray-500/30 rounded-lg transform -rotate-12 animate-bounce" style={{animationDelay: '0.5s'}}></div>
+          <div
+            className="absolute bottom-1/3 left-1/4 w-12 h-12 border-2 border-gray-500/30 rounded-lg transform -rotate-12 animate-bounce"
+            style={{ animationDelay: "0.5s" }}
+          ></div>
         </div>
       </div>
     ),
@@ -86,31 +115,40 @@ export default function Home() {
   const [isScrollingDown, setIsScrollingDown] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [particlesConfig, setParticlesConfig] = useState(null);
+  const account = useCurrentAccount();
+  const router = useRouter();
 
   // Enable dark mode
   useEffect(() => {
-    document.documentElement.classList.add('dark');
+    document.documentElement.classList.add("dark");
   }, []);
 
   // Load particles configuration
   useEffect(() => {
     const loadParticlesConfig = async () => {
       try {
-        const response = await fetch('/particlesjs-config.json');
+        const response = await fetch("/particlesjs-config.json");
         const config = await response.json();
         setParticlesConfig(config);
       } catch (error) {
-        console.error('Error loading particles config:', error);
+        console.error("Error loading particles config:", error);
       }
     };
 
     loadParticlesConfig();
   }, []);
 
+  // Redirect to dashboard once wallet is connected
+  useEffect(() => {
+    if (account?.address) {
+      router.push("/dashboard");
+    }
+  }, [account?.address, router]);
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
+
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
         // Scrolling down and past 100px
         setIsScrollingDown(true);
@@ -118,27 +156,26 @@ export default function Home() {
         // Scrolling up
         setIsScrollingDown(false);
       }
-      
+
       setLastScrollY(currentScrollY);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener("scroll", handleScroll);
     };
   }, [lastScrollY]);
 
   return (
-    <div className={`${inter.variable} ${interTight.variable} font-sans relative min-h-screen bg-background`}>
+    <div
+      className={`${inter.variable} ${interTight.variable} font-sans relative min-h-screen bg-background`}
+    >
       {/* Particles Background */}
       {particlesConfig && (
-        <ParticlesJS 
-          className="fixed inset-0 z-0"
-          config={particlesConfig}
-        />
+        <ParticlesJS className="fixed inset-0 z-0" config={particlesConfig} />
       )}
-      
+
       {/* Navigation */}
       <nav className="sticky top-0 z-50 flex items-center justify-between py-4 px-6 lg:px-8 bg-background/80 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-2 ml-4">
@@ -149,35 +186,48 @@ export default function Home() {
             height={32}
             className="rounded-lg"
           />
-          <motion.span 
+          <motion.span
             className="text-xl brand-text text-foreground overflow-hidden whitespace-nowrap"
             initial={{ width: "auto", opacity: 1 }}
-            animate={{ 
+            animate={{
               width: isScrollingDown ? "0px" : "auto",
-              opacity: isScrollingDown ? 0 : 1
+              opacity: isScrollingDown ? 0 : 1,
             }}
-            transition={{ 
-              duration: 0.3, 
-              ease: "easeInOut" 
+            transition={{
+              duration: 0.3,
+              ease: "easeInOut",
             }}
           >
             Grand Warden
           </motion.span>
         </div>
         <div className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-foreground hover:text-muted-foreground transition-colors">Features</a>
-          <a href="#security" className="text-foreground hover:text-muted-foreground transition-colors">Security</a>
-          <a href="#docs" className="text-foreground hover:text-muted-foreground transition-colors">Docs</a>
-          <Button size="lg" className="rounded-full">
-            Get Started
-          </Button>
+          <a
+            href="#features"
+            className="text-foreground hover:text-muted-foreground transition-colors"
+          >
+            Features
+          </a>
+          <a
+            href="#security"
+            className="text-foreground hover:text-muted-foreground transition-colors"
+          >
+            Security
+          </a>
+          <a
+            href="#docs"
+            className="text-foreground hover:text-muted-foreground transition-colors"
+          >
+            Docs
+          </a>
+          <ConnectButton />
         </div>
       </nav>
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden z-10">
         <div className="relative flex flex-col gap-4 items-center justify-center px-6 max-w-6xl mx-auto text-center">
-          <motion.h1 
+          <motion.h1
             className="text-5xl md:text-7xl heading-modern text-foreground mb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -191,7 +241,7 @@ export default function Home() {
               Secure with
             </motion.span>
             <br />
-            <motion.span 
+            <motion.span
               className="text-primary"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -200,25 +250,24 @@ export default function Home() {
               Grand Warden
             </motion.span>
           </motion.h1>
-          
-          <motion.p 
+
+          <motion.p
             className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
           >
-            Experience the future of password security with blockchain-powered vault.
+            Experience the future of password security with blockchain-powered
+            vault.
           </motion.p>
-          
-          <motion.div 
+
+          <motion.div
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
           >
-            <Button size="lg" className="rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 shadow-lg min-w-[140px] h-[52px]">
-              Get Started
-            </Button>
+            <ConnectButton />
             <Modal>
               <ModalTrigger className="border border-border hover:border-foreground text-muted-foreground hover:text-foreground rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 bg-transparent flex justify-center group/modal-btn min-w-[140px] h-[52px]">
                 <span className="group-hover/modal-btn:translate-x-40 text-center transition duration-500">
@@ -240,13 +289,15 @@ export default function Home() {
                   </div>
                 </ModalContent>
                 <ModalFooter>
-                  <span className="text-sm text-muted-foreground mr-auto pl-2">Demo preview</span>
+                  <span className="text-sm text-muted-foreground mr-auto pl-2">
+                    Demo preview
+                  </span>
                 </ModalFooter>
               </ModalBody>
             </Modal>
           </motion.div>
-          
-          <motion.div 
+
+          <motion.div
             className="flex items-center justify-center gap-6 mt-16"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -274,8 +325,8 @@ export default function Home() {
       </section>
 
       {/* Globe Section */}
-      <motion.section 
-        id="security" 
+      <motion.section
+        id="security"
         className="relative z-10 py-24"
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -286,8 +337,8 @@ export default function Home() {
       </motion.section>
 
       {/* Features Section */}
-      <motion.section 
-        id="features" 
+      <motion.section
+        id="features"
         className="relative pt-24 pb-44 px-6 z-10"
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -295,7 +346,7 @@ export default function Home() {
         viewport={{ once: true, margin: "-100px" }}
       >
         <div className="max-w-7xl mx-auto">
-          <motion.div 
+          <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -309,7 +360,7 @@ export default function Home() {
               Built with cutting-edge technology.
             </p>
           </motion.div>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -331,54 +382,119 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-          <Image
+                <Image
                   src="/logo.png"
                   alt="Grand Warden Logo"
                   width={32}
                   height={32}
                   className="rounded-lg"
                 />
-                <span className="text-xl brand-text text-foreground">Grand Warden</span>
+                <span className="text-xl brand-text text-foreground">
+                  Grand Warden
+                </span>
               </div>
               <p className="text-muted-foreground">
-                The future of password security, powered by blockchain technology.
+                The future of password security, powered by blockchain
+                technology.
               </p>
             </div>
-            
+
             <div>
               <h4 className="text-foreground heading-bold mb-4">Product</h4>
               <div className="space-y-2">
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Features</a>
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Security</a>
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Features
+                </a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Security
+                </a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Pricing
+                </a>
               </div>
             </div>
-            
+
             <div>
               <h4 className="text-foreground heading-bold mb-4">Developers</h4>
               <div className="space-y-2">
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Documentation</a>
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">API Reference</a>
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">GitHub</a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Documentation
+                </a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  API Reference
+                </a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  GitHub
+                </a>
               </div>
             </div>
-            
+
             <div>
               <h4 className="text-foreground heading-bold mb-4">Community</h4>
               <div className="space-y-2">
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Discord</a>
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Twitter</a>
-                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Blog</a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Discord
+                </a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Twitter
+                </a>
+                <a
+                  href="#"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Blog
+                </a>
               </div>
             </div>
           </div>
-          
+
           <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center">
-            <p className="text-muted-foreground">© 2025 Grand Warden. All rights reserved.</p>
+            <p className="text-muted-foreground">
+              © 2025 Grand Warden. All rights reserved.
+            </p>
             <div className="flex gap-6 mt-4 md:mt-0">
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Terms</a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+              <a
+                href="#"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Privacy
+              </a>
+              <a
+                href="#"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Terms
+              </a>
+              <a
+                href="#"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Contact
+              </a>
             </div>
           </div>
         </div>
