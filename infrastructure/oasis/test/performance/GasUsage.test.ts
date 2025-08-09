@@ -20,6 +20,9 @@ describe("Gas Usage Performance Tests", function () {
       "AtomicVaultManager"
     );
     const atomicVaultManager = await AtomicVaultManager.deploy();
+    
+    // Set ROFL worker for AtomicVaultManager tests
+    await atomicVaultManager.setROFLWorker(owner.address);
 
     return {
       owner,
@@ -61,13 +64,20 @@ describe("Gas Usage Performance Tests", function () {
         .registerDevice(deviceName, publicKey, fingerprint);
       const registerReceipt = await registerTx.wait();
 
-      const deviceId =
-        registerReceipt?.logs[0] && "data" in registerReceipt.logs[0]
-          ? ethers.AbiCoder.defaultAbiCoder().decode(
-              ["bytes32"],
-              registerReceipt.logs[0].data
-            )[0]
-          : ethers.ZeroHash;
+      // Extract device ID from the registration event
+      const deviceRegisteredEvent = registerReceipt?.logs.find((log) => {
+        try {
+          const parsed = deviceRegistry.interface.parseLog({ topics: log.topics, data: log.data });
+          return parsed?.name === "DeviceRegistered";
+        } catch {
+          return false;
+        }
+      });
+      if (!deviceRegisteredEvent) {
+        throw new Error("DeviceRegistered event not found");
+      }
+      const parsed = deviceRegistry.interface.parseLog({ topics: deviceRegisteredEvent.topics, data: deviceRegisteredEvent.data });
+      const deviceId = parsed!.args[1];
 
       // Authenticate device
       const challenge = ethers.randomBytes(32);
@@ -119,13 +129,20 @@ describe("Gas Usage Performance Tests", function () {
         .importSeedPhrase(encryptedSeed, walletName);
       const importReceipt = await importTx.wait();
 
-      const walletId =
-        importReceipt?.logs[0] && "data" in importReceipt.logs[0]
-          ? ethers.AbiCoder.defaultAbiCoder().decode(
-              ["bytes32"],
-              importReceipt.logs[0].data
-            )[0]
-          : ethers.ZeroHash;
+      // Extract wallet ID from the WalletImported event
+      const walletImportedEvent = importReceipt?.logs.find((log) => {
+        try {
+          const parsed = walletVault.interface.parseLog({ topics: log.topics, data: log.data });
+          return parsed?.name === "WalletImported";
+        } catch {
+          return false;
+        }
+      });
+      if (!walletImportedEvent) {
+        throw new Error("WalletImported event not found");
+      }
+      const parsedWallet = walletVault.interface.parseLog({ topics: walletImportedEvent.topics, data: walletImportedEvent.data });
+      const walletId = parsedWallet!.args[1];
 
       // Derive keys for multiple chains
       const chainTypes = [1, 2, 3]; // Ethereum, Polygon, BSC
@@ -153,13 +170,11 @@ describe("Gas Usage Performance Tests", function () {
         .importSeedPhrase(encryptedSeed, walletName);
       const importReceipt = await importTx.wait();
 
-      const walletId =
-        importReceipt?.logs[0] && "data" in importReceipt.logs[0]
-          ? ethers.AbiCoder.defaultAbiCoder().decode(
-              ["bytes32"],
-              importReceipt.logs[0].data
-            )[0]
-          : ethers.ZeroHash;
+      // Extract wallet ID from the WalletImported event
+      const walletImportedEvent = importReceipt?.logs.find(
+        (log) => log.topics[0] === walletVault.interface.getEvent("WalletImported")?.topicHash
+      );
+      const walletId = walletImportedEvent?.topics[2] || ethers.ZeroHash;
 
       await walletVault.connect(user1).deriveKeysFromSeed(walletId, [1]); // Ethereum
 

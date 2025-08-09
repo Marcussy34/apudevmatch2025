@@ -16,8 +16,8 @@
     "@ethersproject/hdnode": "^5.7.0"
   },
   "scripts": {
-    "test": "npx hardhat test",
-    "test:coverage": "npx hardhat coverage",
+    "test": "NODE_OPTIONS=--max-old-space-size=6144 npx hardhat test",
+    "test:coverage": "NODE_OPTIONS=--max-old-space-size=8192 npx hardhat coverage --temp artifacts-coverage",
     "test:performance": "npx hardhat test test/performance/",
     "deploy": "npx hardhat run scripts/deploy.ts",
     "compile": "npx hardhat compile"

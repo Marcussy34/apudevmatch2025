@@ -15,6 +15,9 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
       "AtomicVaultManager"
     );
     atomicVaultManager = await AtomicVaultManager.deploy();
+    
+    // Set ROFL worker address to fix "ROFL worker not set" errors
+    await atomicVaultManager.setROFLWorker(owner.address);
   });
 
   describe("Advanced Atomic Operations", function () {
@@ -26,24 +29,52 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
         "comprehensive test vault data with more content"
       );
 
-      // Execute atomic update
-      const result = await atomicVaultManager
+      // Execute atomic update (real tx)
+      const tx = await atomicVaultManager
         .connect(user)
-        .executeAtomicUpdate.staticCall(vaultId, vaultData);
-      const [walrusCID, suiTxHash] = result;
+        .executeAtomicUpdate(vaultId, vaultData);
+      await expect(tx).to.emit(
+        atomicVaultManager,
+        "AtomicUpdateStarted(address,bytes32,string)"
+      );
 
-      // Actually execute the transaction
-      await expect(
-        atomicVaultManager.connect(user).executeAtomicUpdate(vaultId, vaultData)
-      ).to.emit(atomicVaultManager, "AtomicUpdateStarted");
+      // Fetch the created operationId from events
+      const receipt = await tx.wait();
+      const walrusReqLog = receipt!.logs.find((log) => {
+        try {
+          const parsed = atomicVaultManager.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          return parsed?.name === "WalrusUploadRequested";
+        } catch {
+          return false;
+        }
+      });
+      const parsedWalrus = atomicVaultManager.interface.parseLog({
+        topics: walrusReqLog!.topics,
+        data: walrusReqLog!.data,
+      });
+      const operationId = (parsedWalrus as any).args[0] as string;
 
-      // Verify completion
+      // Simulate ROFL callbacks to complete the operation
+      await atomicVaultManager
+        .connect(owner)
+        .reportWalrusUploadResult(operationId, true, "QmCID", "");
+      const mockTxHash = ethers.keccak256(ethers.toUtf8Bytes("sui-tx"));
+      await atomicVaultManager
+        .connect(owner)
+        .reportSuiUpdateResult(operationId, true, mockTxHash, "");
+
+      // Verify completion now that callbacks ran
+      const op = await atomicVaultManager.connect(user).getOperation(operationId);
+      expect(op.status).to.equal(5); // Completed
       const isCompleted = await atomicVaultManager.verifyAtomicCompletion(
         vaultId,
-        walrusCID,
-        suiTxHash
+        "QmCID",
+        mockTxHash
       );
-      expect(isCompleted).to.be.true; // Will be true since atomic operation completed
+      expect(isCompleted).to.be.true;
     });
 
     it("Should handle atomic operation with large data", async function () {
@@ -52,7 +83,10 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
 
       await expect(
         atomicVaultManager.connect(user).executeAtomicUpdate(vaultId, largeData)
-      ).to.emit(atomicVaultManager, "AtomicUpdateStarted");
+      ).to.emit(
+        atomicVaultManager,
+        "AtomicUpdateStarted(address,bytes32,string)"
+      );
     });
 
     it("Should handle rollback failed update", async function () {
@@ -102,7 +136,10 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
 
       await expect(
         atomicVaultManager.connect(user).executeAtomicUpdate(vaultId, vaultData)
-      ).to.emit(atomicVaultManager, "AtomicUpdateStarted");
+      ).to.emit(
+        atomicVaultManager,
+        "AtomicUpdateStarted(address,bytes32,string)"
+      );
     });
   });
 
@@ -157,15 +194,37 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
       // Execute an operation
       const vaultId = ethers.keccak256(ethers.toUtf8Bytes("stats-vault"));
       const vaultData = ethers.toUtf8Bytes("stats test data");
-      await atomicVaultManager
+      const tx = await atomicVaultManager
         .connect(user)
         .executeAtomicUpdate(vaultId, vaultData);
+      const receipt = await tx.wait();
+      const walrusReqLog = receipt!.logs.find((log) => {
+        try {
+          const parsed = atomicVaultManager.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          return parsed?.name === "WalrusUploadRequested";
+        } catch {
+          return false;
+        }
+      });
+      const parsedWalrus = atomicVaultManager.interface.parseLog({
+        topics: walrusReqLog!.topics,
+        data: walrusReqLog!.data,
+      });
+      const operationId = (parsedWalrus as any).args[0] as string;
+      await atomicVaultManager
+        .connect(owner)
+        .reportWalrusUploadResult(operationId, true, "QmCID2", "");
+      const mockTxHash = ethers.keccak256(ethers.toUtf8Bytes("sui-tx-2"));
+      await atomicVaultManager
+        .connect(owner)
+        .reportSuiUpdateResult(operationId, true, mockTxHash, "");
 
       const finalStats = await atomicVaultManager.getOperationStats();
-      expect(finalStats.total).to.equal(initialStats.total + BigInt(1));
-      expect(finalStats.successful).to.equal(
-        initialStats.successful + BigInt(1)
-      );
+      expect(finalStats.total).to.equal(initialStats.total + 1n);
+      expect(finalStats.successful).to.equal(initialStats.successful + 1n);
     });
 
     it("Should enforce operation access control", async function () {
@@ -425,8 +484,16 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
 
     it("Should reject oversized vault data", async function () {
       const vaultId = ethers.keccak256(ethers.toUtf8Bytes("test-vault"));
-      // Create data larger than default max (10MB)
-      const oversizedData = new Uint8Array(11 * 1024 * 1024); // 11MB
+      // Reduce max blob size to 1024 bytes, then send 2048 to trigger revert without huge calldata
+      await atomicVaultManager
+        .connect(owner)
+        .updateWalrusConfig(
+          "https://endpoint.com",
+          ethers.keccak256(ethers.toUtf8Bytes("key")),
+          1024,
+          5
+        );
+      const oversizedData = new Uint8Array(2048);
       oversizedData.fill(1);
 
       await expect(
@@ -574,7 +641,10 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
       // indirectly through the atomic update process
       await expect(
         atomicVaultManager.connect(user).executeAtomicUpdate(vaultId, vaultData)
-      ).to.emit(atomicVaultManager, "AtomicUpdateStarted");
+      ).to.emit(
+        atomicVaultManager,
+        "AtomicUpdateStarted(address,bytes32,string)"
+      );
 
       // Test that the internal functions work correctly by verifying operation details
       const operations = await atomicVaultManager.getVaultOperations(vaultId);
@@ -598,7 +668,10 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
       // The ReentrancyGuard is already in place, this test just ensures the modifier is applied
       await expect(
         atomicVaultManager.connect(user).executeAtomicUpdate(vaultId, vaultData)
-      ).to.emit(atomicVaultManager, "AtomicUpdateStarted");
+      ).to.emit(
+        atomicVaultManager,
+        "AtomicUpdateStarted(address,bytes32,string)"
+      );
     });
 
     it("Should prevent reentrancy on configuration updates", async function () {
@@ -632,15 +705,26 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
       const vaultId = ethers.keccak256(
         ethers.toUtf8Bytes("max-size-test-vault")
       );
-      // Create data at exactly the max size (10MB)
-      const maxSizeData = new Uint8Array(10 * 1024 * 1024);
-      maxSizeData.fill(42); // Fill with some value
+      // Configure a lower max size boundary and test exact boundary
+      await atomicVaultManager
+        .connect(owner)
+        .updateWalrusConfig(
+          "https://endpoint.com",
+          ethers.keccak256(ethers.toUtf8Bytes("key")),
+          64 * 1024, // 64KB
+          10
+        );
+      const maxSizeData = new Uint8Array(64 * 1024);
+      maxSizeData.fill(42);
 
       await expect(
         atomicVaultManager
           .connect(user)
           .executeAtomicUpdate(vaultId, maxSizeData)
-      ).to.emit(atomicVaultManager, "AtomicUpdateStarted");
+      ).to.emit(
+        atomicVaultManager,
+        "AtomicUpdateStarted(address,bytes32,string)"
+      );
     });
 
     it("Should handle minimum valid configuration values", async function () {

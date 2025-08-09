@@ -96,13 +96,17 @@ describe("DeviceRegistry - Comprehensive Tests", function () {
         .registerDevice(deviceName, publicKey, deviceFingerprint);
       const receipt = await registerTx.wait();
 
-      const event = receipt?.logs.find(
-        (log) =>
-          deviceRegistry.interface.parseLog(log as any)?.name ===
-          "DeviceRegistered"
-      );
-      const parsedEvent = deviceRegistry.interface.parseLog(event as any);
-      const deviceId = parsedEvent?.args[1];
+      const event = receipt?.logs.find((log) => {
+        try {
+          const parsed = deviceRegistry.interface.parseLog({ topics: log.topics, data: log.data });
+          return parsed?.name === "DeviceRegistered";
+        } catch {
+          return false;
+        }
+      });
+      if (!event) throw new Error("DeviceRegistered event not found");
+      const parsedEvent = deviceRegistry.interface.parseLog({ topics: event.topics, data: event.data });
+      const deviceId = (parsedEvent as any).args[1];
 
       const device = await deviceRegistry.connect(user).getDevice(deviceId);
       expect(device.name).to.equal(deviceName);
@@ -124,13 +128,17 @@ describe("DeviceRegistry - Comprehensive Tests", function () {
         .registerDevice(deviceName, publicKey, deviceFingerprint);
       const receipt = await registerTx.wait();
 
-      const event = receipt?.logs.find(
-        (log) =>
-          deviceRegistry.interface.parseLog(log as any)?.name ===
-          "DeviceRegistered"
-      );
-      const parsedEvent = deviceRegistry.interface.parseLog(event as any);
-      deviceId = parsedEvent?.args[1];
+      const event = receipt?.logs.find((log) => {
+        try {
+          const parsed = deviceRegistry.interface.parseLog({ topics: log.topics, data: log.data });
+          return parsed?.name === "DeviceRegistered";
+        } catch {
+          return false;
+        }
+      });
+      if (!event) throw new Error("DeviceRegistered event not found");
+      const parsedEvent = deviceRegistry.interface.parseLog({ topics: event.topics, data: event.data });
+      deviceId = (parsedEvent as any).args[1];
     });
 
     it("Should generate authentication challenges", async function () {
@@ -289,7 +297,10 @@ describe("DeviceRegistry - Comprehensive Tests", function () {
     it("Should suspend device", async function () {
       await expect(
         deviceRegistry.connect(user).suspendDevice(deviceId)
-      ).to.emit(deviceRegistry, "DeviceStatusChanged");
+      ).to.emit(
+        deviceRegistry,
+        "DeviceStatusChanged(address,bytes32,uint8)"
+      );
 
       const status = await deviceRegistry
         .connect(user)
@@ -305,7 +316,10 @@ describe("DeviceRegistry - Comprehensive Tests", function () {
 
       await expect(
         deviceRegistry.connect(user).reactivateDevice(deviceId)
-      ).to.emit(deviceRegistry, "DeviceStatusChanged");
+      ).to.emit(
+        deviceRegistry,
+        "DeviceStatusChanged(address,bytes32,uint8)"
+      );
 
       const status = await deviceRegistry
         .connect(user)
@@ -447,13 +461,17 @@ describe("DeviceRegistry - Comprehensive Tests", function () {
         .registerDevice(deviceName, publicKey, deviceFingerprint);
       const receipt = await registerTx.wait();
 
-      const event = receipt?.logs.find(
-        (log) =>
-          deviceRegistry.interface.parseLog(log as any)?.name ===
-          "DeviceRegistered"
-      );
-      const parsedEvent = deviceRegistry.interface.parseLog(event as any);
-      const deviceId = parsedEvent?.args[1];
+      const event = receipt?.logs.find((log) => {
+        try {
+          const parsed = deviceRegistry.interface.parseLog({ topics: log.topics, data: log.data });
+          return parsed?.name === "DeviceRegistered";
+        } catch {
+          return false;
+        }
+      });
+      if (!event) throw new Error("DeviceRegistered event not found");
+      const parsedEvent = deviceRegistry.interface.parseLog({ topics: event.topics, data: event.data });
+      const deviceId = (parsedEvent as any).args[1];
 
       await expect(
         deviceRegistry

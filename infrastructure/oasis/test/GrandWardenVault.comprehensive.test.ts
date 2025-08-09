@@ -86,13 +86,14 @@ describe("GrandWardenVault - Comprehensive Coverage Tests", function () {
       const newBlob = ethers.encodeBytes32String("new-blob-data");
       const cid = await grandWardenVault
         .connect(user)
-        .updateVaultBlob(vaultId, newBlob);
+        .updateVaultBlob.staticCall(vaultId, newBlob);
       expect(cid).to.be.a("string");
       expect(cid).to.include("QmTESTCID");
     });
 
     it("Should handle atomic vault update", async function () {
       const newData = ethers.encodeBytes32String("atomic-updated-data");
+      // AtomicUpdateCompleted in this contract has 3 args; make assertion generic to avoid signature mismatch
       await expect(
         grandWardenVault.connect(user).atomicVaultUpdate(vaultId, newData)
       ).to.emit(grandWardenVault, "AtomicUpdateCompleted");
@@ -622,7 +623,7 @@ describe("GrandWardenVault - Comprehensive Coverage Tests", function () {
         .connect(user)
         .getCredential(vaultId, "binary-password.com");
       expect(username).to.equal("binaryuser");
-      // Note: Binary data might not convert back to string properly, but encryption/decryption should still work
+      expect(password.length).to.be.greaterThan(0);
     });
   });
 });
