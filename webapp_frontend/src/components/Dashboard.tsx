@@ -41,6 +41,7 @@ import AutofillStatus from "./AutofillStatus";
 import { ToastProps } from "./Toast";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import AISummary from './AISummary'
+import AIArtwork from './AIArtwork'
 
 interface PasswordEntry {
   id: number;
@@ -70,6 +71,7 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
 
   const [passwordList, setPasswordList] = useState<PasswordEntry[]>([]);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiStats, setAiStats] = useState<{ total_checked?: number; total_pwned?: number } | null>(null);
 
   const getIconForUrl = (
     url: string
@@ -418,7 +420,9 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       const summary = data?.ai?.summary || 'No AI summary'
+      const stats = data?.ai?.stats || null
       setAiSummary(summary)
+      setAiStats(stats)
     } catch (e: any) {
       addToast({ type: 'error', title: 'Summary failed', message: e?.message || 'Unknown error', duration: 3000 })
     }
@@ -521,8 +525,9 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
       {/* Passwords List */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {aiSummary && (
-          <div className="mb-4">
+          <div className="mb-4 space-y-4">
             <AISummary summary={aiSummary} onClose={() => setAiSummary(null)} />
+            <AIArtwork summaryMarkdown={aiSummary} stats={aiStats ?? undefined} signAndExecute={signAndExecuteTransaction} />
           </div>
         )}
         <div className="space-y-3">
