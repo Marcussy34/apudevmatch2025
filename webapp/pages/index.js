@@ -168,39 +168,58 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden z-10">
-        <motion.div
-          initial={{ opacity: 0.0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{
-            delay: 0.3,
-            duration: 0.8,
-            ease: "easeInOut",
-          }}
-          className="relative flex flex-col gap-4 items-center justify-center px-6 max-w-6xl mx-auto text-center"
-        >
-          <h1 className="text-5xl md:text-7xl heading-modern text-white mb-6">
-            Secure with
+        <div className="relative flex flex-col gap-4 items-center justify-center px-6 max-w-6xl mx-auto text-center">
+          <motion.h1 
+            className="text-5xl md:text-7xl heading-modern text-white mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          >
+            <motion.span
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.4, ease: "easeOut" }}
+            >
+              Secure with
+            </motion.span>
             <br />
-            <span className="text-blue-600">
+            <motion.span 
+              className="text-blue-600"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
+            >
               Grand Warden
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Experience the future of password security with Grand Warden's blockchain-powered vault.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            </motion.span>
+          </motion.h1>
+          
+          <motion.p 
+            className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.2, duration: 0.8, ease: "easeOut" }}
+          >
+            Experience the future of password security with blockchain-powered vault.
+          </motion.p>
+          
+          <motion.div 
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.6, duration: 0.8, ease: "easeOut" }}
+          >
             <Button size="lg" className="px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105 shadow-lg">
               Get Started
             </Button>
             <Button variant="outline" size="lg" className="border-gray-400 hover:border-white text-gray-300 hover:text-white px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105">
               View Demo →
             </Button>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </section>
 
       {/* Trust Section */}
-      <section id="security" className="relative py-24 px-6 z-10">
+      <section id="security" className="relative pt-32 pb-40 px-6 z-10">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl heading-modern text-white mb-8">
             Enhanced by cutting-edge technology
@@ -247,7 +266,7 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="relative py-24 px-6 z-10">
+      <section id="features" className="relative pt-24 pb-44 px-6 z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl heading-modern text-white mb-6">

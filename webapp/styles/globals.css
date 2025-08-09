@@ -146,7 +146,7 @@ body {
 /* Modern Typography Classes */
 .heading-modern {
   font-family: var(--font-inter-tight), 'Inter', system-ui, sans-serif;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
