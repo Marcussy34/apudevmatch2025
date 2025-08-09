@@ -86,7 +86,7 @@ const AddPasswordModal: React.FC<AddPasswordModalProps> = ({ isOpen, onClose, on
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-cyber-900/80 backdrop-blur-sm">
       <div className="cyber-border rounded-xl overflow-hidden w-full max-w-lg animate-fade-in">
         <div className="p-5 border-b border-cyber-700/50 flex justify-between items-center">
-          <h3 className="text-xl font-medium text-cyber-100">Add New Password</h3>
+          <h3 className="text-xl font-medium text-cyber-100">Add Credentials</h3>
           <button
             onClick={onClose}
             className="p-1 hover:bg-cyber-700 rounded transition-colors"

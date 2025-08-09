@@ -266,7 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut }) => {
           className="cyber-button w-full flex items-center justify-center space-x-3 py-3"
         >
           <Plus className="w-5 h-5" strokeWidth={2} />
-          <span>Add New Password</span>
+          <span>Add Credentials</span>
         </button>
       </div>
 

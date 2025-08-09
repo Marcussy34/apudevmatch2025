@@ -1,158 +1,349 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Key, Settings as SettingsIcon, Eye, EyeOff, Copy, Globe, Github, Mail, ShoppingCart, Briefcase, AlertTriangle, Wallet, BarChart3, Linkedin, Users } from 'lucide-react'
-import AddPasswordModal, { NewPasswordData } from './AddPasswordModal'
-import AutofillStatus from './AutofillStatus'
-import { ToastProps } from './Toast'
+import React, { useState } from "react";
+// SuiClient is not used directly here after refactor; keep getFullnodeUrl via helper module
+// import removed to satisfy linter
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+  useSignPersonalMessage,
+} from "@mysten/dapp-kit";
+import { useNavigate } from "react-router-dom";
+// SealClient direct usage was replaced by helper; import removed to satisfy linter
+import {
+  ensureWalBalance,
+  getSuiClient,
+  storeEncryptedViaRelay,
+} from "../lib/encryption";
+import {
+  getAllUserCredentialsViaProxy,
+  getCredentialByBlobIdViaProxy,
+} from "../lib/decryption";
+import { addBlobRef, getBlobRefs } from "../lib/blobIds";
+import {
+  Search,
+  Plus,
+  Key,
+  Settings as SettingsIcon,
+  Eye,
+  EyeOff,
+  Copy,
+  Globe,
+  Github,
+  Mail,
+  ShoppingCart,
+  Briefcase,
+  AlertTriangle,
+  Wallet,
+  BarChart3,
+  Linkedin,
+  Users,
+} from "lucide-react";
+import AddPasswordModal, { NewPasswordData } from "./AddPasswordModal";
+import AutofillStatus from "./AutofillStatus";
+import { ToastProps } from "./Toast";
+import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 
 interface PasswordEntry {
-  id: number
-  name: string
-  url: string
-  username: string
-  password: string
-  icon: React.ComponentType<any>
-  color: string
-  lastUsed: string
+  id: number;
+  name: string;
+  url: string;
+  username: string;
+  password: string;
+  icon: React.ComponentType<any>;
+  color: string;
+  lastUsed: string;
 }
 
 interface DashboardProps {
   onSignOut?: () => void;
-  addToast: (toast: Omit<ToastProps, 'onClose' | 'id'>) => void;
+  addToast: (toast: Omit<ToastProps, "onClose" | "id">) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set())
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const navigate = useNavigate()
-  
-  const [passwordList, setPasswordList] = useState<PasswordEntry[]>([
-    { 
-      id: 1, 
-      name: 'Gmail', 
-      url: 'gmail.com', 
-      username: 'john.doe@gmail.com', 
-      password: 'MySecure2023!',
-      icon: Mail,
-      color: 'bg-red-500',
-      lastUsed: '2 hours ago'
-    },
-    { 
-      id: 2, 
-      name: 'GitHub', 
-      url: 'github.com', 
-      username: 'johndoe_dev', 
-      password: 'CodeMaster#456',
-      icon: Github,
-      color: 'bg-gray-800',
-      lastUsed: '1 day ago'
-    },
-    { 
-      id: 3, 
-      name: 'LinkedIn', 
-      url: 'linkedin.com', 
-      username: 'john.doe@professional.com', 
-      password: 'Network2024!',
-      icon: Linkedin,
-      color: 'bg-blue-600',
-      lastUsed: '1 day ago'
-    },
-    { 
-      id: 4, 
-      name: 'Amazon', 
-      url: 'amazon.com', 
-      username: 'john.doe@email.com', 
-      password: 'Shop2023$ecure',
-      icon: ShoppingCart,
-      color: 'bg-orange-500',
-      lastUsed: '3 days ago'
-    },
-    { 
-      id: 5, 
-      name: 'Facebook', 
-      url: 'facebook.com', 
-      username: 'john.doe.social', 
-      password: 'Social2024#',
-      icon: Users,
-      color: 'bg-blue-500',
-      lastUsed: '2 days ago'
-    },
-  ])
+// EXCHANGE_ID handled inside helper ensureWalBalance
 
-  const getIconForUrl = (url: string): { icon: React.ComponentType<any>, color: string } => {
-    const domain = url.toLowerCase()
-    if (domain.includes('gmail') || domain.includes('google')) {
-      return { icon: Mail, color: 'bg-red-500' }
-    } else if (domain.includes('github')) {
-      return { icon: Github, color: 'bg-gray-800' }
-    } else if (domain.includes('amazon')) {
-      return { icon: ShoppingCart, color: 'bg-orange-500' }
-    } else if (domain.includes('linkedin')) {
-      return { icon: Globe, color: 'bg-indigo-600' }
-    } else if (domain.includes('facebook') || domain.includes('instagram')) {
-      return { icon: Globe, color: 'bg-blue-600' }
-    } else if (domain.includes('work') || domain.includes('company')) {
-      return { icon: Briefcase, color: 'bg-blue-600' }
+const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(
+    new Set()
+  );
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const [passwordList, setPasswordList] = useState<PasswordEntry[]>([]);
+
+  const getIconForUrl = (
+    url: string
+  ): { icon: React.ComponentType<any>; color: string } => {
+    const domain = url.toLowerCase();
+    if (domain.includes("gmail") || domain.includes("google")) {
+      return { icon: Mail, color: "bg-red-500" };
+    } else if (domain.includes("github")) {
+      return { icon: Github, color: "bg-gray-800" };
+    } else if (domain.includes("amazon")) {
+      return { icon: ShoppingCart, color: "bg-orange-500" };
+    } else if (domain.includes("linkedin")) {
+      return { icon: Globe, color: "bg-indigo-600" };
+    } else if (domain.includes("facebook") || domain.includes("instagram")) {
+      return { icon: Globe, color: "bg-blue-600" };
+    } else if (domain.includes("work") || domain.includes("company")) {
+      return { icon: Briefcase, color: "bg-blue-600" };
     } else {
-      return { icon: Globe, color: 'bg-cyber-600' }
+      return { icon: Globe, color: "bg-cyber-600" };
     }
-  }
+  };
 
-  const handleAddPassword = (newPasswordData: NewPasswordData) => {
-    const { icon, color } = getIconForUrl(newPasswordData.url)
-    
-    const newPassword: PasswordEntry = {
-      id: Math.max(...passwordList.map(p => p.id), 0) + 1,
-      name: newPasswordData.name,
-      url: newPasswordData.url,
-      username: newPasswordData.username,
-      password: newPasswordData.password,
-      icon,
-      color,
-      lastUsed: 'Just now'
+  const account = useCurrentAccount();
+  const { mutateAsync: signAndExecuteTransaction } =
+    useSignAndExecuteTransaction();
+  const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
+  const [isRetrieving, setIsRetrieving] = useState(false);
+
+  // const WAL_EXCHANGE_ID = (import.meta as any).env?.VITE_WAL_EXCHANGE_ID as
+  //   | string
+  //   | undefined;
+  const WAL_EXCHANGE_MIST: bigint = (() => {
+    const raw = String(
+      (import.meta as any).env?.VITE_WAL_EXCHANGE_MIST ?? "100000000"
+    );
+    const cleaned = raw.replace(/[_\s]/g, "");
+    return BigInt(cleaned);
+  })();
+
+  // WAL exchange is provided by helper ensureWalBalance
+
+  const handleAddPassword = async (newPasswordData: NewPasswordData) => {
+    try {
+      const address = account?.address || null;
+      if (address) {
+        const payload = {
+          name: newPasswordData.name,
+          url: newPasswordData.url,
+          username: newPasswordData.username,
+          password: newPasswordData.password,
+          createdAt: new Date().toISOString(),
+        };
+
+        const suiClient = getSuiClient();
+        // Build a time-eligible id (TLE): past timestamp (ms) as little-endian u64
+        const pastMs = Date.now() - 60_000;
+        const buf = new ArrayBuffer(8);
+        new DataView(buf).setBigUint64(0, BigInt(pastMs), true);
+        const idHex =
+          "0x" +
+          Array.from(new Uint8Array(buf))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+
+        const seal = new SealClient({
+          suiClient,
+          serverConfigs: getAllowlistedKeyServers("testnet").map(
+            (id: string) => ({ objectId: id, weight: 1 })
+          ),
+        });
+        const { encryptedObject } = await seal.encrypt({
+          threshold: 2,
+          packageId: (import.meta as any).env?.VITE_SEAL_PACKAGE_ID || "0x0",
+          id: idHex,
+          data: new TextEncoder().encode(JSON.stringify(payload)),
+        });
+
+        // Ensure the user has WAL by exchanging some SUI (best-effort)
+        try {
+          const digest = await ensureWalBalance(
+            address,
+            suiClient,
+            signAndExecuteTransaction,
+            WAL_EXCHANGE_MIST
+          );
+          addToast({
+            type: "info",
+            title: "Exchanged SUI → WAL",
+            message: `Tx: ${digest}`,
+            duration: 5000,
+          });
+        } catch (ex) {
+          // Continue even if exchange fails; user may already have WAL
+          // eslint-disable-next-line no-console
+          console.warn("WAL exchange skipped/failed:", ex);
+        }
+
+        addToast({
+          type: "info",
+          title: "Walrus",
+          message: "Uploading via relay...",
+          duration: 4000,
+        });
+        const { registerDigest, certifyDigest, blobId } =
+          await storeEncryptedViaRelay(
+            new Uint8Array(encryptedObject),
+            address,
+            suiClient,
+            signAndExecuteTransaction,
+            { epochs: 1, deletable: true, tipMax: 10000 }
+          );
+        addToast({
+          type: "info",
+          title: "Walrus Register",
+          message: `Tx: ${registerDigest}`,
+          duration: 6000,
+        });
+        addToast({
+          type: "success",
+          title: "Encrypted & Stored",
+          message: `Tx: ${certifyDigest}`,
+          duration: 6000,
+        });
+        if (blobId) {
+          addBlobRef(address, { blobId, idHex });
+          addToast({
+            type: "success",
+            title: "Walrus Blob",
+            message: `Blob ID: ${blobId}`,
+            duration: 6000,
+          });
+        }
+      }
+    } catch (e: any) {
+      addToast({
+        type: "error",
+        title: "Encrypt/Upload failed",
+        message: String(e?.message || e),
+        duration: 6000,
+      });
+      // eslint-disable-next-line no-console
+      console.error("Seal/Walrus error:", e);
     }
 
-    setPasswordList(prev => [newPassword, ...prev])
-    
-    addToast({
-      type: 'success',
-      title: 'Password Saved!',
-      message: `${newPasswordData.name} has been added to your vault`,
-      duration: 3000
-    })
-  }
+    // Do not display immediately; will appear after user clicks "Retrieve Credentials"
+  };
+
+  const handleRetrieveCredentials = async () => {
+    try {
+      if (!account?.address) {
+        addToast({
+          type: "warning",
+          title: "Connect Wallet",
+          message: "Connect your wallet to retrieve",
+          duration: 4000,
+        });
+        return;
+      }
+      if (isRetrieving) return;
+      setIsRetrieving(true);
+      addToast({
+        type: "info",
+        title: "Retrieving",
+        message: "Fetching and decrypting...",
+        duration: 4000,
+      });
+      let results: Array<{ json?: any; text: string }> = [];
+      const storedRefs = getBlobRefs(account.address);
+      if (storedRefs.length) {
+        for (const ref of storedRefs) {
+          try {
+            const r = await getCredentialByBlobIdViaProxy(
+              ref.blobId,
+              account.address,
+              signPersonalMessage,
+              ref.idHex
+            );
+            results.push({ json: r.json, text: r.text });
+          } catch (err: any) {
+            // skip failing blobId but log for visibility
+            // eslint-disable-next-line no-console
+            console.warn(
+              "Retrieve by blobId failed",
+              ref.blobId,
+              String(err?.message || err)
+            );
+          }
+        }
+      } else {
+        results = await getAllUserCredentialsViaProxy(
+          account.address,
+          signPersonalMessage
+        );
+      }
+      let added = 0;
+      const nextList = [...passwordList];
+      for (const r of results) {
+        const j = r.json;
+        if (j && j.name && j.url && j.username && j.password) {
+          const { icon, color } = getIconForUrl(j.url);
+          nextList.unshift({
+            id: Math.max(0, ...nextList.map((p) => p.id)) + 1,
+            name: j.name,
+            url: j.url,
+            username: j.username,
+            password: j.password,
+            icon,
+            color,
+            lastUsed: "Just now",
+          });
+          added++;
+        }
+      }
+      setPasswordList(nextList);
+      addToast({
+        type: "success",
+        title: "Retrieved",
+        message: `${added} credential(s) loaded`,
+        duration: 5000,
+      });
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      if (msg.includes("blob_not_certified")) {
+        addToast({
+          type: "warning",
+          title: "Not yet certified",
+          message: "Try again shortly; certify tx may still be finalizing.",
+          duration: 6000,
+        });
+      } else {
+        addToast({
+          type: "error",
+          title: "Retrieve failed",
+          message: msg,
+          duration: 6000,
+        });
+      }
+      // eslint-disable-next-line no-console
+      console.error("Retrieve error:", e);
+    } finally {
+      setIsRetrieving(false);
+    }
+  };
 
   const togglePasswordVisibility = (id: number) => {
-    const newVisiblePasswords = new Set(visiblePasswords)
+    const newVisiblePasswords = new Set(visiblePasswords);
     if (newVisiblePasswords.has(id)) {
-      newVisiblePasswords.delete(id)
+      newVisiblePasswords.delete(id);
     } else {
-      newVisiblePasswords.add(id)
+      newVisiblePasswords.add(id);
     }
-    setVisiblePasswords(newVisiblePasswords)
-  }
+    setVisiblePasswords(newVisiblePasswords);
+  };
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
-      await navigator.clipboard.writeText(text)
-      
-      addToast({
-        type: 'info',
-        title: 'Copied',
-        message: `${type} copied to clipboard`,
-        duration: 2000
-      })
-    } catch (err) {
-      console.error('Failed to copy: ', err)
-    }
-  }
+      await navigator.clipboard.writeText(text);
 
-  const filteredPasswords = passwordList.filter(password =>
-    password.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    password.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    password.username.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+      addToast({
+        type: "info",
+        title: "Copied",
+        message: `${type} copied to clipboard`,
+        duration: 2000,
+      });
+    } catch (err) {
+      console.error("Failed to copy: ", err);
+    }
+  };
+
+  const filteredPasswords = passwordList.filter(
+    (password) =>
+      password.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      password.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      password.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden container mx-auto max-w-4xl">
@@ -170,23 +361,29 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
               className="cyber-input w-full pl-10 pr-4 py-2.5"
             />
           </div>
-          
+
           {/* Action Buttons */}
           <div className="flex space-x-2">
             <button
-              onClick={() => navigate('/analytics')}
+              onClick={() => navigate("/analytics")}
               className="p-2.5 cyber-border hover:bg-cyber-700/30 rounded-lg transition-all duration-200 group"
               title="Analytics Dashboard"
             >
-              <BarChart3 className="w-5 h-5 text-cyber-400 group-hover:text-primary-400" strokeWidth={1.5} />
+              <BarChart3
+                className="w-5 h-5 text-cyber-400 group-hover:text-primary-400"
+                strokeWidth={1.5}
+              />
             </button>
-            
+
             <button
-              onClick={() => navigate('/alerts')}
+              onClick={() => navigate("/alerts")}
               className="relative p-2.5 cyber-border hover:bg-cyber-700/30 rounded-lg transition-all duration-200 group"
               title="Security Alerts"
             >
-              <AlertTriangle className="w-5 h-5 text-cyber-400 group-hover:text-orange-400" strokeWidth={1.5} />
+              <AlertTriangle
+                className="w-5 h-5 text-cyber-400 group-hover:text-orange-400"
+                strokeWidth={1.5}
+              />
               {/* Notification Badge */}
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-xs font-bold">2</span>
@@ -199,12 +396,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
         <AutofillStatus />
 
         {/* Add Password Button */}
-        <button 
+        <button
           onClick={() => setIsAddModalOpen(true)}
           className="cyber-button w-full flex items-center justify-center space-x-3 py-3"
         >
           <Plus className="w-5 h-5" strokeWidth={2} />
-          <span>Add New Password</span>
+          <span>Add Credentials</span>
+        </button>
+
+        {/* Retrieve Credentials Button */}
+        <button
+          onClick={handleRetrieveCredentials}
+          disabled={isRetrieving}
+          className="cyber-button-secondary w-full flex items-center justify-center space-x-3 py-3 disabled:opacity-50"
+        >
+          <Key className="w-5 h-5" strokeWidth={2} />
+          <span>{isRetrieving ? "Retrieving…" : "Retrieve Credentials"}</span>
         </button>
       </div>
 
@@ -212,10 +419,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         <div className="space-y-3">
           {filteredPasswords.map((password) => {
-            const IconComponent = password.icon
-            const isPasswordVisible = visiblePasswords.has(password.id)
-            const obfuscatedPassword = '••••••••••••'
-            
+            const IconComponent = password.icon;
+            const isPasswordVisible = visiblePasswords.has(password.id);
+            const obfuscatedPassword = "••••••••••••";
+
             return (
               <div
                 key={password.id}
@@ -224,11 +431,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
                 {/* Header with icon and site info */}
                 <div className="flex items-start space-x-3 mb-3">
                   <div className="flex-shrink-0">
-                    <div className={`w-10 h-10 ${password.color} rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform`}>
-                      <IconComponent className="w-5 h-5 text-white" strokeWidth={1.5} />
+                    <div
+                      className={`w-10 h-10 ${password.color} rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform`}
+                    >
+                      <IconComponent
+                        className="w-5 h-5 text-white"
+                        strokeWidth={1.5}
+                      />
                     </div>
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <h3 className="text-cyber-100 font-semibold text-sm truncate">
@@ -249,52 +461,76 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
                   {/* Username */}
                   <div className="flex items-center justify-between bg-cyber-800/30 rounded-md p-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-cyber-500 text-xs uppercase font-medium tracking-wide">Username</p>
+                      <p className="text-cyber-500 text-xs uppercase font-medium tracking-wide">
+                        Username
+                      </p>
                       <p className="text-cyber-200 text-sm truncate font-mono">
                         {password.username}
                       </p>
                     </div>
                     <button
-                      onClick={() => copyToClipboard(password.username, 'Username')}
+                      onClick={() =>
+                        copyToClipboard(password.username, "Username")
+                      }
                       className="p-1 hover:bg-cyber-700 rounded transition-colors"
                       title="Copy username"
                     >
-                      <Copy className="w-3 h-3 text-cyber-400 hover:text-primary-400" strokeWidth={1.5} />
+                      <Copy
+                        className="w-3 h-3 text-cyber-400 hover:text-primary-400"
+                        strokeWidth={1.5}
+                      />
                     </button>
                   </div>
 
                   {/* Password */}
                   <div className="flex items-center justify-between bg-cyber-800/30 rounded-md p-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-cyber-500 text-xs uppercase font-medium tracking-wide">Password</p>
+                      <p className="text-cyber-500 text-xs uppercase font-medium tracking-wide">
+                        Password
+                      </p>
                       <p className="text-cyber-200 text-sm font-mono">
-                        {isPasswordVisible ? password.password : obfuscatedPassword}
+                        {isPasswordVisible
+                          ? password.password
+                          : obfuscatedPassword}
                       </p>
                     </div>
                     <div className="flex items-center space-x-1">
                       <button
                         onClick={() => togglePasswordVisibility(password.id)}
                         className="p-1 hover:bg-cyber-700 rounded transition-colors"
-                        title={isPasswordVisible ? 'Hide password' : 'Show password'}
+                        title={
+                          isPasswordVisible ? "Hide password" : "Show password"
+                        }
                       >
                         {isPasswordVisible ? (
-                          <EyeOff className="w-3 h-3 text-cyber-400 hover:text-primary-400" strokeWidth={1.5} />
+                          <EyeOff
+                            className="w-3 h-3 text-cyber-400 hover:text-primary-400"
+                            strokeWidth={1.5}
+                          />
                         ) : (
-                          <Eye className="w-3 h-3 text-cyber-400 hover:text-primary-400" strokeWidth={1.5} />
+                          <Eye
+                            className="w-3 h-3 text-cyber-400 hover:text-primary-400"
+                            strokeWidth={1.5}
+                          />
                         )}
                       </button>
                       <button
-                        onClick={() => copyToClipboard(password.password, 'Password')}
+                        onClick={() =>
+                          copyToClipboard(password.password, "Password")
+                        }
                         className="p-1 hover:bg-cyber-700 rounded transition-colors"
                         title="Copy password"
                       >
-                        <Copy className="w-3 h-3 text-cyber-400 hover:text-primary-400" strokeWidth={1.5} />
+                        <Copy
+                          className="w-3 h-3 text-cyber-400 hover:text-primary-400"
+                          strokeWidth={1.5}
+                        />
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
 
@@ -307,15 +543,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
               </div>
             </div>
             <h3 className="text-cyber-300 text-lg font-medium mb-2">
-              {searchQuery ? 'No passwords found' : 'No saved passwords yet'}
+              {searchQuery ? "No passwords found" : "No saved passwords yet"}
             </h3>
             <p className="text-cyber-500 text-sm max-w-xs mx-auto leading-relaxed">
-              {searchQuery 
-                ? 'Try adjusting your search terms or check the spelling' 
+              {searchQuery
+                ? "Try adjusting your search terms or check the spelling"
                 : 'Click "Add New Password" above to start building your secure vault'}
             </p>
             {!searchQuery && (
-              <button 
+              <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="cyber-button mt-6 inline-flex items-center space-x-2"
               >
@@ -330,16 +566,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
       {/* Quick Actions */}
       <div className="p-4 border-t border-cyber-700/50">
         <div className="grid grid-cols-2 gap-2">
-          <button 
-            onClick={() => navigate('/wallet')}
+          <button
+            onClick={() => navigate("/wallet")}
             className="cyber-button flex items-center justify-center space-x-2 py-2.5"
           >
             <Wallet className="w-4 h-4" strokeWidth={1.5} />
             <span className="text-sm">Wallet Vault</span>
           </button>
-          
-          <button 
-            onClick={() => navigate('/settings')}
+
+          <button
+            onClick={() => navigate("/settings")}
             className="cyber-button-secondary flex items-center justify-center space-x-2 py-2.5"
           >
             <SettingsIcon className="w-4 h-4" strokeWidth={1.5} />
@@ -355,7 +591,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
         onSave={handleAddPassword}
       />
     </div>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;
