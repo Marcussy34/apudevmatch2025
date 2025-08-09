@@ -87,6 +87,11 @@ export default function Home() {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [particlesConfig, setParticlesConfig] = useState(null);
 
+  // Enable dark mode
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+  }, []);
+
   // Load particles configuration
   useEffect(() => {
     const loadParticlesConfig = async () => {
@@ -125,7 +130,7 @@ export default function Home() {
   }, [lastScrollY]);
 
   return (
-    <div className={`${inter.variable} ${interTight.variable} font-sans relative min-h-screen bg-black`}>
+    <div className={`${inter.variable} ${interTight.variable} font-sans relative min-h-screen bg-background`}>
       {/* Particles Background */}
       {particlesConfig && (
         <ParticlesJS 
@@ -135,7 +140,7 @@ export default function Home() {
       )}
       
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between py-4 px-6 lg:px-8 bg-[#040612]/80 backdrop-blur-sm border-b border-gray-700/60">
+      <nav className="sticky top-0 z-50 flex items-center justify-between py-4 px-6 lg:px-8 bg-background/80 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-2 ml-4">
           <Image
             src="/logo.png"
@@ -145,7 +150,7 @@ export default function Home() {
             className="rounded-lg"
           />
           <motion.span 
-            className="text-xl brand-text text-white overflow-hidden whitespace-nowrap"
+            className="text-xl brand-text text-foreground overflow-hidden whitespace-nowrap"
             initial={{ width: "auto", opacity: 1 }}
             animate={{ 
               width: isScrollingDown ? "0px" : "auto",
@@ -160,9 +165,9 @@ export default function Home() {
           </motion.span>
         </div>
         <div className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-white hover:text-gray-200 transition-colors">Features</a>
-          <a href="#security" className="text-white hover:text-gray-200 transition-colors">Security</a>
-          <a href="#docs" className="text-white hover:text-gray-200 transition-colors">Docs</a>
+          <a href="#features" className="text-foreground hover:text-muted-foreground transition-colors">Features</a>
+          <a href="#security" className="text-foreground hover:text-muted-foreground transition-colors">Security</a>
+          <a href="#docs" className="text-foreground hover:text-muted-foreground transition-colors">Docs</a>
           <Button size="lg" className="rounded-full">
             Get Started
           </Button>
@@ -173,7 +178,7 @@ export default function Home() {
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden z-10">
         <div className="relative flex flex-col gap-4 items-center justify-center px-6 max-w-6xl mx-auto text-center">
           <motion.h1 
-            className="text-5xl md:text-7xl heading-modern text-white mb-6"
+            className="text-5xl md:text-7xl heading-modern text-foreground mb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
@@ -187,7 +192,7 @@ export default function Home() {
             </motion.span>
             <br />
             <motion.span 
-              className="text-blue-600"
+              className="text-primary"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
@@ -197,7 +202,7 @@ export default function Home() {
           </motion.h1>
           
           <motion.p 
-            className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed"
+            className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
@@ -215,11 +220,11 @@ export default function Home() {
               Get Started
             </Button>
             <Modal>
-              <ModalTrigger className="border border-gray-400 hover:border-white text-gray-300 hover:text-white rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 bg-transparent flex justify-center group/modal-btn min-w-[140px] h-[52px]">
+              <ModalTrigger className="border border-border hover:border-foreground text-muted-foreground hover:text-foreground rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 bg-transparent flex justify-center group/modal-btn min-w-[140px] h-[52px]">
                 <span className="group-hover/modal-btn:translate-x-40 text-center transition duration-500">
                   View Demo
                 </span>
-                <div className="-translate-x-40 group-hover/modal-btn:translate-x-0 flex items-center justify-center absolute inset-0 transition duration-500 text-white z-20">
+                <div className="-translate-x-40 group-hover/modal-btn:translate-x-0 flex items-center justify-center absolute inset-0 transition duration-500 text-foreground z-20">
                   <Video className="h-5 w-5" />
                 </div>
               </ModalTrigger>
@@ -229,13 +234,13 @@ export default function Home() {
                     Product Demo
                   </h4>
                   <div className="flex items-center justify-center">
-                    <div className="w-full max-w-2xl h-64 md:h-80 bg-gradient-to-br from-gray-800/30 to-gray-600/20 border border-gray-700/40 rounded-xl flex items-center justify-center">
-                      <Video className="h-10 w-10 text-white/80" />
+                    <div className="w-full max-w-2xl h-64 md:h-80 bg-gradient-to-br from-muted/30 to-muted/20 border border-border rounded-xl flex items-center justify-center">
+                      <Video className="h-10 w-10 text-muted-foreground" />
                     </div>
                   </div>
                 </ModalContent>
                 <ModalFooter>
-                  <span className="text-sm text-gray-500 mr-auto pl-2">Demo preview</span>
+                  <span className="text-sm text-muted-foreground mr-auto pl-2">Demo preview</span>
                 </ModalFooter>
               </ModalBody>
             </Modal>
@@ -247,7 +252,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9, duration: 0.6, ease: "easeOut" }}
           >
-            <span className="text-white text-lg">Built on</span>
+            <span className="text-foreground text-lg">Built on</span>
             <div className="flex items-center gap-6">
               <Image
                 src="/sui_logo.png"
@@ -297,10 +302,10 @@ export default function Home() {
             transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl md:text-5xl heading-modern text-white mb-6">
+            <h2 className="text-4xl md:text-5xl heading-modern text-foreground mb-6">
               Security as you expect it
             </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Built with cutting-edge technology.
             </p>
           </motion.div>
@@ -321,7 +326,7 @@ export default function Home() {
       </motion.section>
 
       {/* Footer */}
-      <footer className="relative py-16 px-6 border-t border-gray-700/60 bg-[#040612] z-10">
+      <footer className="relative py-16 px-6 border-t border-border bg-background z-10">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
@@ -333,47 +338,47 @@ export default function Home() {
                   height={32}
                   className="rounded-lg"
                 />
-                <span className="text-xl brand-text text-white">Grand Warden</span>
+                <span className="text-xl brand-text text-foreground">Grand Warden</span>
               </div>
-              <p className="text-gray-400">
+              <p className="text-muted-foreground">
                 The future of password security, powered by blockchain technology.
               </p>
             </div>
             
             <div>
-              <h4 className="text-white heading-bold mb-4">Product</h4>
+              <h4 className="text-foreground heading-bold mb-4">Product</h4>
               <div className="space-y-2">
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Features</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Security</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Pricing</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Features</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Security</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               </div>
             </div>
             
             <div>
-              <h4 className="text-white heading-bold mb-4">Developers</h4>
+              <h4 className="text-foreground heading-bold mb-4">Developers</h4>
               <div className="space-y-2">
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Documentation</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">API Reference</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">GitHub</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Documentation</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">API Reference</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">GitHub</a>
               </div>
             </div>
             
             <div>
-              <h4 className="text-white heading-bold mb-4">Community</h4>
+              <h4 className="text-foreground heading-bold mb-4">Community</h4>
               <div className="space-y-2">
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Discord</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Twitter</a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Blog</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Discord</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Twitter</a>
+                <a href="#" className="block text-muted-foreground hover:text-foreground transition-colors">Blog</a>
               </div>
             </div>
           </div>
           
-          <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400">© 2025 Grand Warden. All rights reserved.</p>
+          <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center">
+            <p className="text-muted-foreground">© 2025 Grand Warden. All rights reserved.</p>
             <div className="flex gap-6 mt-4 md:mt-0">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">Terms</a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">Contact</a>
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Terms</a>
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
             </div>
           </div>
         </div>
