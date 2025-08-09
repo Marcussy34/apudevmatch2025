@@ -3,7 +3,7 @@ import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button } from "./ui/button";
 
-function AIArtwork({ summaryMarkdown, stats, signAndExecute }) {
+function AIArtwork({ summaryMarkdown, stats, signAndExecute, onImageGenerated }) {
     const [status, setStatus] = useState("idle");
     const [error, setError] = useState(null);
     const [imageDataUrl, setImageDataUrl] = useState(null);
@@ -193,6 +193,9 @@ function AIArtwork({ summaryMarkdown, stats, signAndExecute }) {
             try {
                 const aiImage = await generateWithGemini();
                 setImageDataUrl(aiImage);
+                if (onImageGenerated) {
+                    onImageGenerated(aiImage);
+                }
                 setStatus("ready");
                 return;
             } catch (geminiError) {
@@ -201,6 +204,9 @@ function AIArtwork({ summaryMarkdown, stats, signAndExecute }) {
                 );
                 const enhancedImage = generateEnhancedVisualization("");
                 setImageDataUrl(enhancedImage);
+                if (onImageGenerated) {
+                    onImageGenerated(enhancedImage);
+                }
                 setStatus("ready");
             }
         } catch (e) {
