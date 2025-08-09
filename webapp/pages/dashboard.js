@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
+import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -50,21 +51,26 @@ import {
   Moon,
   Sun,
   X,
+  Wallet,
+  LogOut,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
   useSignPersonalMessage,
   useSuiClient,
+  useDisconnectWallet,
 } from "@mysten/dapp-kit";
 import { SealClient, getAllowlistedKeyServers } from "@mysten/seal";
+import { MIST_PER_SUI } from "@mysten/sui/utils";
 import { ensureWalBalance, storeEncryptedViaRelay } from "@/lib/encryption";
 import {
   getAllUserCredentialsViaProxy,
   getCredentialByBlobIdViaProxy,
 } from "@/lib/decryption";
 import AISummary from "@/components/AISummary";
+import AIArtwork from "@/components/AIArtwork";
 import { addBlobRef, getBlobRefs } from "@/lib/blobIds";
 
 const inter = Inter({
@@ -84,13 +90,23 @@ const interTight = Inter({
 export default function Dashboard() {
   const account = useCurrentAccount();
   const suiClient = useSuiClient();
+  const router = useRouter();
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
+  const { mutate: disconnect } = useDisconnectWallet();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPasswords, setShowPasswords] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showWalletInfo, setShowWalletInfo] = useState(false);
+  const [balance, setBalance] = useState(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [isCheckingWallet, setIsCheckingWallet] = useState(true);
+  const walletDropdownRef = useRef(null);
+  const [nftData, setNftData] = useState(null);
+  const [isLoadingNfts, setIsLoadingNfts] = useState(false);
+  const [toasts, setToasts] = useState([]);
 
   // Form state for Add Password modal
   const [formData, setFormData] = useState({
@@ -106,6 +122,54 @@ export default function Dashboard() {
     document.documentElement.classList.add("dark");
   }, []);
 
+  // Click outside handler for wallet dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        walletDropdownRef.current &&
+        !walletDropdownRef.current.contains(event.target)
+      ) {
+        setShowWalletInfo(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Redirect to index if no wallet connected
+  useEffect(() => {
+    // Give some time for wallet to connect if it's in the process
+    const timer = setTimeout(() => {
+      if (!account?.address) {
+        router.push("/");
+      } else {
+        setIsCheckingWallet(false);
+      }
+    }, 1000); // Wait 1 second to allow for wallet connection
+
+    // If account is already connected, stop checking immediately
+    if (account?.address) {
+      setIsCheckingWallet(false);
+      clearTimeout(timer);
+    }
+
+    return () => clearTimeout(timer);
+  }, [account?.address, router]);
+
+  // Fetch balance when account changes
+  useEffect(() => {
+    if (account?.address) {
+      fetchBalance();
+      fetchNfts();
+    } else {
+      setBalance(null);
+      setNftData(null);
+    }
+  }, [account?.address, suiClient]);
+
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
     if (isDarkMode) {
@@ -115,10 +179,29 @@ export default function Dashboard() {
     }
   };
 
+  // Simple toast helpers
+  const showToast = ({
+    type = "info",
+    title = "",
+    description = "",
+    duration = 4000,
+  }) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setToasts((prev) => [...prev, { id, type, title, description }]);
+    if (duration > 0) {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+    }
+  };
+  const dismissToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+
   // Basic metrics placeholders (will derive from real list)
   const [passwordList, setPasswordList] = useState([]);
-  const securityScore = 85;
-  const totalPasswords = passwordList.length;
+  const [localRefCount, setLocalRefCount] = useState(0);
+  const securityScore = nftData?.securityScore || 85;
+  const totalPasswords = Math.max(passwordList.length, localRefCount);
   const weakPasswords = 0;
   const breachedPasswords = 0;
   const reusedPasswords = 0;
@@ -126,6 +209,7 @@ export default function Dashboard() {
   const recentPasswords = passwordList;
 
   const [aiSummary, setAiSummary] = useState(null);
+  const [aiStats, setAiStats] = useState(null);
 
   const sendBatchAndSummarize = async () => {
     try {
@@ -151,15 +235,30 @@ export default function Dashboard() {
             msg = await res.text();
           } catch {}
         }
-        alert(`AI summary failed: ${msg}`);
+        showToast({
+          type: "danger",
+          title: "AI summary failed",
+          description: msg,
+        });
         return;
       }
       const data = await res.json();
       const summary = data?.ai?.summary || "No AI summary";
+      const stats = data?.ai?.stats || null;
       setAiSummary(summary);
+      setAiStats(stats);
+      showToast({
+        type: "success",
+        title: "AI summary ready",
+        description: "Added above the vault",
+      });
     } catch (e) {
       console.error("AI summary failed:");
-      alert(String(e?.message || e));
+      showToast({
+        type: "danger",
+        title: "AI summary error",
+        description: String(e?.message || e),
+      });
     }
   };
 
@@ -197,19 +296,19 @@ export default function Dashboard() {
   const securityInsights = [
     {
       title: "Update weak passwords",
-      description: "3 passwords need strengthening",
+      description: "Multiple passwords need strengthening",
       action: "Fix now",
       type: "warning",
     },
     {
       title: "Breach detected",
-      description: "Adobe account may be compromised",
+      description: "Certain accounts may be compromised",
       action: "Review",
       type: "danger",
     },
     {
       title: "Enable 2FA",
-      description: "5 accounts without two-factor authentication",
+      description: "0 accounts without two-factor authentication",
       action: "Secure",
       type: "info",
     },
@@ -225,7 +324,7 @@ export default function Dashboard() {
   const handleRetrieveCredentials = async () => {
     try {
       if (!account?.address) {
-        alert("Connect wallet to retrieve");
+        showToast({ type: "warning", title: "Connect wallet to retrieve" });
         return;
       }
       let aggregated = [];
@@ -273,9 +372,16 @@ export default function Dashboard() {
         })
         .filter(Boolean);
       setPasswordList(next);
-      alert(`Retrieved ${next.length} credential(s)`);
+      showToast({
+        type: "success",
+        title: `Retrieved ${next.length} credential(s)`,
+      });
     } catch (e) {
-      alert(String(e?.message || e));
+      showToast({
+        type: "danger",
+        title: "Retrieve failed",
+        description: String(e?.message || e),
+      });
     }
   };
 
@@ -327,7 +433,7 @@ export default function Dashboard() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!account?.address) {
-      alert("Connect wallet first");
+      showToast({ type: "warning", title: "Connect wallet first" });
       return;
     }
     if (isSubmitting) return;
@@ -391,7 +497,68 @@ export default function Dashboard() {
           { epochs: 1, deletable: true, tipMax: 10000 }
         );
 
-      if (blobId) addBlobRef(account.address, { blobId, idHex });
+      if (blobId) {
+        addBlobRef(account.address, { blobId, idHex });
+        try {
+          const refsNow = getBlobRefs(account.address) || [];
+          setLocalRefCount(refsNow.length);
+        } catch {}
+
+        // Immediately retrieve, decrypt, and display the newly added credential
+        try {
+          showToast({
+            type: "info",
+            title: "Retrieving",
+            description: "Fetching and decrypting your new credential...",
+          });
+          const r = await getCredentialByBlobIdViaProxy(
+            blobId,
+            account.address,
+            signPersonalMessage,
+            idHex
+          );
+          const j = r.json;
+          if (j && j.name && j.url && j.username && j.password) {
+            setPasswordList((prev) => [
+              {
+                id: Math.max(0, ...prev.map((p) => p.id)) + 1,
+                name: j.name,
+                url: j.url,
+                username: j.username,
+                password: j.password,
+                strength: "Strong",
+                lastUsed: "Just now",
+                device: "laptop",
+              },
+              ...prev,
+            ]);
+            showToast({
+              type: "success",
+              title: "Credential Ready",
+              description: `Added ${j.name}`,
+            });
+          }
+        } catch (err) {
+          const msg = String(err?.message || err);
+          if (
+            msg.includes("blob_not_certified") ||
+            msg.includes("BlobNotCertified")
+          ) {
+            showToast({
+              type: "warning",
+              title: "Not yet certified",
+              description:
+                "It may take a moment to certify. Use Retrieve later if needed.",
+            });
+          } else {
+            showToast({
+              type: "danger",
+              title: "Auto-retrieve failed",
+              description: msg,
+            });
+          }
+        }
+      }
 
       // Reset form
       setFormData({
@@ -401,14 +568,18 @@ export default function Dashboard() {
         password: "",
       });
       setShowNewPassword(false);
-      alert(
-        `Encrypted & stored. Register: ${registerDigest}\nCertify: ${certifyDigest}${
-          blobId ? `\nBlob: ${blobId}` : ""
-        }`
-      );
+      showToast({
+        type: "success",
+        title: "Password saved",
+        description: blobId ? `Blob: ${blobId}` : "Encrypted & stored",
+      });
     } catch (err) {
       console.error("Add credential failed:", err);
-      alert(`Failed: ${String(err?.message || err)}`);
+      showToast({
+        type: "danger",
+        title: "Add credential failed",
+        description: String(err?.message || err),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -418,11 +589,206 @@ export default function Dashboard() {
     setShowNewPassword(!showNewPassword);
   };
 
+  // Helper function to truncate wallet address
+  const truncateAddress = (address) => {
+    if (!address) return "";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Toggle wallet info display
+  const toggleWalletInfo = () => {
+    setShowWalletInfo(!showWalletInfo);
+  };
+
+  // Keep a local count of stored blob refs per wallet
+  useEffect(() => {
+    if (account?.address) {
+      try {
+        const refs = getBlobRefs(account.address) || [];
+        setLocalRefCount(refs.length);
+      } catch {
+        setLocalRefCount(0);
+      }
+    } else {
+      setLocalRefCount(0);
+    }
+  }, [account?.address]);
+
+  // Fetch wallet balance
+  const fetchBalance = async () => {
+    if (!account?.address || !suiClient) return;
+
+    setIsLoadingBalance(true);
+    try {
+      const balanceData = await suiClient.getBalance({
+        owner: account.address,
+      });
+      // Convert from MIST to SUI
+      const suiBalance =
+        Number(balanceData.totalBalance) / Number(MIST_PER_SUI);
+      setBalance(suiBalance);
+    } catch (error) {
+      console.error("Failed to fetch balance:", error);
+      setBalance(null);
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  };
+
+  // Fetch NFTs from wallet
+  const fetchNfts = async () => {
+    if (!account?.address || !suiClient) return;
+
+    setIsLoadingNfts(true);
+    try {
+      const nfts = [];
+      let cursor = null;
+
+      do {
+        const page = await suiClient.getOwnedObjects({
+          owner: account.address,
+          cursor: cursor ?? undefined,
+          limit: 50,
+          options: {
+            showType: true,
+            showContent: true,
+            showDisplay: true,
+          },
+        });
+
+        for (const item of page.data) {
+          const objectType = item?.data?.type;
+
+          // Check if this is likely an NFT (has display metadata and is not a coin)
+          if (
+            objectType &&
+            !objectType.includes("::coin::Coin") &&
+            !objectType.includes("::blob::Blob") &&
+            !objectType.includes("::shared_blob::SharedBlob") &&
+            item?.data?.display
+          ) {
+            const display = item.data.display?.data || {};
+            const content = item.data.content?.fields || {};
+
+            // Only include objects that have NFT-like characteristics
+            if (
+              display.name ||
+              display.description ||
+              display.image_url ||
+              content.name
+            ) {
+              nfts.push({
+                id: item.data.objectId,
+                type: objectType,
+                name: display.name || content.name || "Unnamed NFT",
+                description: display.description || content.description || "",
+                imageUrl:
+                  display.image_url || content.image_url || content.url || "",
+                attributes: content,
+                display,
+              });
+            }
+          }
+        }
+
+        cursor = page.hasNextPage ? page.nextCursor ?? null : null;
+      } while (cursor);
+
+      // Set NFT data - only if we found actual NFTs
+      if (nfts.length > 0) {
+        console.log(`Found ${nfts.length} NFTs:`, nfts);
+        setNftData({
+          nfts,
+          totalCount: nfts.length,
+          // Calculate a simple security score based on NFT collection
+          securityScore: Math.min(85 + nfts.length * 2, 98),
+        });
+      } else {
+        console.log("No NFTs found in wallet");
+        setNftData(null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch NFTs:", error);
+      setNftData(null);
+    } finally {
+      setIsLoadingNfts(false);
+    }
+  };
+
+  // Handle wallet disconnect
+  const handleDisconnect = () => {
+    disconnect();
+    setShowWalletInfo(false);
+    setBalance(null);
+    setLocalRefCount(0);
+    // Redirect to index page after disconnect
+    router.push("/");
+  };
+
+  // Show loading screen while checking wallet connection
+  if (isCheckingWallet) {
+    return (
+      <div
+        className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background flex items-center justify-center`}
+      >
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Checking wallet connection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render dashboard if no account (will redirect)
+  if (!account?.address) {
+    return null;
+  }
+
   return (
     <Modal>
       <div
         className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background`}
       >
+        {/* Toast container */}
+        <div className="fixed top-4 right-4 z-[100] space-y-2">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="flex w-80 items-start gap-3 rounded-lg border bg-background p-3 shadow-lg"
+            >
+              <div className="pt-0.5">
+                {t.type === "success" ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : t.type === "warning" ? (
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                ) : t.type === "danger" ? (
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                ) : (
+                  <Activity className="h-4 w-4 text-blue-500" />
+                )}
+              </div>
+              <div className="flex-1">
+                {t.title && (
+                  <div className="text-sm font-medium text-foreground">
+                    {t.title}
+                  </div>
+                )}
+                {t.description && (
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {t.description}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => dismissToast(t.id)}
+                className="text-muted-foreground/70 hover:text-foreground"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
         {/* Header */}
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-6 lg:px-8">
@@ -440,9 +806,6 @@ export default function Dashboard() {
                   Grand Warden
                 </span>
               </div>
-              <Badge variant="secondary" className="hidden sm:inline-flex">
-                Dashboard
-              </Badge>
             </div>
 
             {/* Search */}
@@ -470,13 +833,124 @@ export default function Dashboard() {
               <Button variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
-              <Avatar>
-                <AvatarImage src="/placeholder-avatar.svg" alt="User" />
-                <AvatarFallback>MD</AvatarFallback>
-              </Avatar>
+
+              {/* Wallet Display */}
+              <div className="relative" ref={walletDropdownRef}>
+                <div
+                  className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-2 transition-colors"
+                  onClick={toggleWalletInfo}
+                >
+                  <Avatar>
+                    <AvatarImage src="/placeholder-avatar.svg" alt="User" />
+                    <AvatarFallback>
+                      {account?.address
+                        ? account.address.slice(0, 2).toUpperCase()
+                        : "MD"}
+                    </AvatarFallback>
+                  </Avatar>
+                  {account?.address && (
+                    <div className="hidden sm:block text-sm text-foreground">
+                      {truncateAddress(account.address)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Wallet Info Dropdown */}
+                {showWalletInfo && account?.address && (
+                  <div className="absolute right-0 top-full mt-2 w-84 bg-background border border-border rounded-lg shadow-lg z-50">
+                    <div className="p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-foreground">
+                          Wallet Connected
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={toggleWalletInfo}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Balance Section */}
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground">
+                          Balance
+                        </div>
+                        <div className="flex items-center gap-2 bg-muted/50 p-3 rounded border">
+                          <Wallet className="h-4 w-4 text-primary" />
+                          {isLoadingBalance ? (
+                            <div className="text-sm text-muted-foreground">
+                              Loading...
+                            </div>
+                          ) : balance !== null ? (
+                            <div className="text-sm font-medium">
+                              {balance.toFixed(4)} SUI
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">
+                              Unable to load
+                            </div>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="ml-auto h-6 w-6"
+                            onClick={fetchBalance}
+                            disabled={isLoadingBalance}
+                          >
+                            <RefreshCw
+                              className={`h-3 w-3 ${
+                                isLoadingBalance ? "animate-spin" : ""
+                              }`}
+                            />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground">
+                          Address
+                        </div>
+                        <div className="text-sm font-mono bg-muted/50 p-3 rounded border break-words leading-relaxed">
+                          {account.address}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2 border-t">
+                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">
+                          Connected to Testnet
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex-1 text-xs"
+                          onClick={() => {
+                            navigator.clipboard.writeText(account.address);
+                            showToast({
+                              type: "success",
+                              title: "Address copied",
+                            });
+                          }}
+                        >
+                          Copy Address
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          className="flex-1 text-xs"
+                          onClick={handleDisconnect}
+                        >
+                          <LogOut className="h-3 w-3 mr-1" />
+                          Disconnect
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -496,20 +970,12 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.6, ease: "easeOut" }}
             >
-              Welcome back, Marcus
+              Welcome back,{" "}
+              {account?.address ? truncateAddress(account.address) : "User"}
             </motion.h1>
-            <motion.p
-              className="text-muted-foreground"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-            >
-              Your security dashboard is ready. Here&apos;s your password vault
-              overview.
-            </motion.p>
           </motion.div>
 
-          {/* NFT Security Status Display */}
+          {/* NFT Security Status Display - Always show with placeholder when no NFTs */}
           <motion.div
             className="mb-8"
             initial={{ opacity: 0, y: 30 }}
@@ -519,81 +985,180 @@ export default function Dashboard() {
             <Card className="max-w-md mx-auto">
               <CardContent className="p-6">
                 <div className="text-center space-y-4">
-                  {/* NFT Image */}
-                  <div className="relative w-48 h-48 mx-auto">
-                    <div
-                      className={`absolute inset-0 rounded-lg border-2 ${
-                        securityScore > 80
-                          ? "bg-gradient-to-br from-green-400/20 to-emerald-600/20 border-green-400/50"
-                          : securityScore > 60
-                          ? "bg-gradient-to-br from-yellow-400/20 to-orange-600/20 border-yellow-400/50"
-                          : "bg-gradient-to-br from-red-400/20 to-red-600/20 border-red-400/50"
-                      } backdrop-blur-sm overflow-hidden`}
-                    >
-                      {/* Placeholder NFT Image Background */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700">
-                        <Image
-                          src="/placeholder-avatar.svg"
-                          alt="Security NFT"
-                          fill
-                          className="object-cover opacity-10"
-                        />
-                      </div>
-
-                      {/* Central Shield Icon */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Shield
-                          className={`h-20 w-20 ${
-                            securityScore > 80
-                              ? "text-green-400"
-                              : securityScore > 60
-                              ? "text-yellow-400"
-                              : "text-red-400"
-                          }`}
-                        />
-                      </div>
-
-                      {/* Score overlay */}
-                      <div className="absolute bottom-2 left-2 right-2">
-                        <div className="bg-black/50 backdrop-blur-sm rounded px-2 py-1 text-center">
-                          <span className="text-white text-xs font-medium">
-                            {securityScore}% Secure
-                          </span>
+                  {isLoadingNfts ? (
+                    // Loading state
+                    <>
+                      <div className="relative w-48 h-48 mx-auto">
+                        <div className="absolute inset-0 rounded-lg border-2 border-muted bg-muted/20 backdrop-blur-sm flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                      <div className="space-y-2">
+                        <div className="h-6 bg-muted animate-pulse rounded"></div>
+                        <div className="h-4 bg-muted animate-pulse rounded w-32 mx-auto"></div>
+                      </div>
+                      <p className="text-muted-foreground">
+                        Loading NFT status...
+                      </p>
+                    </>
+                  ) : nftData ? (
+                    // NFT found state
+                    <>
+                      {/* NFT Image */}
+                      <div className="relative w-48 h-48 mx-auto">
+                        <div
+                          className={`absolute inset-0 rounded-lg border-2 ${
+                            securityScore > 80
+                              ? "bg-gradient-to-br from-green-400/20 to-emerald-600/20 border-green-400/50"
+                              : securityScore > 60
+                              ? "bg-gradient-to-br from-yellow-400/20 to-orange-600/20 border-yellow-400/50"
+                              : "bg-gradient-to-br from-red-400/20 to-red-600/20 border-red-400/50"
+                          } backdrop-blur-sm overflow-hidden`}
+                        >
+                          {/* Actual NFT Image or Fallback */}
+                          {nftData.nfts[0]?.imageUrl ? (
+                            <div className="absolute inset-0">
+                              <Image
+                                src={nftData.nfts[0].imageUrl}
+                                alt={nftData.nfts[0].name || "NFT"}
+                                fill
+                                className="object-cover rounded-lg"
+                                onError={(e) => {
+                                  // Fallback to shield icon if image fails to load
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700">
+                              <Image
+                                src="/placeholder-avatar.svg"
+                                alt="NFT Placeholder"
+                                fill
+                                className="object-cover opacity-10"
+                              />
+                            </div>
+                          )}
 
-                  {/* NFT Title & Category */}
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-foreground">
-                      {securityScore > 80
-                        ? "Fortress Guardian"
-                        : securityScore > 60
-                        ? "Shield Bearer"
-                        : "Vulnerable Keeper"}
-                    </h3>
-                    <Badge
-                      variant={
-                        securityScore > 80
-                          ? "default"
-                          : securityScore > 60
-                          ? "secondary"
-                          : "destructive"
-                      }
-                    >
-                      Security NFT • Level {Math.floor(securityScore / 20) + 1}
-                    </Badge>
-                  </div>
+                          {/* Central Shield Icon (shows if no image or as overlay) */}
+                          {!nftData.nfts[0]?.imageUrl && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Shield
+                                className={`h-20 w-20 ${
+                                  securityScore > 80
+                                    ? "text-green-400"
+                                    : securityScore > 60
+                                    ? "text-yellow-400"
+                                    : "text-red-400"
+                                }`}
+                              />
+                            </div>
+                          )}
 
-                  {/* Short Description */}
-                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                    {securityScore > 80
-                      ? "Elite password security guardian with exceptional vault protection."
-                      : securityScore > 60
-                      ? "Reliable security defender with room for improvement."
-                      : "Novice security keeper requiring immediate attention."}
-                  </p>
+                          {/* Score overlay */}
+                          <div className="absolute bottom-2 left-2 right-2">
+                            <div className="bg-black/50 backdrop-blur-sm rounded px-2 py-1 text-center">
+                              <span className="text-white text-xs font-medium">
+                                {securityScore}% Secure
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* NFT Title & Category */}
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-bold text-foreground">
+                          {nftData.nfts[0]?.name ||
+                            (securityScore > 80
+                              ? "Fortress Guardian"
+                              : securityScore > 60
+                              ? "Shield Bearer"
+                              : "Vulnerable Keeper")}
+                        </h3>
+                        <Badge
+                          variant={
+                            securityScore > 80
+                              ? "success"
+                              : securityScore > 60
+                              ? "warning"
+                              : "warning"
+                          }
+                        >
+                          Security NFT • Level{" "}
+                          {Math.floor(securityScore / 20) + 1} •{" "}
+                          {nftData.totalCount} NFT
+                          {nftData.totalCount !== 1 ? "s" : ""}
+                        </Badge>
+                      </div>
+
+                      {/* NFT Description */}
+                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                        {nftData.nfts[0]?.description ||
+                          (securityScore > 80
+                            ? "Elite password security guardian with exceptional vault protection."
+                            : securityScore > 60
+                            ? "Reliable security defender with room for improvement."
+                            : "Novice security keeper requiring immediate attention.")}
+                      </p>
+
+                      {nftData.totalCount > 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{nftData.totalCount - 1} more NFT
+                          {nftData.totalCount - 1 !== 1 ? "s" : ""} in
+                          collection
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    // No NFTs found - placeholder state
+                    <>
+                      {/* Empty NFT Placeholder */}
+                      <div className="relative w-48 h-48 mx-auto">
+                        <div className="absolute inset-0 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/10 backdrop-blur-sm overflow-hidden">
+                          {/* Placeholder background */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-slate-900/20 to-slate-700/20">
+                            <Image
+                              src="/placeholder-avatar.svg"
+                              alt="No NFT Placeholder"
+                              fill
+                              className="object-cover opacity-5"
+                            />
+                          </div>
+
+                          {/* Central placeholder icon */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center space-y-2">
+                              <Shield className="h-16 w-16 text-muted-foreground/50 mx-auto" />
+                              <div className="text-xs text-muted-foreground/70 font-medium">
+                                No NFT Found
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Placeholder Title & Category */}
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-bold text-muted-foreground">
+                          No Security NFT
+                        </h3>
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground border-muted-foreground/30"
+                        >
+                          No NFTs • Connect wallet with NFTs
+                        </Badge>
+                      </div>
+
+                      {/* Placeholder Description */}
+                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                        No NFTs found in your wallet. Security status will be
+                        displayed when you acquire NFTs that represent your
+                        current security level.
+                      </p>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -624,7 +1189,7 @@ export default function Dashboard() {
                         ? "success"
                         : securityScore > 60
                         ? "warning"
-                        : "danger"
+                        : "warning"
                     }
                   >
                     {securityScore > 80
@@ -650,8 +1215,7 @@ export default function Dashboard() {
                   {totalPasswords}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  <TrendingUp className="inline h-3 w-3 mr-1" />
-                  +2 from last week
+                  <TrendingUp className="inline h-3 w-3 mr-1" />0 from last week
                 </p>
               </CardContent>
             </Card>
@@ -664,7 +1228,7 @@ export default function Dashboard() {
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">
+                <div className="text-2xl font-bold text-foreground">
                   {weakPasswords}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -681,7 +1245,7 @@ export default function Dashboard() {
                 <Scan className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">
+                <div className="text-2xl font-bold text-foreground">
                   {breachedPasswords}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -723,6 +1287,13 @@ export default function Dashboard() {
                         summary={aiSummary}
                         onClose={() => setAiSummary(null)}
                       />
+                      <div className="mt-4">
+                        <AIArtwork
+                          summaryMarkdown={aiSummary}
+                          stats={aiStats ?? undefined}
+                          signAndExecute={signAndExecuteTransaction}
+                        />
+                      </div>
                     </div>
                   )}
                   <div className="space-y-4">
@@ -786,7 +1357,7 @@ export default function Dashboard() {
                       className="w-full"
                       onClick={sendBatchAndSummarize}
                     >
-                      AI (Batch + Summary)
+                      Batch Password Analyzer
                     </Button>
                   </div>
                 </CardContent>
@@ -817,7 +1388,20 @@ export default function Dashboard() {
                     onClick={sendBatchAndSummarize}
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    AI (Batch + Summary)
+                    Batch Password Analyzer
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={fetchNfts}
+                    disabled={isLoadingNfts}
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 mr-2 ${
+                        isLoadingNfts ? "animate-spin" : ""
+                      }`}
+                    />
+                    Refresh NFT Status
                   </Button>
                 </CardContent>
               </Card>
@@ -847,10 +1431,12 @@ export default function Dashboard() {
                         <Badge
                           variant={
                             insight.type === "danger"
-                              ? "destructive"
+                              ? "warning"
                               : insight.type === "warning"
                               ? "warning"
-                              : "secondary"
+                              : insight.type === "info"
+                              ? "success"
+                              : "success"
                           }
                         >
                           {insight.action}

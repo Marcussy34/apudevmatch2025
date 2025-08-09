@@ -24,6 +24,7 @@ import {
 import { useState, useEffect, useRef } from "react";
 import ParticlesJS from "@/components/ParticlesJS";
 import { GlobeDemo } from "@/components/GlobeDemo";
+import { AuroraText } from "@/components/ui/aurora-text";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -203,24 +204,18 @@ export default function Home() {
         </div>
         <div className="hidden md:flex items-center gap-8">
           <a
-            href="#features"
-            className="text-foreground hover:text-muted-foreground transition-colors"
-          >
-            Features
-          </a>
-          <a
             href="#security"
             className="text-foreground hover:text-muted-foreground transition-colors"
           >
             Security
           </a>
           <a
-            href="#docs"
+            href="#features"
             className="text-foreground hover:text-muted-foreground transition-colors"
           >
-            Docs
+            Features
           </a>
-          <ConnectButton />
+          <ConnectButton connectText="Get Started" />
         </div>
       </nav>
 
@@ -234,21 +229,20 @@ export default function Home() {
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
             <motion.span
+              className="text-white"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.4, ease: "easeOut" }}
             >
-              Secure with
+              Grand{" "}
             </motion.span>
-            <br />
-            <motion.span
-              className="text-primary"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
+            <AuroraText 
+              className="text-5xl md:text-7xl heading-modern inline-block"
+              colors={["#3b82f6", "#1d4ed8", "#60a5fa", "#2563eb"]}
+              speed={1.5}
             >
-              Grand Warden
-            </motion.span>
+              Warden
+            </AuroraText>
           </motion.h1>
 
           <motion.p
@@ -257,8 +251,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
           >
-            Experience the future of password security with blockchain-powered
-            vault.
+            Secure your passwords with blockchain-powered vault.
           </motion.p>
 
           <motion.div
@@ -267,7 +260,9 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
           >
-            <ConnectButton />
+            <div className="transform scale-110">
+              <ConnectButton connectText="Get Started" />
+            </div>
             <Modal>
               <ModalTrigger className="border border-border hover:border-foreground text-muted-foreground hover:text-foreground rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 bg-transparent flex justify-center group/modal-btn min-w-[140px] h-[52px]">
                 <span className="group-hover/modal-btn:translate-x-40 text-center transition duration-500">
@@ -350,7 +345,7 @@ export default function Home() {
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
             viewport={{ once: true }}
           >
             <h2 className="text-4xl md:text-5xl heading-modern text-foreground mb-6">
