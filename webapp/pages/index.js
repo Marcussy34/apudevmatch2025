@@ -6,6 +6,7 @@ import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { motion } from "motion/react";
 import { Shield, Brain, Palette } from "lucide-react";
 import { useState, useEffect } from "react";
+import ParticlesJS from "@/components/ParticlesJS";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -78,6 +79,22 @@ const features = [
 export default function Home() {
   const [isScrollingDown, setIsScrollingDown] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [particlesConfig, setParticlesConfig] = useState(null);
+
+  // Load particles configuration
+  useEffect(() => {
+    const loadParticlesConfig = async () => {
+      try {
+        const response = await fetch('/particlesjs-config.json');
+        const config = await response.json();
+        setParticlesConfig(config);
+      } catch (error) {
+        console.error('Error loading particles config:', error);
+      }
+    };
+
+    loadParticlesConfig();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -102,9 +119,17 @@ export default function Home() {
   }, [lastScrollY]);
 
   return (
-    <div className={`${inter.variable} ${interTight.variable} font-sans`}>
+    <div className={`${inter.variable} ${interTight.variable} font-sans relative min-h-screen bg-black`}>
+      {/* Particles Background */}
+      {particlesConfig && (
+        <ParticlesJS 
+          className="fixed inset-0 z-0"
+          config={particlesConfig}
+        />
+      )}
+      
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between py-4 px-6 lg:px-8 bg-[#040612]/95 backdrop-blur-sm border-b border-gray-900/70">
+      <nav className="sticky top-0 z-50 flex items-center justify-between py-4 px-6 lg:px-8 bg-[#040612]/80 backdrop-blur-sm border-b border-gray-700/60">
         <div className="flex items-center gap-2 ml-4">
           <Image
             src="/logo.png"
@@ -139,7 +164,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden z-10">
         <motion.div
           initial={{ opacity: 0.0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -153,7 +178,7 @@ export default function Home() {
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight font-[family-name:var(--font-inter-tight)]">
             Secure with
             <br />
-            <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            <span className="text-blue-600">
               Grand Warden
             </span>
           </h1>
@@ -161,7 +186,7 @@ export default function Home() {
             Experience the future of password security with Grand Warden's blockchain-powered vault.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105 shadow-lg">
+            <Button size="lg" className="px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105 shadow-lg">
               Start Securing
             </Button>
             <Button variant="outline" size="lg" className="border-gray-400 hover:border-white text-gray-300 hover:text-white px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105">
@@ -172,7 +197,7 @@ export default function Home() {
       </section>
 
       {/* Trust Section */}
-      <section id="security" className="py-24 px-6 bg-gradient-to-r from-surface-primary/50 to-surface-secondary/50">
+      <section id="security" className="relative py-24 px-6 z-10">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 font-[family-name:var(--font-inter-tight)]">
             Enhanced by cutting-edge technology
@@ -219,7 +244,7 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-24 px-6 relative">
+      <section id="features" className="relative py-24 px-6 z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 font-[family-name:var(--font-inter-tight)]">
@@ -239,7 +264,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-16 px-6 border-t border-gray-900 bg-[#040612]">
+      <footer className="relative py-16 px-6 border-t border-gray-700/60 bg-[#040612] z-10">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
