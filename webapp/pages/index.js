@@ -11,12 +11,15 @@ import ParticlesJS from "@/components/ParticlesJS";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  display: 'swap',
 });
 
 const interTight = Inter({
   variable: "--font-inter-tight",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
+  weight: ["600", "700", "800", "900"],
+  display: 'swap',
 });
 
 // Define the Bento Grid features
@@ -139,7 +142,7 @@ export default function Home() {
             className="rounded-lg"
           />
           <motion.span 
-            className="text-xl font-bold text-white font-[family-name:var(--font-inter-tight)] overflow-hidden whitespace-nowrap"
+            className="text-xl heading-bold text-white overflow-hidden whitespace-nowrap"
             initial={{ width: "auto", opacity: 1 }}
             animate={{ 
               width: isScrollingDown ? "0px" : "auto",
@@ -175,7 +178,7 @@ export default function Home() {
           }}
           className="relative flex flex-col gap-4 items-center justify-center px-6 max-w-6xl mx-auto text-center"
         >
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight font-[family-name:var(--font-inter-tight)]">
+          <h1 className="text-5xl md:text-7xl heading-modern text-white mb-6">
             Secure with
             <br />
             <span className="text-blue-600">
@@ -199,7 +202,7 @@ export default function Home() {
       {/* Trust Section */}
       <section id="security" className="relative py-24 px-6 z-10">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 font-[family-name:var(--font-inter-tight)]">
+          <h2 className="text-4xl md:text-5xl heading-modern text-white mb-8">
             Enhanced by cutting-edge technology
           </h2>
           <p className="text-xl text-gray-400 mb-16 max-w-3xl mx-auto">
@@ -216,7 +219,7 @@ export default function Home() {
                   </svg>
                 </div>
                 <div className="text-left">
-                  <h3 className="text-xl font-semibold text-white mb-2 font-[family-name:var(--font-inter-tight)]">ROFL Integration</h3>
+                  <h3 className="text-xl heading-bold text-white mb-2">ROFL Integration</h3>
                   <p className="text-gray-400">Runtime OFfchain Logic for secure computation outside the blockchain while maintaining trust.</p>
                 </div>
               </div>
@@ -228,7 +231,7 @@ export default function Home() {
                   </svg>
                 </div>
                 <div className="text-left">
-                  <h3 className="text-xl font-semibold text-white mb-2 font-[family-name:var(--font-inter-tight)]">Red Pill Phala Network</h3>
+                  <h3 className="text-xl heading-bold text-white mb-2">Red Pill Phala Network</h3>
                   <p className="text-gray-400">Confidential computing infrastructure ensuring your data remains private even during processing.</p>
                 </div>
               </div>
@@ -247,7 +250,7 @@ export default function Home() {
       <section id="features" className="relative py-24 px-6 z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 font-[family-name:var(--font-inter-tight)]">
+            <h2 className="text-4xl md:text-5xl heading-modern text-white mb-6">
               Security as you expect it
             </h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto">
@@ -276,7 +279,7 @@ export default function Home() {
                   height={32}
                   className="rounded-lg"
                 />
-                <span className="text-xl font-bold text-white font-[family-name:var(--font-inter-tight)]">Grand Warden</span>
+                <span className="text-xl heading-bold text-white">Grand Warden</span>
               </div>
               <p className="text-gray-400">
                 The future of password security, powered by blockchain technology.
@@ -284,7 +287,7 @@ export default function Home() {
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4 font-[family-name:var(--font-inter-tight)]">Product</h4>
+              <h4 className="text-white heading-bold mb-4">Product</h4>
               <div className="space-y-2">
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Features</a>
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Security</a>
@@ -293,7 +296,7 @@ export default function Home() {
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4 font-[family-name:var(--font-inter-tight)]">Developers</h4>
+              <h4 className="text-white heading-bold mb-4">Developers</h4>
               <div className="space-y-2">
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Documentation</a>
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">API Reference</a>
@@ -302,7 +305,7 @@ export default function Home() {
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4 font-[family-name:var(--font-inter-tight)]">Community</h4>
+              <h4 className="text-white heading-bold mb-4">Community</h4>
               <div className="space-y-2">
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Discord</a>
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Twitter</a>
