@@ -107,6 +107,7 @@ export default function Dashboard() {
   const [nftData, setNftData] = useState(null);
   const [isLoadingNfts, setIsLoadingNfts] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [generatedNftImage, setGeneratedNftImage] = useState(null);
 
   // Form state for Add Password modal
   const [formData, setFormData] = useState({
@@ -1006,16 +1007,8 @@ export default function Dashboard() {
                     <>
                       {/* NFT Image */}
                       <div className="relative w-48 h-48 mx-auto">
-                        <div
-                          className={`absolute inset-0 rounded-lg border-2 ${
-                            securityScore > 80
-                              ? "bg-gradient-to-br from-green-400/20 to-emerald-600/20 border-green-400/50"
-                              : securityScore > 60
-                              ? "bg-gradient-to-br from-yellow-400/20 to-orange-600/20 border-yellow-400/50"
-                              : "bg-gradient-to-br from-red-400/20 to-red-600/20 border-red-400/50"
-                          } backdrop-blur-sm overflow-hidden`}
-                        >
-                          {/* Actual NFT Image or Fallback */}
+                        <div className="absolute inset-0 rounded-lg border-2 border-muted/30 bg-transparent backdrop-blur-sm overflow-hidden">
+                          {/* Actual NFT Image, Generated Image, or Fallback */}
                           {nftData.nfts[0]?.imageUrl ? (
                             <div className="absolute inset-0">
                               <Image
@@ -1026,6 +1019,18 @@ export default function Dashboard() {
                                 unoptimized={nftData.nfts[0].imageUrl.startsWith('ipfs://')}
                                 onError={(e) => {
                                   // Fallback to shield icon if image fails to load
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            </div>
+                          ) : generatedNftImage ? (
+                            <div className="absolute inset-0">
+                              <img
+                                src={generatedNftImage}
+                                alt="Generated Security NFT"
+                                className="w-full h-full object-cover rounded-lg"
+                                onError={(e) => {
+                                  // Fallback to shield icon if generated image fails to load
                                   e.target.style.display = "none";
                                 }}
                               />
@@ -1042,7 +1047,7 @@ export default function Dashboard() {
                           )}
 
                           {/* Central Shield Icon (shows if no image or as overlay) */}
-                          {!nftData.nfts[0]?.imageUrl && (
+                          {!nftData.nfts[0]?.imageUrl && !generatedNftImage && (
                             <div className="absolute inset-0 flex items-center justify-center">
                               <Shield
                                 className={`h-20 w-20 ${
@@ -1056,14 +1061,7 @@ export default function Dashboard() {
                             </div>
                           )}
 
-                          {/* Score overlay */}
-                          <div className="absolute bottom-2 left-2 right-2">
-                            <div className="bg-black/50 backdrop-blur-sm rounded px-2 py-1 text-center">
-                              <span className="text-white text-xs font-medium">
-                                {securityScore}% Secure
-                              </span>
-                            </div>
-                          </div>
+
                         </div>
                       </div>
 
@@ -1071,11 +1069,17 @@ export default function Dashboard() {
                       <div className="space-y-2">
                         <h3 className="text-xl font-bold text-foreground">
                           {nftData.nfts[0]?.name ||
-                            (securityScore > 80
-                              ? "Fortress Guardian"
-                              : securityScore > 60
-                              ? "Shield Bearer"
-                              : "Vulnerable Keeper")}
+                            (generatedNftImage
+                              ? (securityScore > 80
+                                ? "AI Fortress Guardian"
+                                : securityScore > 60
+                                ? "AI Shield Bearer"
+                                : "AI Vulnerability Keeper")
+                              : (securityScore > 80
+                                ? "Fortress Guardian"
+                                : securityScore > 60
+                                ? "Shield Bearer"
+                                : "Vulnerable Keeper"))}
                         </h3>
                         <Badge
                           variant={
@@ -1086,21 +1090,26 @@ export default function Dashboard() {
                               : "warning"
                           }
                         >
-                          Security NFT • Level{" "}
-                          {Math.floor(securityScore / 20) + 1} •{" "}
-                          {nftData.totalCount} NFT
-                          {nftData.totalCount !== 1 ? "s" : ""}
+                          {generatedNftImage && !nftData.nfts[0]?.imageUrl
+                            ? "Generated Security NFT • AI-Created • Mintable"
+                            : `Security NFT • Level ${Math.floor(securityScore / 20) + 1} • ${nftData.totalCount} NFT${nftData.totalCount !== 1 ? "s" : ""}`}
                         </Badge>
                       </div>
 
                       {/* NFT Description */}
                       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                         {nftData.nfts[0]?.description ||
-                          (securityScore > 80
-                            ? "Elite password security guardian with exceptional vault protection."
-                            : securityScore > 60
-                            ? "Reliable security defender with room for improvement."
-                            : "Novice security keeper requiring immediate attention.")}
+                          (generatedNftImage && !nftData.nfts[0]?.imageUrl
+                            ? (securityScore > 80
+                              ? "AI-generated artwork representing your elite password security status."
+                              : securityScore > 60
+                              ? "AI-generated artwork showing your moderate security with potential for improvement."
+                              : "AI-generated artwork highlighting critical security vulnerabilities that need attention.")
+                            : (securityScore > 80
+                              ? "Elite password security guardian with exceptional vault protection."
+                              : securityScore > 60
+                              ? "Reliable security defender with room for improvement."
+                              : "Novice security keeper requiring immediate attention."))}
                       </p>
 
                       {nftData.totalCount > 1 && (
@@ -1293,6 +1302,7 @@ export default function Dashboard() {
                           summaryMarkdown={aiSummary}
                           stats={aiStats ?? undefined}
                           signAndExecute={signAndExecuteTransaction}
+                          onImageGenerated={setGeneratedNftImage}
                         />
                       </div>
                     </div>
