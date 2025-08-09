@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { motion } from "motion/react";
+import { Shield, Brain, Palette } from "lucide-react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,66 +19,54 @@ const geistMono = Geist_Mono({
 // Define the Bento Grid features
 const features = [
   {
-    Icon: ({ className }) => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-      </svg>
-    ),
+    Icon: Shield,
     name: "Zero-Knowledge Security",
     description: "Your passwords are encrypted with Walrus and verified through Seal, ensuring complete privacy with mathematical certainty.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-1",
     background: (
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 opacity-50 group-hover:opacity-75 transition-opacity duration-300">
-        <div className="absolute top-4 right-4 w-24 h-24 rounded-full bg-blue-500/20 animate-pulse"></div>
-        <div className="absolute bottom-4 left-4 w-16 h-16 rounded-full bg-purple-500/20 animate-bounce"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-gradient-to-r from-blue-400/10 to-purple-400/10 animate-spin"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-700/30 to-gray-800/40 opacity-60 group-hover:opacity-80 transition-opacity duration-300">
+        <div className="absolute top-4 right-4 w-24 h-24 rounded-full bg-gray-600/20 animate-pulse"></div>
+        <div className="absolute bottom-4 left-4 w-16 h-16 rounded-full bg-gray-500/20 animate-bounce"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-gradient-to-r from-gray-500/10 to-gray-600/10 animate-spin"></div>
       </div>
     ),
   },
   {
-    Icon: ({ className }) => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-      </svg>
-    ),
+    Icon: Brain,
     name: "AI-Powered Insights",
     description: "Advanced algorithms analyze your password patterns to identify vulnerabilities and suggest improvements for optimal security.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-2",
     background: (
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 to-pink-600/20 opacity-50 group-hover:opacity-75 transition-opacity duration-300">
-        <div className="absolute top-8 left-8 w-3 h-3 bg-purple-400 rounded-full animate-ping"></div>
-        <div className="absolute top-12 right-16 w-2 h-2 bg-pink-400 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
-        <div className="absolute bottom-16 left-16 w-4 h-4 bg-purple-300 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-8 right-8 w-6 h-6 border border-pink-400/40 rounded-full animate-pulse"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-700/30 to-gray-800/40 opacity-60 group-hover:opacity-80 transition-opacity duration-300">
+        <div className="absolute top-8 left-8 w-3 h-3 bg-gray-400 rounded-full animate-ping"></div>
+        <div className="absolute top-12 right-16 w-2 h-2 bg-gray-500 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute bottom-16 left-16 w-4 h-4 bg-gray-400 rounded-full animate-pulse"></div>
+        <div className="absolute bottom-8 right-8 w-6 h-6 border border-gray-400/40 rounded-full animate-pulse"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="w-20 h-20 border-2 border-purple-400/30 rounded-full animate-spin"></div>
-          <div className="absolute inset-2 border-2 border-pink-400/30 rounded-full animate-spin" style={{animationDirection: 'reverse'}}></div>
+          <div className="w-20 h-20 border-2 border-gray-400/30 rounded-full animate-spin"></div>
+          <div className="absolute inset-2 border-2 border-gray-500/30 rounded-full animate-spin" style={{animationDirection: 'reverse'}}></div>
         </div>
       </div>
     ),
   },
   {
-    Icon: ({ className }) => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z" />
-      </svg>
-    ),
+    Icon: Palette,
     name: "NFT Security Portrait", 
     description: "Mint unique NFTs that visualize your security posture, creating beautiful art from your digital protection status.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-3",
     background: (
-      <div className="absolute inset-0 bg-gradient-to-br from-pink-600/20 to-cyan-600/20 opacity-50 group-hover:opacity-75 transition-opacity duration-300">
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-700/30 to-gray-800/40 opacity-60 group-hover:opacity-80 transition-opacity duration-300">
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-pink-500/20 to-cyan-500/20 rounded-full transform rotate-45 animate-pulse"></div>
-          <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-tl from-cyan-500/20 to-pink-500/20 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-          <div className="absolute top-1/3 right-1/4 w-16 h-16 border-2 border-pink-400/30 rounded-lg transform rotate-12 animate-bounce"></div>
-          <div className="absolute bottom-1/3 left-1/4 w-12 h-12 border-2 border-cyan-400/30 rounded-lg transform -rotate-12 animate-bounce" style={{animationDelay: '0.5s'}}></div>
+          <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-gray-500/20 to-gray-600/20 rounded-full transform rotate-45 animate-pulse"></div>
+          <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-gradient-to-tl from-gray-600/20 to-gray-500/20 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+          <div className="absolute top-1/3 right-1/4 w-16 h-16 border-2 border-gray-400/30 rounded-lg transform rotate-12 animate-bounce"></div>
+          <div className="absolute bottom-1/3 left-1/4 w-12 h-12 border-2 border-gray-500/30 rounded-lg transform -rotate-12 animate-bounce" style={{animationDelay: '0.5s'}}></div>
         </div>
       </div>
     ),
@@ -88,7 +77,7 @@ export default function Home() {
   return (
     <div className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
       {/* Navigation */}
-      <nav className="relative z-10 flex items-center justify-between p-6 lg:px-8">
+      <nav className="sticky top-0 z-50 flex items-center justify-between p-6 lg:px-8 bg-[#0A0B1E]/80 backdrop-blur-sm border-b border-gray-800/50">
         <div className="flex items-center gap-2">
           <Image
             src="/logo.png"
@@ -150,8 +139,7 @@ export default function Home() {
               Security as you expect it
             </h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              Built with cutting-edge blockchain technology to ensure your passwords 
-              are not just stored, but intelligently protected and visualized.
+              Built with cutting-edge technology.
             </p>
           </div>
           

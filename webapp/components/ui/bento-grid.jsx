@@ -46,10 +46,10 @@ const BentoCard = ({
     
     <div className="relative z-10 p-8 flex flex-col justify-between h-full">
       <div className="space-y-4">
-        <div className="w-16 h-16 bg-gradient-to-r from-blue-500/80 to-purple-600/80 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-          <Icon className="h-8 w-8 text-white" />
+        <div className="w-16 h-16 bg-gradient-to-r from-gray-700/90 to-gray-800/90 border border-gray-600/40 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:border-gray-500/60 transition-all duration-300">
+          <Icon className="h-8 w-8 text-gray-200 group-hover:text-white" />
         </div>
-        <h3 className="text-2xl font-bold text-white group-hover:text-blue-300 transition-colors duration-300">
+        <h3 className="text-2xl font-bold text-white group-hover:text-gray-100 transition-colors duration-300">
           {name}
         </h3>
         <p className="text-gray-300 leading-relaxed group-hover:text-gray-200 transition-colors duration-300">
@@ -61,7 +61,7 @@ const BentoCard = ({
       <div className="mt-6 lg:opacity-0 lg:translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
         <a 
           href={href} 
-          className="inline-flex items-center text-blue-400 hover:text-blue-300 font-medium transition-colors duration-200"
+          className="inline-flex items-center text-gray-400 hover:text-gray-200 font-medium transition-colors duration-200"
         >
           {cta}
           <ArrowRightIcon className="ml-2 h-4 w-4" />
