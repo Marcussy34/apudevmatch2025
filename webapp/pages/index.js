@@ -188,7 +188,7 @@ export default function Home() {
               className="text-blue-600"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
+              transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
             >
               Grand Warden
             </motion.span>
@@ -198,7 +198,7 @@ export default function Home() {
             className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.2, duration: 0.8, ease: "easeOut" }}
+            transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
           >
             Experience the future of password security with blockchain-powered vault.
           </motion.p>
@@ -207,15 +207,19 @@ export default function Home() {
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.6, duration: 0.8, ease: "easeOut" }}
+            transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
           >
-            <Button size="lg" className="rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 shadow-lg">
+            <Button size="lg" className="rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 shadow-lg min-w-[140px] h-[52px]">
               Get Started
             </Button>
             <Modal>
-              <ModalTrigger className="border border-gray-400 hover:border-white text-gray-300 hover:text-white rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 bg-transparent flex items-center gap-2">
-                <Video className="h-5 w-5" />
-                <span>View Demo</span>
+              <ModalTrigger className="border border-gray-400 hover:border-white text-gray-300 hover:text-white rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 bg-transparent flex justify-center group/modal-btn min-w-[140px] h-[52px]">
+                <span className="group-hover/modal-btn:translate-x-40 text-center transition duration-500">
+                  View Demo
+                </span>
+                <div className="-translate-x-40 group-hover/modal-btn:translate-x-0 flex items-center justify-center absolute inset-0 transition duration-500 text-white z-20">
+                  <Video className="h-5 w-5" />
+                </div>
               </ModalTrigger>
               <ModalBody>
                 <ModalContent>
@@ -239,7 +243,7 @@ export default function Home() {
             className="flex items-center justify-center gap-6 mt-16"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2.0, duration: 0.8, ease: "easeOut" }}
+            transition={{ delay: 0.9, duration: 0.6, ease: "easeOut" }}
           >
             <span className="text-white text-lg">Built on</span>
             <div className="flex items-center gap-6">
