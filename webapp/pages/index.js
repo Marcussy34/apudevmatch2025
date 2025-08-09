@@ -268,7 +268,7 @@ export default function Home() {
       </section>
 
       {/* Globe Section */}
-      <section id="security" className="relative z-10">
+      <section id="security" className="relative z-10 py-24">
         <GlobeDemo />
       </section>
 

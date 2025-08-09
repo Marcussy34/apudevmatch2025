@@ -108,7 +108,7 @@ export const GlobeDemo = memo(function GlobeDemo() {
  
   return (
     <div className="relative w-full">
-      <div className="max-w-7xl mx-auto w-full relative h-[50rem] px-4">
+      <div className="max-w-7xl mx-auto w-full relative h-[55rem] px-4">
         <motion.div
           initial={{
             opacity: 0,
@@ -121,16 +121,16 @@ export const GlobeDemo = memo(function GlobeDemo() {
           transition={{
             duration: 1,
           }}
-          className="relative z-50 pt-16 pb-8 text-center"
+          className="relative z-50 pt-16 pb-16 text-center"
         >
-          <h2 className="text-xl md:text-4xl font-bold text-white mb-4">
+          <h2 className="text-4xl md:text-5xl heading-modern text-white mb-6">
             Used by people all over the world
           </h2>
-          <p className="text-base md:text-lg font-normal text-gray-400 max-w-md mt-2 mx-auto mb-8">
+          <p className="text-base md:text-lg font-normal text-gray-400 max-w-md mt-2 mx-auto mb-12">
             Our secure password vault protects users across all continents with cutting-edge blockchain technology.
           </p>
         </motion.div>
-        <div className="absolute top-24 left-0 right-0 bottom-0 w-full z-10">
+        <div className="absolute top-40 left-0 right-0 bottom-0 w-full z-10">
           <World data={sampleArcs} globeConfig={globeConfig} />
         </div>
       </div>
