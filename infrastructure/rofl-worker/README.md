@@ -74,32 +74,23 @@ Coordination    Layer      Events      Layer     Updates
 #### **1. Clone and Navigate**
 
 ```bash
-cd infrastructure/rofl-worker/
+   cd infrastructure/rofl-worker
 ```
 
-#### **2. Configure Environment**
-
-Create `.env` file with your private key:
+2. **Configure environment**:
 
 ```bash
-# Copy from example and add your private key
 cp .env.example .env
-
-# Edit .env and add:
-SAPPHIRE_PRIVATE_KEY=your_private_key_here
+   # Edit .env with your private key and contract addresses
 ```
 
-#### **3. Build and Run**
+3. **Build**:
 
 ```bash
-# Build the ROFL worker
-docker compose up --build
-
-# Or run detached
-docker compose up --build -d
+   cargo build --release
 ```
 
-#### **4. Verify Operation**
+4. **Run**:
 
 ```bash
 # Check health status
@@ -245,212 +236,149 @@ let converted_events = events.data.into_iter()
 ### **Local Development**
 
 ```bash
-# Build only
-docker compose build
-
-# Run with debug logging
-RUST_LOG=debug docker compose up
-
-# Run single container
-docker run --rm --env-file .env grand-warden-rofl-official:latest
-
-# Check container health
-docker compose ps
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh --release --run
 ```
 
-### **Testing Endpoints**
+## 📚 Official Documentation Compliance
+
+This implementation strictly follows official documentation:
+
+- **ethers-rs v2.0**: Event filtering with `query_with_meta()` returns `Vec<(EventStruct, LogMeta)>`, `estimate_gas()` + margin for transactions
+- **reqwest v0.11**: Manual status checks with `status.is_success()`, `is_client_error()`, `is_server_error()`, error classification with `is_timeout()`, `is_connect()`
+- **metrics-exporter-prometheus v0.13**: `PrometheusBuilder::new().install()` returns `PrometheusHandle`, serve metrics via `handle.render()`
+- **Sui JSON-RPC API**: `sui_getLatestCheckpointSequenceNumber` returns string number, parsed to u64
+- **Oasis Sapphire**: Dynamic chain ID detection via `client.get_chainid()` instead of hardcoded values
+
+## ⚙️ Configuration
+
+### Required Environment Variables
+
+| Variable                        | Description                                        | Example    |
+| ------------------------------- | -------------------------------------------------- | ---------- |
+| `SAPPHIRE_PRIVATE_KEY`          | **REQUIRED** - Private key for transaction signing | `0x123...` |
+| `CONTRACT_ATOMIC_VAULT_MANAGER` | **REQUIRED** - Deployed contract address           | `0x811...` |
+
+### Optional Configuration
+
+| Variable                    | Default                                 | Description                         |
+| --------------------------- | --------------------------------------- | ----------------------------------- |
+| `SAPPHIRE_RPC_URL`          | `https://testnet.sapphire.oasis.dev`    | Sapphire RPC endpoint               |
+| `SUI_RPC_URL`               | `https://fullnode.testnet.sui.io:443`   | Sui RPC endpoint                    |
+| `WALRUS_BASE_URL`           | `https://publisher-devnet.walrus.space` | Walrus storage endpoint             |
+| `REQUEST_TIMEOUT_SECS`      | `30`                                    | HTTP request timeout                |
+| `MAX_RETRIES`               | `3`                                     | Maximum HTTP retry attempts         |
+| `MAX_CONCURRENT_OPERATIONS` | `10`                                    | Concurrent processing limit         |
+| `CONFIRMATION_BLOCKS`       | `3`                                     | Blocks to wait for finality         |
+| `STORAGE_PATH`              | `./rofl-storage`                        | Persistent storage directory        |
+| `METRICS_PORT`              | `3000`                                  | Metrics server port                 |
+| `RUST_LOG`                  | `info,grand_warden_rofl=debug`          | Logging configuration               |
+| `WALRUS_RESPONSE_CID_KEY`   | `cid`                                   | JSON key for CID in Walrus response |
+
+## 📊 Monitoring
+
+### Metrics Endpoint
+
+- **URL**: `http://localhost:3000/metrics`
+- **Format**: Prometheus exposition format
+- **Scrape interval**: 15s recommended
+
+### Key Metrics
+
+| Metric                                   | Type      | Description                         |
+| ---------------------------------------- | --------- | ----------------------------------- |
+| `rofl_events_processed_total`            | Counter   | Events processed by source          |
+| `rofl_http_requests_total`               | Counter   | HTTP requests by API and result     |
+| `rofl_contract_calls_total`              | Counter   | Contract calls by method and result |
+| `rofl_errors_total`                      | Counter   | Errors by type and source           |
+| `rofl_last_processed_block`              | Gauge     | Last processed block by source      |
+| `rofl_processing_lag_seconds`            | Gauge     | Processing lag by source            |
+| `rofl_queue_depth`                       | Gauge     | Current processing queue depth      |
+| `rofl_event_processing_duration_seconds` | Histogram | Event processing duration           |
+| `rofl_http_request_duration_seconds`     | Histogram | HTTP request duration               |
+
+### Health Check
+
+- **URL**: `http://localhost:3000/health`
+- **Response**: `OK` (200) when healthy
+
+## 🧪 Testing
+
+### Unit Tests
 
 ```bash
-# Health check (should return 200 OK)
-curl -i http://localhost:8080/health
-
-# Metrics (Prometheus format)
-curl http://localhost:8080/metrics
-
-# Expected health response:
-# {"status":"healthy","service":"grand-warden-rofl-bridge","mode":"production","timestamp":"2025-01-XX","version":"1.0.0"}
+cargo test
 ```
 
-### **Troubleshooting**
-
-#### **Build Issues**
+### Integration Tests
 
 ```bash
-# Clean build
-docker system prune -f
-docker compose build --no-cache
-
-# Check platform
-docker build --platform linux/amd64 -t test .
+# With actual contracts deployed
+export SAPPHIRE_PRIVATE_KEY=0x...
+export CONTRACT_ATOMIC_VAULT_MANAGER=0x...
+cargo test --features integration
 ```
 
-#### **Network Issues**
+### Linting
 
 ```bash
-# Test Sapphire connectivity
-curl -X POST https://testnet.sapphire.oasis.dev \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}'
-
-# Expected: {"jsonrpc":"2.0","id":1,"result":"0x5aff"}
+cargo clippy -- -D warnings
 ```
 
-#### **Insufficient Balance**
+### Formatting
 
 ```bash
-# Check wallet balance
-# The app will show: "💰 Wallet balance: X.X ROSE"
-# Need at least 1 ROSE for gas fees
+cargo fmt --check
 ```
 
-## 🚀 Future Implementation Roadmap
+## 🔧 Development
 
-### **Phase 2: Real Sui Integration**
+### Adding New Event Types
 
-**When**: After friend completes Sui Move contracts
+1. Update `RoflEventType` enum
+2. Add event processing logic in `process_rofl_event()`
+3. Add corresponding HTTP client function
+4. Update metrics and documentation
 
-**Tasks**:
-
-1. **Update Configuration**: Set real `SUI_CONTRACT_PACKAGE` ID
-2. **Add Sui SDK**: Include Sui Rust SDK dependency
-3. **Implement Real Monitoring**: Replace mock events with real Sui RPC calls
-4. **Event Parsing**: Parse actual Sui event structures
-5. **Testing**: End-to-end testing with real contracts
-
-**Code Changes**:
-
-```rust
-// Add to Cargo.toml
-sui-sdk = "1.0"
-sui-types = "1.0"
-
-// Update monitor_sui_events() function
-async fn monitor_sui_events(config: &RoflConfig) -> Result<Vec<SuiEvent>> {
-    let sui_client = SuiClientBuilder::default()
-        .build(&config.sui_rpc_url)
-        .await?;
-
-    // Real event querying implementation
-}
-```
-
-### **Phase 3: Production Deployment**
-
-**Tasks**:
-
-1. **ROFL Registry**: Register with official Oasis ROFL providers
-2. **Testnet Deployment**: Deploy to Sapphire testnet
-3. **Monitoring**: Production monitoring and alerting
-4. **Load Testing**: Stress test with high event volumes
-5. **Documentation**: Complete API documentation
-
-**Commands**:
+### Debugging
 
 ```bash
-# Build with official ROFL tools
-oasis rofl build
+# Enable debug logging
+export RUST_LOG=debug,grand_warden_rofl=trace
+cargo run
 
-# Deploy to testnet
-oasis rofl deploy --network testnet --provider <provider-address>
-
-# Monitor status
-oasis rofl status
+# Check storage state
+ls -la ./rofl-storage/
 ```
 
-### **Phase 4: Advanced Features**
+### Performance Tuning
 
-**Enhancements**:
+- Adjust `MAX_CONCURRENT_OPERATIONS` based on load
+- Tune `MAX_BLOCK_RANGE` for optimal batch processing
+- Monitor queue depth and processing lag metrics
 
-- **Event Batching**: Process multiple events in single transaction
-- **Retry Strategies**: Exponential backoff and dead letter queues
-- **Multi-Provider Support**: Support multiple ROFL providers
-- **Advanced Metrics**: Detailed performance and business metrics
-- **Circuit Breakers**: Automatic failover mechanisms
+## 📋 Definition of Done
 
-## 📊 Performance Metrics
+✅ **Compilation**: `cargo build` and `cargo clippy` pass  
+✅ **Event Processing**: Sapphire log decoding works with typed filters  
+✅ **Contract Integration**: Contract reports succeed on devnet with proper retries  
+✅ **Persistence**: Cursors persist and survive restart with exactly-once replay  
+✅ **Metrics**: `/metrics` endpoint exposes Prometheus metrics  
+✅ **HTTP Integration**: Real HTTP calls to Walrus and Sui with proper error handling  
+✅ **Reliability**: Bounded concurrency, graceful shutdown, comprehensive error handling
 
-### **Current Benchmarks**
+## 🏷️ Release Notes
 
-| Metric                         | Target      | Current      | Status |
-| ------------------------------ | ----------- | ------------ | ------ |
-| **Event Processing Latency**   | <10 seconds | ~2-5 seconds | ✅     |
-| **Transaction Success Rate**   | >95%        | >97%         | ✅     |
-| **Event Translation Accuracy** | 100%        | 100%         | ✅     |
-| **Bridge Uptime**              | >99.5%      | >99.9%       | ✅     |
-| **Gas Usage per Transaction**  | <50,000     | ~26,905      | ✅     |
+### v1.0.0 - Phase 4 Devnet Ready
 
-### **Monitoring Endpoints**
-
-- **Health**: `GET /health` - Service health status
-- **Metrics**: `GET /metrics` - Prometheus-compatible metrics
-- **Ready**: Container health check via Docker
-
-## 🔐 Security Features
-
-### **Implemented**
-
-- ✅ **Private Key Security**: Environment variable isolation
-- ✅ **Container Security**: Non-root user execution
-- ✅ **Network Security**: Outbound-only network access
-- ✅ **Input Validation**: All event data validated before processing
-- ✅ **Error Handling**: No sensitive data in error messages
-
-### **ROFL Security**
-
-- 🔒 **TEE Execution**: Intel TDX trusted execution environment
-- 🔒 **Remote Attestation**: Cryptographic proof of integrity
-- 🔒 **Encrypted Communication**: Secure channel to blockchain RPCs
-- 🔒 **Secret Management**: Hardware-backed secret storage
-
-## 📚 Documentation
-
-- **`BUILDPLAN.md`**: Overall project architecture and requirements
-- **`rofl.yaml`**: Official ROFL application manifest
-- **`compose.yaml`**: Docker Compose configuration
-- **`SUI_INTEGRATION_GUIDE.md`**: Step-by-step Sui integration guide
-- **`ROFL_SETUP_GUIDE.md`**: Official ROFL deployment guide
-
-## 🤝 Integration Points
-
-### **The Graph Subgraph**
-
-The ROFL bridge emits synthetic events that are indexed by The Graph:
-
-```graphql
-type VaultEvent {
-  id: ID!
-  user: Bytes!
-  eventType: Int!
-  data: Bytes!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-}
-```
-
-### **Frontend Integration**
-
-React components can query real-time data via GraphQL:
-
-```typescript
-const { data } = useQuery(GET_VAULT_EVENTS, {
-  variables: { user: userAddress },
-});
-```
+- Complete abigen integration with type-safe contract bindings
+- Idempotency and ordering guarantees for exactly-once processing
+- Real HTTP clients with exponential backoff and proper error classification
+- Comprehensive Prometheus metrics with PrometheusHandle integration
+- Bounded concurrency and graceful shutdown for production reliability
+- Durable cursor persistence with automatic replay/backfill capability
 
 ---
 
-## 🎊 **Ready for Production**
-
-The Grand Warden ROFL Critical Data Bridge is **production-ready** with:
-
-- ✅ **Official ROFL Compliance**: Follows all Oasis patterns
-- ✅ **Proven Sapphire Integration**: Real contract calls working
-- ✅ **Seamless Sui Integration Path**: Ready for your friend's contracts
-- ✅ **Performance Requirements Met**: All BUILDPLAN.md targets achieved
-- ✅ **Security Best Practices**: TEE, secrets management, validation
-- ✅ **Monitoring & Observability**: Health checks, metrics, logging
-
-**The critical path bottleneck is solved!** You can now develop and test the complete Grand Warden system while Sui contracts are being finalized.
-
-🚀 **Next Steps**: Update `SUI_CONTRACT_PACKAGE` when contracts are ready, and you'll have seamless end-to-end event bridging!
+**Status**: ✅ Phase 4 Complete - Devnet Ready  
+**Next**: Deploy to production ROFL infrastructure and integrate with live contracts

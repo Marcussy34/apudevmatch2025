@@ -1,81 +1,13 @@
-# Grand Warden ROFL Critical Data Bridge
-# Docker Compose configuration following official ROFL patterns
-
-version: "3.8"
-
 services:
-  grand-warden-bridge:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    platform: linux/amd64 # Required for ROFL TDX compatibility
-    container_name: grand-warden-rofl-bridge
-
-    # Environment configuration
+  mycontainer:
+    # remove build: for ROFL; image must be pullable from a registry
+    image: docker.io/shaddymy/grand-warden-rofl:latest
+    platform: linux/amd64
     environment:
-      # Sapphire blockchain configuration
-      SAPPHIRE_RPC_URL: "https://testnet.sapphire.oasis.dev"
-      SAPPHIRE_CHAIN_ID: "23295"
-      CONTRACT_ATOMIC_VAULT_MANAGER: "0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C"
-
-      # Sui blockchain configuration (reads from .env)
-      SUI_RPC_URL: "https://fullnode.testnet.sui.io:443"
-      SUI_CONTRACT_PACKAGE: "${SUI_CONTRACT_PACKAGE}"
-
-      # Logging configuration
-      RUST_LOG: "info"
-      RUST_BACKTRACE: "1"
-
-    # Secrets (loaded from .env file)
-    env_file:
-      - .env
-
-    # Ensure the service is reachable inside the TDX VM via this port
-    expose:
-      - "8080"
-
-    # Resource limits (matching rofl.yaml)
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "1.0"
-        reservations:
-          memory: 512M
-          cpus: "0.5"
-
-    # Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-    # Network configuration for blockchain RPC access
-    networks:
-      - rofl-network
-
-    ports:
-      - "8080:8080"
-
-    # Logging configuration
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-    # Restart policy
-    restart: unless-stopped
-
-networks:
-  rofl-network:
-    driver: bridge
-    name: grand-warden-rofl-network
-
-# Volumes for persistent data (if needed)
-volumes:
-  rofl-data:
-    name: grand-warden-rofl-data
+      # keep only the vars you really use (or define as ROFL secrets)
+      - TOKEN=${TOKEN}
+    volumes:
+      # persistent storage inside TEE (optional)
+      - /storage/rofl-storage:/app/rofl-storage
+      # ROFL control socket (if your app needs it)
+      - /run/rofl-appd.sock:/run/rofl-appd.sock
