@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { motion } from "motion/react";
 import { Shield, Brain, Palette } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -75,11 +76,36 @@ const features = [
 ];
 
 export default function Home() {
+  const [isScrollingDown, setIsScrollingDown] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Scrolling down and past 100px
+        setIsScrollingDown(true);
+      } else if (currentScrollY < lastScrollY) {
+        // Scrolling up
+        setIsScrollingDown(false);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [lastScrollY]);
+
   return (
     <div className={`${inter.variable} ${interTight.variable} font-sans`}>
       {/* Navigation */}
       <nav className="sticky top-0 z-50 flex items-center justify-between p-6 lg:px-8 bg-[#0A0B1E]/95 backdrop-blur-sm border-b border-gray-800/50">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-4">
           <Image
             src="/logo.png"
             alt="Grand Warden Logo"
@@ -87,7 +113,20 @@ export default function Home() {
             height={32}
             className="rounded-lg"
           />
-          <span className="text-xl font-bold text-white font-[family-name:var(--font-inter-tight)]">Grand Warden</span>
+          <motion.span 
+            className="text-xl font-bold text-white font-[family-name:var(--font-inter-tight)] overflow-hidden whitespace-nowrap"
+            initial={{ width: "auto", opacity: 1 }}
+            animate={{ 
+              width: isScrollingDown ? "0px" : "auto",
+              opacity: isScrollingDown ? 0 : 1
+            }}
+            transition={{ 
+              duration: 0.3, 
+              ease: "easeInOut" 
+            }}
+          >
+            Grand Warden
+          </motion.span>
         </div>
         <div className="hidden md:flex items-center gap-8">
           <a href="#features" className="text-white hover:text-gray-200 transition-colors">Features</a>
