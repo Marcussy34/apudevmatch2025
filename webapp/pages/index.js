@@ -1,19 +1,20 @@
 import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { motion } from "motion/react";
 import { Shield, Brain, Palette } from "lucide-react";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const interTight = Inter({
+  variable: "--font-inter-tight",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 // Define the Bento Grid features
@@ -75,9 +76,9 @@ const features = [
 
 export default function Home() {
   return (
-    <div className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
+    <div className={`${inter.variable} ${interTight.variable} font-sans`}>
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between p-6 lg:px-8 bg-[#0A0B1E]/80 backdrop-blur-sm border-b border-gray-800/50">
+      <nav className="sticky top-0 z-50 flex items-center justify-between p-6 lg:px-8 bg-[#0A0B1E]/95 backdrop-blur-sm border-b border-gray-800/50">
         <div className="flex items-center gap-2">
           <Image
             src="/logo.png"
@@ -86,12 +87,12 @@ export default function Home() {
             height={32}
             className="rounded-lg"
           />
-          <span className="text-xl font-bold text-white">Grand Warden</span>
+          <span className="text-xl font-bold text-white font-[family-name:var(--font-inter-tight)]">Grand Warden</span>
         </div>
         <div className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
-          <a href="#security" className="text-gray-300 hover:text-white transition-colors">Security</a>
-          <a href="#docs" className="text-gray-300 hover:text-white transition-colors">Docs</a>
+          <a href="#features" className="text-white hover:text-gray-200 transition-colors">Features</a>
+          <a href="#security" className="text-white hover:text-gray-200 transition-colors">Security</a>
+          <a href="#docs" className="text-white hover:text-gray-200 transition-colors">Docs</a>
           <Button size="lg" className="rounded-full">
             Get Started
           </Button>
@@ -110,7 +111,7 @@ export default function Home() {
           }}
           className="relative flex flex-col gap-4 items-center justify-center px-6 max-w-6xl mx-auto text-center"
         >
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight font-[family-name:var(--font-inter-tight)]">
             Secure with
             <br />
             <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
@@ -135,7 +136,7 @@ export default function Home() {
       <section id="features" className="py-24 px-6 relative">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 font-[family-name:var(--font-inter-tight)]">
               Security as you expect it
             </h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto">
@@ -154,7 +155,7 @@ export default function Home() {
       {/* Trust Section */}
       <section id="security" className="py-24 px-6 bg-gradient-to-r from-surface-primary/50 to-surface-secondary/50">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 font-[family-name:var(--font-inter-tight)]">
             Enhanced by cutting-edge technology
           </h2>
           <p className="text-xl text-gray-400 mb-16 max-w-3xl mx-auto">
@@ -171,7 +172,7 @@ export default function Home() {
                   </svg>
                 </div>
                 <div className="text-left">
-                  <h3 className="text-xl font-semibold text-white mb-2">ROFL Integration</h3>
+                  <h3 className="text-xl font-semibold text-white mb-2 font-[family-name:var(--font-inter-tight)]">ROFL Integration</h3>
                   <p className="text-gray-400">Runtime OFfchain Logic for secure computation outside the blockchain while maintaining trust.</p>
                 </div>
               </div>
@@ -183,7 +184,7 @@ export default function Home() {
                   </svg>
                 </div>
                 <div className="text-left">
-                  <h3 className="text-xl font-semibold text-white mb-2">Red Pill Phala Network</h3>
+                  <h3 className="text-xl font-semibold text-white mb-2 font-[family-name:var(--font-inter-tight)]">Red Pill Phala Network</h3>
                   <p className="text-gray-400">Confidential computing infrastructure ensuring your data remains private even during processing.</p>
                 </div>
               </div>
@@ -211,7 +212,7 @@ export default function Home() {
                   height={32}
                   className="rounded-lg"
                 />
-                <span className="text-xl font-bold text-white">Grand Warden</span>
+                <span className="text-xl font-bold text-white font-[family-name:var(--font-inter-tight)]">Grand Warden</span>
               </div>
               <p className="text-gray-400">
                 The future of password security, powered by blockchain technology.
@@ -219,7 +220,7 @@ export default function Home() {
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4">Product</h4>
+              <h4 className="text-white font-semibold mb-4 font-[family-name:var(--font-inter-tight)]">Product</h4>
               <div className="space-y-2">
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Features</a>
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Security</a>
@@ -228,7 +229,7 @@ export default function Home() {
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4">Developers</h4>
+              <h4 className="text-white font-semibold mb-4 font-[family-name:var(--font-inter-tight)]">Developers</h4>
               <div className="space-y-2">
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Documentation</a>
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">API Reference</a>
@@ -237,7 +238,7 @@ export default function Home() {
             </div>
             
             <div>
-              <h4 className="text-white font-semibold mb-4">Community</h4>
+              <h4 className="text-white font-semibold mb-4 font-[family-name:var(--font-inter-tight)]">Community</h4>
               <div className="space-y-2">
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Discord</a>
                 <a href="#" className="block text-gray-400 hover:text-white transition-colors">Twitter</a>
