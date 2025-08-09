@@ -147,10 +147,10 @@ export const GlobeDemo = memo(function GlobeDemo() {
           className="relative z-50 pt-16 pb-16 text-center"
         >
           <h2 className="text-4xl md:text-5xl heading-modern text-white mb-6">
-            Used by people all over the world
+            Trusted by many around the world
           </h2>
           <p className="text-base md:text-lg font-normal text-gray-400 max-w-md mt-2 mx-auto mb-12">
-            Our secure password vault protects users across all continents with cutting-edge blockchain technology.
+            Protecting users across all continents.
           </p>
         </motion.div>
         <div className="absolute top-40 left-0 right-0 bottom-0 w-full z-10">
