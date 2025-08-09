@@ -22,14 +22,54 @@
   --surface-primary: #0F172A;
   --surface-secondary: #1E293B;
   
-  /* Legacy support */
+  /* shadcn/ui Design System */
   --background: var(--sui-navy);
   --foreground: var(--text-primary);
+  --card: var(--surface-secondary);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-secondary);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--sui-bright-blue);
+  --primary-foreground: var(--text-primary);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--text-secondary);
+  --muted: var(--surface-primary);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--sui-electric-blue);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--danger-red);
+  --destructive-foreground: var(--text-primary);
+  --border: hsl(217 32% 17%);
+  --input: hsl(217 32% 17%);
+  --ring: var(--sui-bright-blue);
+  --radius: 0.5rem;
 }
 
 @theme inline {
+  /* Base colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  
+  /* shadcn/ui colors */
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  /* SUI Brand colors */
   --color-sui-navy: var(--sui-navy);
   --color-sui-dark-blue: var(--sui-dark-blue);
   --color-sui-bright-blue: var(--sui-bright-blue);
@@ -45,8 +85,48 @@
   --color-text-muted: var(--text-muted);
   --color-surface-primary: var(--surface-primary);
   --color-surface-secondary: var(--surface-secondary);
+  
+  /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Border radius */
+  --radius: var(--radius);
+  
+  /* Aurora animations */
+  --animate-aurora: aurora 60s linear infinite;
+  @keyframes aurora {
+    from {
+      background-position:
+        50% 50%,
+        50% 50%;
+    }
+    to {
+      background-position:
+        350% 50%,
+        350% 50%;
+    }
+  }
+  
+  @keyframes aurora-1 {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  @keyframes aurora-2 {
+    0% { background-position: 100% 0%; }
+    50% { background-position: 0% 100%; }
+    100% { background-position: 100% 0%; }
+  }
+  
+  @keyframes aurora-wave {
+    0% { background-position: 0% 0%; }
+    25% { background-position: 100% 100%; }
+    50% { background-position: 200% 0%; }
+    75% { background-position: 100% 100%; }
+    100% { background-position: 0% 0%; }
+  }
 }
 
 body {
