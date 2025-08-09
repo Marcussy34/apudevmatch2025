@@ -1,0 +1,99 @@
+import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Shield, LogOut, User, Copy, CheckCheck } from 'lucide-react'
+import { useCurrentAccount } from '@mysten/dapp-kit'
+
+interface HeaderProps {
+  isLoggedIn?: boolean;
+  onSignOut?: () => void;
+}
+
+// Function to format address with ellipsis
+const formatAddress = (address: string) => {
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+};
+
+const Header: React.FC<HeaderProps> = ({ isLoggedIn, onSignOut }) => {
+  const currentAccount = useCurrentAccount()
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [provider, setProvider] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  // Sync from dapp-kit current account; fallback to any previously stored provider
+  useEffect(() => {
+    setWalletAddress(currentAccount?.address ?? null)
+    const storedProvider = localStorage.getItem('zkLoginProvider')
+    setProvider(storedProvider)
+  }, [currentAccount])
+
+  const handleCopyAddress = () => {
+    if (walletAddress) {
+      navigator.clipboard.writeText(walletAddress)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleSignOut = () => {
+    localStorage.removeItem('zkLoginProvider')
+    setWalletAddress(null)
+    setProvider(null)
+    if (onSignOut) {
+      onSignOut()
+    }
+  }
+
+  return (
+    <header className="p-4 border-b border-cyber-700/50 bg-cyber-800/90 backdrop-blur-sm">
+      <div className="container mx-auto flex justify-between items-center">
+        <Link to="/" className="flex items-center space-x-3">
+          <Shield className="w-6 h-6 text-primary-400" />
+          <span className="text-xl font-bold text-cyber-100">Grand Warden</span>
+        </Link>
+        
+        {isLoggedIn && (
+          <div className="flex items-center space-x-4">
+            {/* Wallet Address Display */}
+            {walletAddress && (
+              <div className="hidden sm:flex items-center space-x-2">
+                <div className="cyber-border rounded-full p-2 bg-cyber-700/30">
+                  <div className="flex items-center">
+                    <div className={`w-2 h-2 rounded-full ${provider === 'google' ? 'bg-red-500' : 'bg-blue-500'} mr-2`}></div>
+                    <span className="text-xs font-mono text-cyber-300">
+                      {formatAddress(walletAddress)}
+                    </span>
+                    <button 
+                      onClick={handleCopyAddress}
+                      className="ml-2 text-cyber-400 hover:text-cyber-200 transition-colors"
+                      title="Copy address"
+                    >
+                      {copied ? (
+                        <CheckCheck className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="cyber-border rounded-full p-1 bg-cyber-700/30">
+                  <User className="w-6 h-6 text-primary-400" strokeWidth={1.5} />
+                </div>
+              </div>
+            )}
+
+            {/* Sign Out Button */}
+            <button 
+              onClick={handleSignOut}
+              className="cyber-button-secondary p-2 flex items-center space-x-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </header>
+  )
+}
+
+export default Header

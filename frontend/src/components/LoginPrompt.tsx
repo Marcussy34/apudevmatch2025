@@ -26,12 +26,18 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ onLoginClick }) => {
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     setIsLoading(provider)
-    
-    // Simulate login process
-    setTimeout(() => {
+    try {
+      // Open the webapp for login (use plain origin; avoid duplicating query)
+      const url = 'http://localhost:5173/'
+      const [tab] = await chrome.tabs.query({ url })
+      if (tab?.id) {
+        await chrome.tabs.update(tab.id, { active: true })
+      } else {
+        await chrome.tabs.create({ url })
+      }
+    } finally {
       setIsLoading(null)
-      onLoginClick()
-    }, 2000)
+    }
   }
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">

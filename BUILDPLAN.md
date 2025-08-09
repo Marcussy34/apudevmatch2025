@@ -271,7 +271,6 @@ module grandwarden::device_registry {
         owner: address,
         device_name: String,
         public_key: vector<u8>,
-        sapphire_counterpart: address,
         registered_at: u64,
         status: u8, // Active, Revoked, Suspended
     }
@@ -279,7 +278,6 @@ module grandwarden::device_registry {
     public fun register_device(
         device_name: String,
         public_key: vector<u8>,
-        sapphire_address: address,
         ctx: &mut TxContext
     ): DeviceInfo
 
