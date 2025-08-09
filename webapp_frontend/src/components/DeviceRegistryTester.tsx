@@ -3,7 +3,7 @@ import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@
 import { Transaction } from '@mysten/sui/transactions'
 import { v4 as uuidv4 } from 'uuid'
 
-const PACKAGE_ID = '0x79e411e22b615490b1fd55b188c7730fcdd06a30c0b77f7c2bfa5433325e7826'
+const PACKAGE_ID = '0xda0d195bf027d7991d602b196d3e0ad5e8c4e167a8beb9d9a8b0f6d33b4ce723'
 const MODULE = 'device_registry'
 
 export default function DeviceRegistryTester() {
