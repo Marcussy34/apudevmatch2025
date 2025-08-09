@@ -201,16 +201,91 @@ export default function Dashboard() {
   // Basic metrics placeholders (will derive from real list)
   const [passwordList, setPasswordList] = useState([]);
   const [localRefCount, setLocalRefCount] = useState(0);
-  const securityScore = nftData?.securityScore || 85;
+  const [aiSummary, setAiSummary] = useState(null);
+  const [aiStats, setAiStats] = useState(null);
+  
+  // Calculate security score from AI summary data
+  const calculateSecurityScore = () => {
+    // If we have AI stats, use them
+    if (aiStats?.total_checked && aiStats?.total_pwned !== undefined) {
+      const totalChecked = aiStats.total_checked;
+      const totalPwned = aiStats.total_pwned;
+      if (totalChecked === 0) return 85; // Default if no data
+      const breachRatio = totalPwned / totalChecked;
+      // Convert breach ratio to security score (inverse relationship)
+      // 0% breached = 100% secure, 100% breached = 0% secure
+      return Math.max(10, Math.round((1 - breachRatio) * 100));
+    }
+    
+    // If we have AI summary text, parse it
+    if (aiSummary) {
+      const totalCheckedMatch = aiSummary.match(/Total\s+(?:Accounts\s+)?Checked:\s*(\d+)/i);
+      const totalPwnedMatch = aiSummary.match(/Total\s+(?:Accounts\s+)?Pwned:\s*(\d+)/i);
+      
+      if (totalCheckedMatch && totalPwnedMatch) {
+        const totalChecked = parseInt(totalCheckedMatch[1]);
+        const totalPwned = parseInt(totalPwnedMatch[1]);
+        if (totalChecked === 0) return 85; // Default if no data
+        const breachRatio = totalPwned / totalChecked;
+        return Math.max(10, Math.round((1 - breachRatio) * 100));
+      }
+    }
+    
+    // Use NFT data or fallback to default
+    return nftData?.securityScore || 85;
+  };
+  
+  const securityScore = calculateSecurityScore();
   const totalPasswords = Math.max(passwordList.length, localRefCount);
-  const weakPasswords = 0;
-  const breachedPasswords = 0;
+  
+  // Calculate weak passwords from AI summary data
+  const calculateWeakPasswords = () => {
+    // If we have AI stats, use them
+    if (aiStats?.total_weak !== undefined) {
+      return aiStats.total_weak;
+    }
+    
+    // If we have AI summary text, parse it
+    if (aiSummary) {
+      const weakPasswordMatch = aiSummary.match(/(?:Weak|Poor|Low[\s-]?Strength).*?Passwords?:\s*(\d+)/i);
+      if (weakPasswordMatch) {
+        return parseInt(weakPasswordMatch[1]);
+      }
+      
+      // Alternative patterns to look for weak passwords
+      const altWeakMatch = aiSummary.match(/(\d+).*?(?:weak|poor|low[\s-]?strength).*?password/i);
+      if (altWeakMatch) {
+        return parseInt(altWeakMatch[1]);
+      }
+      
+      // If we can't find specific weak password data, estimate based on breach ratio
+      const totalChecked = parseInt(aiSummary.match(/Total\s+(?:Accounts\s+)?Checked:\s*(\d+)/i)?.[1] || '0');
+      const totalPwned = parseInt(aiSummary.match(/Total\s+(?:Accounts\s+)?Pwned:\s*(\d+)/i)?.[1] || '0');
+      
+      if (totalChecked > 0) {
+        // Estimate: assume some percentage of non-breached accounts might have weak passwords
+        const breachRatio = totalPwned / totalChecked;
+        if (breachRatio > 0.5) {
+          // High breach ratio suggests more weak passwords
+          return Math.ceil(totalChecked * 0.3);
+        } else if (breachRatio > 0.2) {
+          // Medium breach ratio
+          return Math.ceil(totalChecked * 0.15);
+        } else {
+          // Low breach ratio
+          return Math.ceil(totalChecked * 0.05);
+        }
+      }
+    }
+    
+    return 0;
+  };
+  
+  const weakPasswords = calculateWeakPasswords();
+  const breachedPasswords = aiStats?.total_pwned || (aiSummary ? parseInt(aiSummary.match(/Total\s+(?:Accounts\s+)?Pwned:\s*(\d+)/i)?.[1] || '0') : 0);
   const reusedPasswords = 0;
 
   const recentPasswords = passwordList;
-
-  const [aiSummary, setAiSummary] = useState(null);
-  const [aiStats, setAiStats] = useState(null);
 
   const sendBatchAndSummarize = async () => {
     try {
@@ -989,11 +1064,6 @@ export default function Dashboard() {
                   {isLoadingNfts ? (
                     // Loading state
                     <>
-                      <div className="relative w-48 h-48 mx-auto">
-                        <div className="absolute inset-0 rounded-lg border-2 border-muted bg-muted/20 backdrop-blur-sm flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        </div>
-                      </div>
                       <div className="space-y-2">
                         <div className="h-6 bg-muted animate-pulse rounded"></div>
                         <div className="h-4 bg-muted animate-pulse rounded w-32 mx-auto"></div>
@@ -1005,65 +1075,6 @@ export default function Dashboard() {
                   ) : nftData ? (
                     // NFT found state
                     <>
-                      {/* NFT Image */}
-                      <div className="relative w-48 h-48 mx-auto">
-                        <div className="absolute inset-0 rounded-lg border-2 border-muted/30 bg-transparent backdrop-blur-sm overflow-hidden">
-                          {/* Actual NFT Image, Generated Image, or Fallback */}
-                          {nftData.nfts[0]?.imageUrl ? (
-                            <div className="absolute inset-0">
-                              <Image
-                                src={nftData.nfts[0].imageUrl}
-                                alt={nftData.nfts[0].name || "NFT"}
-                                fill
-                                className="object-cover rounded-lg"
-                                unoptimized={nftData.nfts[0].imageUrl.startsWith('ipfs://')}
-                                onError={(e) => {
-                                  // Fallback to shield icon if image fails to load
-                                  e.target.style.display = "none";
-                                }}
-                              />
-                            </div>
-                          ) : generatedNftImage ? (
-                            <div className="absolute inset-0">
-                              <img
-                                src={generatedNftImage}
-                                alt="Generated Security NFT"
-                                className="w-full h-full object-cover rounded-lg"
-                                onError={(e) => {
-                                  // Fallback to shield icon if generated image fails to load
-                                  e.target.style.display = "none";
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700">
-                              <Image
-                                src="/placeholder-avatar.svg"
-                                alt="NFT Placeholder"
-                                fill
-                                className="object-cover opacity-10"
-                              />
-                            </div>
-                          )}
-
-                          {/* Central Shield Icon (shows if no image or as overlay) */}
-                          {!nftData.nfts[0]?.imageUrl && !generatedNftImage && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Shield
-                                className={`h-20 w-20 ${
-                                  securityScore > 80
-                                    ? "text-green-400"
-                                    : securityScore > 60
-                                    ? "text-yellow-400"
-                                    : "text-red-400"
-                                }`}
-                              />
-                            </div>
-                          )}
-
-
-                        </div>
-                      </div>
 
                       {/* NFT Title & Category */}
                       <div className="space-y-2">
@@ -1123,30 +1134,6 @@ export default function Dashboard() {
                   ) : (
                     // No NFTs found - placeholder state
                     <>
-                      {/* Empty NFT Placeholder */}
-                      <div className="relative w-48 h-48 mx-auto">
-                        <div className="absolute inset-0 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/10 backdrop-blur-sm overflow-hidden">
-                          {/* Placeholder background */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-slate-900/20 to-slate-700/20">
-                            <Image
-                              src="/placeholder-avatar.svg"
-                              alt="No NFT Placeholder"
-                              fill
-                              className="object-cover opacity-5"
-                            />
-                          </div>
-
-                          {/* Central placeholder icon */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="text-center space-y-2">
-                              <Shield className="h-16 w-16 text-muted-foreground/50 mx-auto" />
-                              <div className="text-xs text-muted-foreground/70 font-medium">
-                                No NFT Found
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
 
                       {/* Placeholder Title & Category */}
                       <div className="space-y-2">
