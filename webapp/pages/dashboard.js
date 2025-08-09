@@ -67,6 +67,7 @@ export default function Dashboard() {
     emailUsername: "",
     password: ""
   });
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Enable dark mode by default
   useEffect(() => {
@@ -162,18 +163,14 @@ export default function Dashboard() {
       emailUsername: "",
       password: ""
     });
+    setShowNewPassword(false);
     
     // Close modal (this would be handled by the modal context)
     alert('Password added successfully!');
   };
 
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < 16; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    handleInputChange('password', password);
+  const toggleNewPasswordVisibility = () => {
+    setShowNewPassword(!showNewPassword);
   };
 
   return (
@@ -476,9 +473,9 @@ export default function Dashboard() {
       <ModalBody>
         <ModalContent>
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
           >
             <h2 className="text-2xl font-bold text-foreground mb-6">Add New Password</h2>
             <form onSubmit={handleFormSubmit} className="space-y-6">
@@ -518,23 +515,28 @@ export default function Dashboard() {
               
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <div className="flex gap-2">
+                <div className="relative">
                   <Input
                     id="password"
-                    type="password"
-                    placeholder="Enter or generate a secure password"
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Enter a secure password"
                     value={formData.password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
                     required
-                    className="flex-1"
+                    className="pr-10"
                   />
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={generatePassword}
-                    className="px-3"
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleNewPasswordVisibility}
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   >
-                    <RefreshCw className="h-4 w-4" />
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
                   </Button>
                 </div>
               </div>
