@@ -768,17 +768,8 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.6, ease: "easeOut" }}
             >
-              Welcome back, Marcus
+              Welcome back, {account?.address ? truncateAddress(account.address) : 'User'}
             </motion.h1>
-            <motion.p
-              className="text-muted-foreground"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-            >
-              Your security dashboard is ready. Here&apos;s your password vault
-              overview.
-            </motion.p>
           </motion.div>
 
           {/* NFT Security Status Display - Always show with placeholder when no NFTs */}
