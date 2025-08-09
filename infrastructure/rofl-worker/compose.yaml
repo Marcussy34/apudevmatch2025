@@ -9,7 +9,7 @@ services:
       context: .
       dockerfile: Dockerfile
 
-    platform: linux/amd64 # Required for ROFL TDX compatibility
+    # platform: linux/amd64 # Commented out for local development on ARM64 Macs
     container_name: grand-warden-rofl-bridge
 
     # Environment configuration

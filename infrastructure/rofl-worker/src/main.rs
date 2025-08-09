@@ -26,20 +26,25 @@ use std::env;
 /// - 100% event translation accuracy
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize structured logging
+    // Initialize structured logging with better format for debugging
     tracing_subscriber::fmt()
         .with_env_filter(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "info,grand_warden_rofl=debug".to_string())
         )
         .with_target(true)
         .with_thread_ids(true)
-        .json()
         .init();
+    
+    // Early debug output to stderr to ensure we see startup
+    eprintln!("🚀 EARLY: Grand Warden ROFL starting up...");
 
     info!("🚀 Grand Warden ROFL Critical Data Bridge Starting");
+    info!("📊 Environment: RUST_LOG={}", std::env::var("RUST_LOG").unwrap_or_else(|_| "default".to_string()));
 
     // Start lightweight HTTP server for health and test ingestion
-    start_http_server();
+    info!("🌐 Starting HTTP server...");
+    let server_handle = start_http_server().await?;
+    info!("✅ HTTP server started successfully on :8080");
     info!("📋 ROFL API Mode (Sui listener disabled)");
 
     // Sui listener and Sapphire bridge removed per new design
@@ -49,7 +54,7 @@ async fn main() -> Result<()> {
     let mut interval = interval(Duration::from_secs(60));
     loop {
         interval.tick().await;
-        info!("💤 idle heartbeat");
+        info!("💤 idle heartbeat - server still running");
     }
 }
 
@@ -62,17 +67,27 @@ struct TestCredential {
     password: String,
 }
 
-fn start_http_server() {
-    tokio::spawn(async move {
-        let addr = ([0, 0, 0, 0], 8080).into();
-        let make_svc = make_service_fn(|_conn| async {
-            Ok::<_, Infallible>(service_fn(http_handler))
-        });
-        info!("🌐 HTTP server listening on 0.0.0.0:8080");
-        if let Err(e) = Server::bind(&addr).serve(make_svc).await {
+async fn start_http_server() -> Result<tokio::task::JoinHandle<()>> {
+    let addr = ([0, 0, 0, 0], 8080).into();
+    let make_svc = make_service_fn(|_conn| async {
+        Ok::<_, Infallible>(service_fn(http_handler))
+    });
+    
+    info!("🌐 HTTP server binding to 0.0.0.0:8080");
+    let server = Server::bind(&addr).serve(make_svc);
+    
+    info!("🌐 HTTP server successfully bound and listening on 0.0.0.0:8080");
+    let handle = tokio::spawn(async move {
+        if let Err(e) = server.await {
             error!("HTTP server error: {}", e);
+            std::process::exit(1);
         }
     });
+    
+    // Give the server a moment to start
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    
+    Ok(handle)
 }
 
 async fn http_handler(req: Request<Body>) -> Result<Response<Body>, Infallible> {
