@@ -103,6 +103,8 @@ export default function Dashboard() {
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isCheckingWallet, setIsCheckingWallet] = useState(true);
   const walletDropdownRef = useRef(null);
+  const [nftData, setNftData] = useState(null);
+  const [isLoadingNfts, setIsLoadingNfts] = useState(false);
 
   // Form state for Add Password modal
   const [formData, setFormData] = useState({
@@ -156,8 +158,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (account?.address) {
       fetchBalance();
+      fetchNfts();
     } else {
       setBalance(null);
+      setNftData(null);
     }
   }, [account?.address, suiClient]);
 
@@ -172,7 +176,7 @@ export default function Dashboard() {
 
   // Basic metrics placeholders (will derive from real list)
   const [passwordList, setPasswordList] = useState([]);
-  const securityScore = 85;
+  const securityScore = nftData?.securityScore || 85;
   const totalPasswords = passwordList.length;
   const weakPasswords = 0;
   const breachedPasswords = 0;
@@ -504,6 +508,79 @@ export default function Dashboard() {
     }
   };
 
+  // Fetch NFTs from wallet
+  const fetchNfts = async () => {
+    if (!account?.address || !suiClient) return;
+    
+    setIsLoadingNfts(true);
+    try {
+      const nfts = [];
+      let cursor = null;
+      
+      do {
+        const page = await suiClient.getOwnedObjects({
+          owner: account.address,
+          cursor: cursor ?? undefined,
+          limit: 50,
+          options: { 
+            showType: true, 
+            showContent: true, 
+            showDisplay: true 
+          },
+        });
+        
+        for (const item of page.data) {
+          const objectType = item?.data?.type;
+          
+          // Check if this is likely an NFT (has display metadata and is not a coin)
+          if (objectType && 
+              !objectType.includes("::coin::Coin") && 
+              !objectType.includes("::blob::Blob") &&
+              !objectType.includes("::shared_blob::SharedBlob") &&
+              item?.data?.display) {
+            
+            const display = item.data.display?.data || {};
+            const content = item.data.content?.fields || {};
+            
+            // Only include objects that have NFT-like characteristics
+            if (display.name || display.description || display.image_url || content.name) {
+              nfts.push({
+                id: item.data.objectId,
+                type: objectType,
+                name: display.name || content.name || "Unnamed NFT",
+                description: display.description || content.description || "",
+                imageUrl: display.image_url || content.image_url || content.url || "",
+                attributes: content,
+                display
+              });
+            }
+          }
+        }
+        
+        cursor = page.hasNextPage ? page.nextCursor ?? null : null;
+      } while (cursor);
+      
+      // Set NFT data - only if we found actual NFTs
+      if (nfts.length > 0) {
+        console.log(`Found ${nfts.length} NFTs:`, nfts);
+        setNftData({
+          nfts,
+          totalCount: nfts.length,
+          // Calculate a simple security score based on NFT collection
+          securityScore: Math.min(85 + (nfts.length * 2), 98)
+        });
+      } else {
+        console.log("No NFTs found in wallet");
+        setNftData(null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch NFTs:", error);
+      setNftData(null);
+    } finally {
+      setIsLoadingNfts(false);
+    }
+  };
+
   // Handle wallet disconnect
   const handleDisconnect = () => {
     disconnect();
@@ -704,7 +781,7 @@ export default function Dashboard() {
             </motion.p>
           </motion.div>
 
-          {/* NFT Security Status Display */}
+          {/* NFT Security Status Display - Always show with placeholder when no NFTs */}
           <motion.div
             className="mb-8"
             initial={{ opacity: 0, y: 30 }}
@@ -714,81 +791,175 @@ export default function Dashboard() {
             <Card className="max-w-md mx-auto">
               <CardContent className="p-6">
                 <div className="text-center space-y-4">
-                  {/* NFT Image */}
-                  <div className="relative w-48 h-48 mx-auto">
-                    <div
-                      className={`absolute inset-0 rounded-lg border-2 ${
-                        securityScore > 80
-                          ? "bg-gradient-to-br from-green-400/20 to-emerald-600/20 border-green-400/50"
-                          : securityScore > 60
-                          ? "bg-gradient-to-br from-yellow-400/20 to-orange-600/20 border-yellow-400/50"
-                          : "bg-gradient-to-br from-red-400/20 to-red-600/20 border-red-400/50"
-                      } backdrop-blur-sm overflow-hidden`}
-                    >
-                      {/* Placeholder NFT Image Background */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700">
-                        <Image
-                          src="/placeholder-avatar.svg"
-                          alt="Security NFT"
-                          fill
-                          className="object-cover opacity-10"
-                        />
-                      </div>
-
-                      {/* Central Shield Icon */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Shield
-                          className={`h-20 w-20 ${
-                            securityScore > 80
-                              ? "text-green-400"
-                              : securityScore > 60
-                              ? "text-yellow-400"
-                              : "text-red-400"
-                          }`}
-                        />
-                      </div>
-
-                      {/* Score overlay */}
-                      <div className="absolute bottom-2 left-2 right-2">
-                        <div className="bg-black/50 backdrop-blur-sm rounded px-2 py-1 text-center">
-                          <span className="text-white text-xs font-medium">
-                            {securityScore}% Secure
-                          </span>
+                  {isLoadingNfts ? (
+                    // Loading state
+                    <>
+                      <div className="relative w-48 h-48 mx-auto">
+                        <div className="absolute inset-0 rounded-lg border-2 border-muted bg-muted/20 backdrop-blur-sm flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                      <div className="space-y-2">
+                        <div className="h-6 bg-muted animate-pulse rounded"></div>
+                        <div className="h-4 bg-muted animate-pulse rounded w-32 mx-auto"></div>
+                      </div>
+                      <p className="text-muted-foreground">Loading NFT status...</p>
+                    </>
+                  ) : nftData ? (
+                    // NFT found state
+                    <>
+                      {/* NFT Image */}
+                      <div className="relative w-48 h-48 mx-auto">
+                        <div
+                          className={`absolute inset-0 rounded-lg border-2 ${
+                            securityScore > 80
+                              ? "bg-gradient-to-br from-green-400/20 to-emerald-600/20 border-green-400/50"
+                              : securityScore > 60
+                              ? "bg-gradient-to-br from-yellow-400/20 to-orange-600/20 border-yellow-400/50"
+                              : "bg-gradient-to-br from-red-400/20 to-red-600/20 border-red-400/50"
+                          } backdrop-blur-sm overflow-hidden`}
+                        >
+                          {/* Actual NFT Image or Fallback */}
+                          {nftData.nfts[0]?.imageUrl ? (
+                            <div className="absolute inset-0">
+                              <Image
+                                src={nftData.nfts[0].imageUrl}
+                                alt={nftData.nfts[0].name || "NFT"}
+                                fill
+                                className="object-cover rounded-lg"
+                                onError={(e) => {
+                                  // Fallback to shield icon if image fails to load
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700">
+                              <Image
+                                src="/placeholder-avatar.svg"
+                                alt="NFT Placeholder"
+                                fill
+                                className="object-cover opacity-10"
+                              />
+                            </div>
+                          )}
 
-                  {/* NFT Title & Category */}
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-foreground">
-                      {securityScore > 80
-                        ? "Fortress Guardian"
-                        : securityScore > 60
-                        ? "Shield Bearer"
-                        : "Vulnerable Keeper"}
-                    </h3>
-                    <Badge
-                      variant={
-                        securityScore > 80
-                          ? "default"
-                          : securityScore > 60
-                          ? "secondary"
-                          : "destructive"
-                      }
-                    >
-                      Security NFT • Level {Math.floor(securityScore / 20) + 1}
-                    </Badge>
-                  </div>
+                          {/* Central Shield Icon (shows if no image or as overlay) */}
+                          {!nftData.nfts[0]?.imageUrl && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Shield
+                                className={`h-20 w-20 ${
+                                  securityScore > 80
+                                    ? "text-green-400"
+                                    : securityScore > 60
+                                    ? "text-yellow-400"
+                                    : "text-red-400"
+                                }`}
+                              />
+                            </div>
+                          )}
 
-                  {/* Short Description */}
-                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                    {securityScore > 80
-                      ? "Elite password security guardian with exceptional vault protection."
-                      : securityScore > 60
-                      ? "Reliable security defender with room for improvement."
-                      : "Novice security keeper requiring immediate attention."}
-                  </p>
+                          {/* Score overlay */}
+                          <div className="absolute bottom-2 left-2 right-2">
+                            <div className="bg-black/50 backdrop-blur-sm rounded px-2 py-1 text-center">
+                              <span className="text-white text-xs font-medium">
+                                {securityScore}% Secure
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* NFT Title & Category */}
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-bold text-foreground">
+                          {nftData.nfts[0]?.name || (
+                            securityScore > 80
+                              ? "Fortress Guardian"
+                              : securityScore > 60
+                              ? "Shield Bearer"
+                              : "Vulnerable Keeper"
+                          )}
+                        </h3>
+                        <Badge
+                          variant={
+                            securityScore > 80
+                              ? "default"
+                              : securityScore > 60
+                              ? "secondary"
+                              : "destructive"
+                          }
+                        >
+                          Security NFT • Level {Math.floor(securityScore / 20) + 1} • {nftData.totalCount} NFT{nftData.totalCount !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+
+                      {/* NFT Description */}
+                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                        {nftData.nfts[0]?.description || (
+                          securityScore > 80
+                            ? "Elite password security guardian with exceptional vault protection."
+                            : securityScore > 60
+                            ? "Reliable security defender with room for improvement."
+                            : "Novice security keeper requiring immediate attention."
+                        )}
+                      </p>
+                      
+                      {nftData.totalCount > 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{nftData.totalCount - 1} more NFT{nftData.totalCount - 1 !== 1 ? 's' : ''} in collection
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    // No NFTs found - placeholder state
+                    <>
+                      {/* Empty NFT Placeholder */}
+                      <div className="relative w-48 h-48 mx-auto">
+                        <div className="absolute inset-0 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/10 backdrop-blur-sm overflow-hidden">
+                          {/* Placeholder background */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-slate-900/20 to-slate-700/20">
+                            <Image
+                              src="/placeholder-avatar.svg"
+                              alt="No NFT Placeholder"
+                              fill
+                              className="object-cover opacity-5"
+                            />
+                          </div>
+
+                          {/* Central placeholder icon */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center space-y-2">
+                              <Shield className="h-16 w-16 text-muted-foreground/50 mx-auto" />
+                              <div className="text-xs text-muted-foreground/70 font-medium">
+                                No NFT Found
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Placeholder Title & Category */}
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-bold text-muted-foreground">
+                          No Security NFT
+                        </h3>
+                        <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">
+                          No NFTs • Connect wallet with NFTs
+                        </Badge>
+                      </div>
+
+                      {/* Placeholder Description */}
+                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                        No NFTs found in your wallet. Security status will be displayed when you acquire NFTs that represent your digital identity and security level.
+                      </p>
+                      
+                      {/* Action suggestion */}
+                      <p className="text-xs text-muted-foreground/70">
+                        Check back after adding NFTs to your wallet
+                      </p>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1013,6 +1184,15 @@ export default function Dashboard() {
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     AI (Batch + Summary)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={fetchNfts}
+                    disabled={isLoadingNfts}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingNfts ? 'animate-spin' : ''}`} />
+                    Refresh NFT Status
                   </Button>
                 </CardContent>
               </Card>
