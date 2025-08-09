@@ -4,9 +4,9 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
-# Dependencies for real contract interaction
+## Core async/runtime + HTTP
 tokio = { version = "1", features = ["full", "macros", "rt-multi-thread"] }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 hyper = { version = "0.14", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -16,5 +16,5 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { version = "0.4", features = ["serde"] }
 rand = "0.8"
-ethers = { version = "2.0", features = ["legacy", "rustls"] }
 eyre = "0.6"
+sha1 = "0.10"

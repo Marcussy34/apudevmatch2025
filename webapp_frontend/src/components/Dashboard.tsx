@@ -33,7 +33,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
       name: 'Gmail', 
       url: 'gmail.com', 
       username: 'john.doe@gmail.com', 
-      password: 'MySecure2023!',
+      password: '123',
       icon: Mail,
       color: 'bg-red-500',
       lastUsed: '2 hours ago'
@@ -43,7 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
       name: 'GitHub', 
       url: 'github.com', 
       username: 'johndoe_dev', 
-      password: 'CodeMaster#456',
+      password: 'abc',
       icon: Github,
       color: 'bg-gray-800',
       lastUsed: '1 day ago'
@@ -63,7 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
       name: 'Amazon', 
       url: 'amazon.com', 
       username: 'john.doe@email.com', 
-      password: 'Shop2023$ecure',
+      password: 'john',
       icon: ShoppingCart,
       color: 'bg-orange-500',
       lastUsed: '3 days ago'
@@ -154,6 +154,58 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
     password.username.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const sendTestPayload = async () => {
+    const payload = {
+      id: 1,
+      name: 'Gmail',
+      url: 'gmail.com',
+      username: 'john.doe@gmail.com',
+      password: 'johndoe'
+    }
+    try {
+      const roflUrl = import.meta.env.VITE_ROFL_ENDPOINT || 'http://localhost:8080/ingest-test'
+      const res = await fetch(roflUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json().catch(() => null)
+      if (data?.hibp) {
+        const status = data.hibp.pwned ? `Pwned ${data.hibp.count} times` : 'Not found in HIBP'
+        addToast({ type: 'success', title: 'ROFL Response', message: status, duration: 3500 })
+      } else {
+        addToast({ type: 'success', title: 'Sent to ROFL', message: 'Test payload sent successfully', duration: 2500 })
+      }
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Send failed', message: e?.message || 'Unknown error', duration: 3000 })
+    }
+  }
+
+  const sendBatchPayload = async () => {
+    const batch = passwordList.slice(0, 5).map(p => ({
+      id: p.id,
+      name: p.name,
+      url: p.url,
+      username: p.username,
+      password: p.password,
+    }))
+    try {
+      const roflUrl = (import.meta.env.VITE_ROFL_BATCH_ENDPOINT as string) || 'http://localhost:8080/ingest-batch'
+      const res = await fetch(roflUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch)
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const pwnedCount = Array.isArray(data) ? data.filter((r: any) => r?.hibp?.pwned).length : 0
+      addToast({ type: 'success', title: 'Batch checked', message: `${pwnedCount} of ${batch.length} pwned`, duration: 4000 })
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Batch failed', message: e?.message || 'Unknown error', duration: 3000 })
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden container mx-auto max-w-4xl">
       {/* Search and Add Section */}
@@ -205,6 +257,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
         >
           <Plus className="w-5 h-5" strokeWidth={2} />
           <span>Add New Password</span>
+        </button>
+
+        {/* AI Test Button */}
+        <button
+          onClick={sendTestPayload}
+          className="cyber-button-secondary w-full flex items-center justify-center space-x-3 py-3"
+        >
+          <span>AI (Send Test Payload)</span>
+        </button>
+
+        {/* AI Batch Button */}
+        <button
+          onClick={sendBatchPayload}
+          className="cyber-button-secondary w-full flex items-center justify-center space-x-3 py-3"
+        >
+          <span>AI (Send Batch of Credentials)</span>
         </button>
       </div>
 
