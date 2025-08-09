@@ -1,0 +1,20 @@
+{
+  "name": "secure-credential-vault-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "undici": "^6.19.8",
+    "@mysten/sui": "^1.37.1",
+    "@mysten/seal": "^0.2.0",
+    "@mysten/walrus": "^0.6.1",
+    "@mysten/walrus-wasm": "^0.1.1"
+  }
+}
