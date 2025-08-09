@@ -104,7 +104,7 @@ export default function Home() {
   return (
     <div className={`${inter.variable} ${interTight.variable} font-sans`}>
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between p-6 lg:px-8 bg-[#0A0B1E]/95 backdrop-blur-sm border-b border-gray-800/50">
+      <nav className="sticky top-0 z-50 flex items-center justify-between py-4 px-6 lg:px-8 bg-[#0A0B1E]/95 backdrop-blur-sm border-b border-gray-800/50">
         <div className="flex items-center gap-2 ml-4">
           <Image
             src="/logo.png"
