@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
+import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -50,15 +51,19 @@ import {
   Moon,
   Sun,
   X,
+  Wallet,
+  LogOut,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
   useSignPersonalMessage,
   useSuiClient,
+  useDisconnectWallet,
 } from "@mysten/dapp-kit";
 import { SealClient, getAllowlistedKeyServers } from "@mysten/seal";
+import { MIST_PER_SUI } from "@mysten/sui/utils";
 import { ensureWalBalance, storeEncryptedViaRelay } from "@/lib/encryption";
 import {
   getAllUserCredentialsViaProxy,
@@ -84,13 +89,20 @@ const interTight = Inter({
 export default function Dashboard() {
   const account = useCurrentAccount();
   const suiClient = useSuiClient();
+  const router = useRouter();
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
+  const { mutate: disconnect } = useDisconnectWallet();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPasswords, setShowPasswords] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showWalletInfo, setShowWalletInfo] = useState(false);
+  const [balance, setBalance] = useState(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [isCheckingWallet, setIsCheckingWallet] = useState(true);
+  const walletDropdownRef = useRef(null);
 
   // Form state for Add Password modal
   const [formData, setFormData] = useState({
@@ -105,6 +117,49 @@ export default function Dashboard() {
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
+
+  // Click outside handler for wallet dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (walletDropdownRef.current && !walletDropdownRef.current.contains(event.target)) {
+        setShowWalletInfo(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Redirect to index if no wallet connected
+  useEffect(() => {
+    // Give some time for wallet to connect if it's in the process
+    const timer = setTimeout(() => {
+      if (!account?.address) {
+        router.push("/");
+      } else {
+        setIsCheckingWallet(false);
+      }
+    }, 1000); // Wait 1 second to allow for wallet connection
+
+    // If account is already connected, stop checking immediately
+    if (account?.address) {
+      setIsCheckingWallet(false);
+      clearTimeout(timer);
+    }
+
+    return () => clearTimeout(timer);
+  }, [account?.address, router]);
+
+  // Fetch balance when account changes
+  useEffect(() => {
+    if (account?.address) {
+      fetchBalance();
+    } else {
+      setBalance(null);
+    }
+  }, [account?.address, suiClient]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -418,6 +473,63 @@ export default function Dashboard() {
     setShowNewPassword(!showNewPassword);
   };
 
+  // Helper function to truncate wallet address
+  const truncateAddress = (address) => {
+    if (!address) return "";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Toggle wallet info display
+  const toggleWalletInfo = () => {
+    setShowWalletInfo(!showWalletInfo);
+  };
+
+  // Fetch wallet balance
+  const fetchBalance = async () => {
+    if (!account?.address || !suiClient) return;
+    
+    setIsLoadingBalance(true);
+    try {
+      const balanceData = await suiClient.getBalance({
+        owner: account.address,
+      });
+      // Convert from MIST to SUI
+      const suiBalance = Number(balanceData.totalBalance) / Number(MIST_PER_SUI);
+      setBalance(suiBalance);
+    } catch (error) {
+      console.error("Failed to fetch balance:", error);
+      setBalance(null);
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  };
+
+  // Handle wallet disconnect
+  const handleDisconnect = () => {
+    disconnect();
+    setShowWalletInfo(false);
+    setBalance(null);
+    // Redirect to index page after disconnect
+    router.push("/");
+  };
+
+  // Show loading screen while checking wallet connection
+  if (isCheckingWallet) {
+    return (
+      <div className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background flex items-center justify-center`}>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Checking wallet connection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render dashboard if no account (will redirect)
+  if (!account?.address) {
+    return null;
+  }
+
   return (
     <Modal>
       <div
@@ -440,9 +552,6 @@ export default function Dashboard() {
                   Grand Warden
                 </span>
               </div>
-              <Badge variant="secondary" className="hidden sm:inline-flex">
-                Dashboard
-              </Badge>
             </div>
 
             {/* Search */}
@@ -470,13 +579,99 @@ export default function Dashboard() {
               <Button variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
-              <Avatar>
-                <AvatarImage src="/placeholder-avatar.svg" alt="User" />
-                <AvatarFallback>MD</AvatarFallback>
-              </Avatar>
+              
+              {/* Wallet Display */}
+              <div className="relative" ref={walletDropdownRef}>
+                <div 
+                  className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-2 transition-colors"
+                  onClick={toggleWalletInfo}
+                >
+                  <Avatar>
+                    <AvatarImage src="/placeholder-avatar.svg" alt="User" />
+                    <AvatarFallback>
+                      {account?.address ? account.address.slice(0, 2).toUpperCase() : "MD"}
+                    </AvatarFallback>
+                  </Avatar>
+                  {account?.address && (
+                    <div className="hidden sm:block text-sm text-foreground">
+                      {truncateAddress(account.address)}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Wallet Info Dropdown */}
+                {showWalletInfo && account?.address && (
+                  <div className="absolute right-0 top-full mt-2 w-84 bg-background border border-border rounded-lg shadow-lg z-50">
+                    <div className="p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-foreground">Wallet Connected</h3>
+                        <Button variant="ghost" size="icon" onClick={toggleWalletInfo}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {/* Balance Section */}
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground">Balance</div>
+                        <div className="flex items-center gap-2 bg-muted/50 p-3 rounded border">
+                          <Wallet className="h-4 w-4 text-primary" />
+                          {isLoadingBalance ? (
+                            <div className="text-sm text-muted-foreground">Loading...</div>
+                          ) : balance !== null ? (
+                            <div className="text-sm font-medium">
+                              {balance.toFixed(4)} SUI
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">Unable to load</div>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="ml-auto h-6 w-6"
+                            onClick={fetchBalance}
+                            disabled={isLoadingBalance}
+                          >
+                            <RefreshCw className={`h-3 w-3 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground">Address</div>
+                        <div className="text-sm font-mono bg-muted/50 p-3 rounded border break-words leading-relaxed">
+                          {account.address}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 pt-2 border-t">
+                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-muted-foreground">Connected to Testnet</span>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1 text-xs"
+                          onClick={() => {
+                            navigator.clipboard.writeText(account.address);
+                            // You could add a toast notification here
+                          }}
+                        >
+                          Copy Address
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          className="flex-1 text-xs"
+                          onClick={handleDisconnect}
+                        >
+                          <LogOut className="h-3 w-3 mr-1" />
+                          Disconnect
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>

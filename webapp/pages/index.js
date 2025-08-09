@@ -267,7 +267,9 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
           >
-            <ConnectButton />
+            <div className="transform scale-110">
+              <ConnectButton />
+            </div>
             <Modal>
               <ModalTrigger className="border border-border hover:border-foreground text-muted-foreground hover:text-foreground rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 bg-transparent flex justify-center group/modal-btn min-w-[140px] h-[52px]">
                 <span className="group-hover/modal-btn:translate-x-40 text-center transition duration-500">
@@ -350,7 +352,7 @@ export default function Home() {
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
             viewport={{ once: true }}
           >
             <h2 className="text-4xl md:text-5xl heading-modern text-foreground mb-6">
