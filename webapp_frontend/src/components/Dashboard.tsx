@@ -286,20 +286,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
         </button>
 
         {/* AI Test Button */}
-        <button
+        {/* <button
           onClick={sendTestPayload}
           className="cyber-button-secondary w-full flex items-center justify-center space-x-3 py-3"
         >
           <span>AI (Send Test Payload)</span>
-        </button>
+        </button> */}
 
         {/* AI Batch Button */}
-        <button
+        {/* <button
           onClick={sendBatchPayload}
           className="cyber-button-secondary w-full flex items-center justify-center space-x-3 py-3"
         >
           <span>AI (Send Batch of Credentials)</span>
-        </button>
+        </button> */}
 
         {/* AI Summary Button */}
         <button
