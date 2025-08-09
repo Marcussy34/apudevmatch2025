@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { motion } from "motion/react";
-import { Shield, Brain, Palette } from "lucide-react";
+import { Shield, Brain, Palette, Video } from "lucide-react";
+import { Modal, ModalBody, ModalContent, ModalFooter, ModalTrigger } from "@/components/ui/animated-modal";
 import { useState, useEffect } from "react";
 import ParticlesJS from "@/components/ParticlesJS";
 
@@ -208,12 +209,55 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.6, duration: 0.8, ease: "easeOut" }}
           >
-            <Button size="lg" className="px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105 shadow-lg">
+            <Button size="lg" className="rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 shadow-lg">
               Get Started
             </Button>
-            <Button variant="outline" size="lg" className="border-gray-400 hover:border-white text-gray-300 hover:text-white px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105">
-              View Demo →
-            </Button>
+            <Modal>
+              <ModalTrigger className="border border-gray-400 hover:border-white text-gray-300 hover:text-white rounded-full px-8 py-3 text-lg font-medium transition-all hover:scale-105 bg-transparent flex items-center gap-2">
+                <Video className="h-5 w-5" />
+                <span>View Demo</span>
+              </ModalTrigger>
+              <ModalBody>
+                <ModalContent>
+                  <h4 className="text-lg md:text-2xl text-neutral-800 dark:text-neutral-100 font-bold text-center mb-6">
+                    Product Demo
+                  </h4>
+                  <div className="flex items-center justify-center">
+                    <div className="w-full max-w-2xl h-64 md:h-80 bg-gradient-to-br from-gray-800/30 to-gray-600/20 border border-gray-700/40 rounded-xl flex items-center justify-center">
+                      <Video className="h-10 w-10 text-white/80" />
+                    </div>
+                  </div>
+                </ModalContent>
+                <ModalFooter>
+                  <span className="text-sm text-gray-500 mr-auto pl-2">Demo preview</span>
+                </ModalFooter>
+              </ModalBody>
+            </Modal>
+          </motion.div>
+          
+          <motion.div 
+            className="flex items-center justify-center gap-6 mt-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.0, duration: 0.8, ease: "easeOut" }}
+          >
+            <span className="text-white text-lg">Built on</span>
+            <div className="flex items-center gap-6">
+              <Image
+                src="/sui_logo.png"
+                alt="Sui Logo"
+                width={40}
+                height={40}
+                className="opacity-90 hover:opacity-100 transition-opacity hover:scale-110 transition-transform duration-200"
+              />
+              <Image
+                src="/oasis_logo.png"
+                alt="Oasis Logo"
+                width={40}
+                height={40}
+                className="opacity-90 hover:opacity-100 transition-opacity hover:scale-110 transition-transform duration-200"
+              />
+            </div>
           </motion.div>
         </div>
       </section>
