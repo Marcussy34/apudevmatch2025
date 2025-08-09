@@ -256,19 +256,19 @@ export default function Dashboard() {
   const securityInsights = [
     {
       title: "Update weak passwords",
-      description: "3 passwords need strengthening",
+      description: "Multiple passwords need strengthening",
       action: "Fix now",
       type: "warning",
     },
     {
       title: "Breach detected",
-      description: "Adobe account may be compromised",
+      description: "Certain accounts may be compromised",
       action: "Review",
       type: "danger",
     },
     {
       title: "Enable 2FA",
-      description: "5 accounts without two-factor authentication",
+      description: "0 accounts without two-factor authentication",
       action: "Secure",
       type: "info",
     },
@@ -884,10 +884,10 @@ export default function Dashboard() {
                         <Badge
                           variant={
                             securityScore > 80
-                              ? "default"
+                              ? "success"
                               : securityScore > 60
-                              ? "secondary"
-                              : "destructive"
+                              ? "warning"
+                              : "warning"
                           }
                         >
                           Security NFT • Level {Math.floor(securityScore / 20) + 1} • {nftData.totalCount} NFT{nftData.totalCount !== 1 ? 's' : ''}
@@ -944,19 +944,11 @@ export default function Dashboard() {
                         <h3 className="text-xl font-bold text-muted-foreground">
                           No Security NFT
                         </h3>
-                        <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">
-                          No NFTs • Connect wallet with NFTs
-                        </Badge>
                       </div>
 
                       {/* Placeholder Description */}
                       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                        No NFTs found in your wallet. Security status will be displayed when you acquire NFTs that represent your digital identity and security level.
-                      </p>
-                      
-                      {/* Action suggestion */}
-                      <p className="text-xs text-muted-foreground/70">
-                        Check back after adding NFTs to your wallet
+                        No NFTs found in your wallet. Security status will be displayed when you acquire NFTs that represent your current security level.
                       </p>
                     </>
                   )}
@@ -990,7 +982,7 @@ export default function Dashboard() {
                         ? "success"
                         : securityScore > 60
                         ? "warning"
-                        : "danger"
+                        : "warning"
                     }
                   >
                     {securityScore > 80
@@ -1017,7 +1009,7 @@ export default function Dashboard() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   <TrendingUp className="inline h-3 w-3 mr-1" />
-                  +2 from last week
+                  0 from last week
                 </p>
               </CardContent>
             </Card>
@@ -1030,7 +1022,7 @@ export default function Dashboard() {
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">
+                <div className="text-2xl font-bold text-foreground">
                   {weakPasswords}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -1047,7 +1039,7 @@ export default function Dashboard() {
                 <Scan className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">
+                <div className="text-2xl font-bold text-foreground">
                   {breachedPasswords}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -1222,10 +1214,12 @@ export default function Dashboard() {
                         <Badge
                           variant={
                             insight.type === "danger"
-                              ? "destructive"
+                              ? "warning"
                               : insight.type === "warning"
                               ? "warning"
-                              : "secondary"
+                              : insight.type === "info"
+                              ? "success"
+                              : "success"
                           }
                         >
                           {insight.action}
