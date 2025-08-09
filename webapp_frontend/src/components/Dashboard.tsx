@@ -35,8 +35,6 @@ import {
   AlertTriangle,
   Wallet,
   BarChart3,
-  Linkedin,
-  Users,
 } from "lucide-react";
 import AddPasswordModal, { NewPasswordData } from "./AddPasswordModal";
 import AutofillStatus from "./AutofillStatus";
@@ -71,6 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
   const navigate = useNavigate();
 
   const [passwordList, setPasswordList] = useState<PasswordEntry[]>([]);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   const getIconForUrl = (
     url: string
@@ -88,8 +87,6 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
       return { icon: Globe, color: "bg-blue-600" };
     } else if (domain.includes("work") || domain.includes("company")) {
       return { icon: Briefcase, color: "bg-blue-600" };
-      
-    const [aiSummary, setAiSummary] = useState<string | null>(null)
     } else {
       return { icon: Globe, color: "bg-cyber-600" };
     }
@@ -349,6 +346,7 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
       password.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  /* Unused helper retained for future debugging
   const sendTestPayload = async () => {
     const payload = {
       id: 1,
@@ -400,6 +398,7 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
       addToast({ type: 'error', title: 'Batch failed', message: e?.message || 'Unknown error', duration: 3000 })
     }
   }
+  */
 
   const sendBatchAndSummarize = async () => {
     const batch = passwordList.slice(0, 5).map(p => ({
