@@ -1,3 +1,40 @@
+# ROFL Application Manifest
+# Minimal manifest to build a TDX container-based ROFL app bundle
+
+name: grand-warden-rofl
+version: 0.1.0
+tee: tdx
+kind: container
+
+# The compose file defines the containerized services that run inside the TEE
+compose: ./compose.yaml
+
+# Requested resources inside the TEE
+resources:
+  memory: 1024Mi
+  cpus: 1
+  storage: 2048Mi
+
+# Networking permissions for outbound access (HTTPs for HIBP)
+network:
+  egress:
+    - protocol: tcp
+      port: 443
+      host: api.pwnedpasswords.com
+
+# Environment variables & secrets mapping (if needed later)
+# secrets:
+#   - name: RED_PILL_API_KEY
+#     source: env:RED_PILL_API_KEY
+
+# Optional health check used by provider
+health:
+  http:
+    path: /health
+    port: 8080
+    interval: 15s
+    timeout: 5s
+
 # Grand Warden ROFL Critical Data Bridge
 # Official ROFL manifest following Oasis documentation patterns
 

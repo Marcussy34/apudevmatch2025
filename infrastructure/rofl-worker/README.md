@@ -69,7 +69,7 @@ Coordination    Layer      Events      Layer     Updates
 2. **Private Key**: Sapphire testnet private key with ROSE tokens
 3. **Network Access**: HTTPS access to blockchain RPC endpoints
 
-### **Quick Start**
+### **Quick Start (Local Docker)**
 
 #### **1. Clone and Navigate**
 
@@ -175,6 +175,28 @@ The ROFL manifest defines:
 - **Network Access**: HTTPS/HTTP for blockchain RPC calls
 - **Health Checks**: `/health` endpoint monitoring
 - **Security**: Secret management for private keys
+
+### **Build ROFL Bundle (ORC)**
+
+You can build a ROFL bundle locally (Windows/Mac/Linux) using the Oasis CLI:
+
+```
+oasis rofl build
+```
+
+This produces `grand-warden-rofl.default.orc` and prints the enclave identity.
+
+Optional (register app ID on-chain):
+
+```
+oasis rofl create --network testnet --account <your_account>
+```
+
+Then deploy to a provider when available:
+
+```
+oasis rofl deploy --provider <provider_address>
+```
 
 ## 🔄 Current vs Future Implementation
 

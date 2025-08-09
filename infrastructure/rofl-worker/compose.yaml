@@ -31,6 +31,10 @@ services:
     env_file:
       - .env
 
+    # Ensure the service is reachable inside the TDX VM via this port
+    expose:
+      - "8080"
+
     # Resource limits (matching rofl.yaml)
     deploy:
       resources:
