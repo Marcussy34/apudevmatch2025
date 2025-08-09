@@ -1,76 +1,155 @@
 # Grand Warden 🛡️👑
 
-Proactive, privacy-preserving password security built on SUI.
+## Tackling Digital Security in the Age of Data Breaches
+
+Empowering proactive password security: AI-powered risk analysis, decentralized storage, and on-chain trust for everyone.
+
+---
+
+## 🚀 Live Demo
+
+- 👉 [Click here to try it out](#) _(Demo link placeholder)_
+- 🎥 [Watch Demo Video](#) _(Video link placeholder)_
+
+---
+
+## 💡 Inspiration: How We Came Up With This Idea
+
+We realized that even the best password managers today leave users exposed to breaches, phishing, and seed loss—often because secrets are stored in ways that can be compromised, or because users are left to interpret security signals on their own. What if there was a way to make password and wallet security proactive, verifiable, and privacy-preserving—so that every user could see their true risk posture, and no secret ever left a trusted enclave?
+
+That question sparked Grand Warden. By combining decentralized storage (Walrus), strong client-side encryption (Seal), confidential AI analysis (ROFL), and on-chain attestations (SUI NFT), we built a platform that:
+
+- Keeps your credentials private and decentralized
+- Analyzes password strength and risk in a secure enclave (never exposing secrets)
+- Monitors for breaches and alerts you in real time
+- Issues a blockchain-bound NFT badge representing your current risk level
+- Provides actionable, human-friendly security reports
+
+---
+
+## 🛡️ What is Grand Warden?
 
 Grand Warden is a security-focused application that safeguards user credentials by combining decentralized storage, strong encryption, confidential AI analysis, and on-chain attestations:
 
-- Secure, decentralized storage with Walrus
-- Robust client-side encryption with Seal
-- Private, in-enclave password analysis by an LLM running inside a ROFL trusted execution environment
-- Continuous breach monitoring against global leak databases
-- Actionable, human-friendly security reports
-- A SUI-bound NFT that represents your current risk posture (High Risk / Low Risk / Safe) and is shown on your dashboard
+- **Secure, decentralized storage** with Walrus
+- **Robust client-side encryption** with Seal
+- **Private, in-enclave password analysis** by an LLM running inside a ROFL trusted execution environment
+- **Continuous breach monitoring** against global leak databases
+- **Actionable, human-friendly security reports**
+- **A SUI-bound NFT** that represents your current risk posture (High Risk / Low Risk / Safe) and is shown on your dashboard
 
 This turns a traditional password manager into a proactive cybersecurity tool while keeping plaintext credentials confined to trusted execution and never exposed to the app backend.
 
-## How it works
+---
 
-- Encryption and storage: Password entries are encrypted locally using Seal and stored via Walrus. Data remains private and decentralized.
-- Confidential AI evaluation: A ROFL worker runs an LLM inside a secure environment to assess password strength, risky patterns, and hygiene, without exfiltrating secrets.
-- Breach monitoring: The system checks global breach datasets to determine if any stored credentials appear in recent or historical leaks, and raises timely alerts.
-- Security report: The AI produces concise recommendations to improve password security.
-- On-chain risk badge: The platform mints a non-fungible token on SUI representing the user’s risk level. The badge is bound to the user’s SUI account and displayed in the UI.
+## ✨ Features
 
-## Repository structure
+- Aggregates and encrypts your credentials locally—never exposes plaintext to the cloud
+- Uses AI (in a secure enclave) to analyze password strength, risky patterns, and hygiene
+- Monitors global breach datasets and raises timely alerts if your credentials are found
+- Issues a non-fungible risk badge (NFT) on SUI, bound to your account and visible in the UI
+- Provides concise, actionable recommendations to improve your security
+- Supports seedless onboarding via zkLogin (Google/Facebook)
+- All sensitive operations (analysis, signing) happen inside a TEE (ROFL/Sapphire)
+- Real-time event mirroring and analytics via The Graph
+- Open, auditable architecture—no secrets ever leave trusted execution
+
+---
+
+## 🏗️ System Architecture High-Level Overview
 
 ```
-apudevmatch2025/
-├── docs/                    # Design docs and guides
-├── frontend/                # Browser extension (React/Vite) app
-├── webapp/                  # Next.js demo/marketing + dashboard UI
-├── webapp_frontend/         # Vite-based alternate UI (experimental)
-├── infrastructure/
-│   └── oasis/
-│       ├── contracts/       # Solidity contracts (legacy/prototyping)
-│       ├── rofl-worker/     # ROFL secure worker (LLM analysis)
-│       └── scripts/         # Tooling & deployment helpers
-├── SUI-contracts/
-│   └── device_registry/     # Move modules for SUI (e.g., device registry)
-└── README.md
+User Browser (React UI/Extension)
+    ↓
+Walrus (Decentralized Storage) ←→ Seal (Encryption)
+    ↓
+Sui Blockchain (zkLogin, NFT, Device Registry)
+    ↓
+Oasis Sapphire (TEE, Vault, Wallet)
+    ↓
+ROFL Worker (Event Mirroring)
+    ↓
+The Graph (Analytics, Real-time UI)
 ```
 
-## Getting started
+_(Insert architecture diagram here)_
 
-Prerequisites: Node.js 18+ (or 20+), npm or pnpm, a modern browser.
+---
 
-- Frontend (extension)
-  1. `cd frontend`
-  2. `npm install`
-  3. `npm run dev`
-  4. Load the built extension in your browser’s extension developer mode (see `frontend/README.md`).
+## 🛠️ Technology Used
 
-- Web app (dashboard)
-  1. `cd webapp`
-  2. `npm install`
-  3. `npm run dev`
+- **Cursor** for code assistance
+- **ChatGPT** for code debugging
+- **React 18** and **Next.js** for frontend
+- **Tailwind CSS** for utility-first styling
+- **shadcn/ui** and custom UI components for design
+- **Lucide React** for icons
+- **GNews API** (for demo news aggregation)
+- **Oasis Sapphire** for confidential compute
+- **Walrus** for decentralized storage
+- **Seal** for client-side encryption
+- **Sui Blockchain** for on-chain NFT and device registry
+- **OpenAI** for confidential AI analysis (via ROFL)
+- **The Graph** for real-time analytics and event subscriptions
+- **Docker** for local development and deployment
 
-- ROFL worker
-  - See `infrastructure/oasis/rofl-worker/README.md` for build and deployment.
+---
 
-- SUI Move modules
-  - See `SUI-contracts/device_registry/` for Move sources and tooling.
+## 🔗 Important Endpoints & Modules
 
-## Security and privacy
+- **Frontend Extension**: `/frontend` (React/Vite, Chrome extension)
+- **Web Dashboard**: `/webapp` (Next.js, dashboard UI)
+- **ROFL Worker**: `/infrastructure/rofl-worker` (Sui → Sapphire event bridge)
+- **Sui Move Modules**: `/SUI-contracts/device_registry/sources/DeviceRegistry.move`
+- **Backend Contracts**: `/infrastructure/oasis/contracts/`
+- **AI Analysis**: ROFL enclave (see `/infrastructure/rofl-worker/README.md`)
+- **Decentralized Storage**: Walrus + Seal integration (see `/docs/BACKEND_SUI_WALRUS_SEAL_DESIGN.md`)
+- **Graph Subgraph**: Real-time analytics (see `/docs/PLAN.md`)
 
-- Plaintext credentials never leave trusted execution (ROFL) and are not visible to operators.
-- Password data is end-to-end encrypted with Seal and stored on Walrus.
-- Breach checks are performed in a privacy-preserving manner; reports contain only relevant metadata and recommendations.
-- The SUI NFT risk badge is an attestation of security posture, not a leak of sensitive data.
+---
 
-## Documentation
+## 🚀 Getting Started
 
-- High-level design and component overviews live in `docs/`.
-- See `docs/BACKEND_SUI_WALRUS_SEAL_DESIGN.md` and `docs/FRONTEND_COMPONENTS.md` for deeper technical details.
+### Prerequisites
+- Node.js 18+ (or 20+)
+- npm or pnpm
+- Docker (for ROFL worker and local Graph node)
+- Modern browser
+
+### Frontend (Extension)
+1. `cd frontend`
+2. `npm install`
+3. `npm run dev`
+4. Load the built extension in your browser’s extension developer mode (see `frontend/README.md`)
+
+### Web App (Dashboard)
+1. `cd webapp`
+2. `npm install`
+3. `npm run dev`
+
+### ROFL Worker
+- See `infrastructure/rofl-worker/README.md` for build and deployment instructions
+
+### SUI Move Modules
+- See `SUI-contracts/device_registry/` for Move sources and tooling
+
+---
+
+## 👥 Team Members
+
+- _Derek Liew Qi Jian_ — Project Lead, Front End ([LinkedIn](#) | [Twitter](#))
+- _Phen Jing Yuan_ — Backend, zkLogin, Sui, ROFL ([LinkedIn](#))
+- _Marcus_ — Infrastructure, Docs, Security ([LinkedIn](#))
+- _[Add your name here!]_
+
+---
+
+## 📚 Documentation
+
+- High-level design and component overviews: `docs/`
+- Backend, storage, and encryption: `docs/BACKEND_SUI_WALRUS_SEAL_DESIGN.md`
+- Frontend components: `docs/FRONTEND_COMPONENTS.md`
+- Implementation plan and architecture: `docs/PLAN.md`
 
 ---
 
