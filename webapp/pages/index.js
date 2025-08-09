@@ -45,7 +45,7 @@ const features = [
     description: "Advanced algorithms analyze your password patterns to identify vulnerabilities and suggest improvements for optimal security.",
     href: "#",
     cta: "Learn more",
-    className: "col-span-1 md:col-span-2",
+    className: "col-span-1 md:col-span-1",
     background: (
       <div className="absolute inset-0 bg-gradient-to-br from-gray-700/30 to-gray-800/40 opacity-60 group-hover:opacity-80 transition-opacity duration-300">
         <div className="absolute top-8 left-8 w-3 h-3 bg-gray-400 rounded-full animate-ping"></div>
@@ -65,7 +65,7 @@ const features = [
     description: "Mint unique NFTs that visualize your security posture, creating beautiful art from your digital protection status.",
     href: "#",
     cta: "Learn more",
-    className: "col-span-1 md:col-span-3",
+    className: "col-span-1 md:col-span-2",
     background: (
       <div className="absolute inset-0 bg-gradient-to-br from-gray-700/30 to-gray-800/40 opacity-60 group-hover:opacity-80 transition-opacity duration-300">
         <div className="absolute inset-0 overflow-hidden">
