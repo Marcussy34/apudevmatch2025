@@ -12,6 +12,7 @@ use tracing::{info, error};
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 // use futures::future::join_all; // Not needed after simplifying batch to sequential
+use std::env;
 
 /// Grand Warden ROFL Critical Data Bridge
 /// 
@@ -158,10 +159,10 @@ async fn http_handler(req: Request<Body>) -> Result<Response<Body>, Infallible> 
                 }
                 Err(e) => {
                     let builder = Response::builder()
-                        .status(StatusCode::BAD_REQUEST)
+                    .status(StatusCode::BAD_REQUEST)
                         .header("Content-Type", "application/json");
                     Ok(add_cors(builder)
-                        .body(Body::from(format!("{{\"error\":\"read body failed: {}\"}}", e)))
+                    .body(Body::from(format!("{{\"error\":\"read body failed: {}\"}}", e)))
                         .unwrap())
                 }
             }
@@ -189,7 +190,7 @@ async fn http_handler(req: Request<Body>) -> Result<Response<Body>, Infallible> 
                                     hibp.get("pwned").and_then(|v| v.as_bool()),
                                     hibp.get("count").and_then(|v| v.as_u64()),
                                 ) {
-                                    info!(
+                            info!(
                                         "🔎 Batch item: id={} name={} username={} pwned={} count={}",
                                         tc.id, tc.name, tc.username, pwned, count
                                     );
@@ -227,6 +228,78 @@ async fn http_handler(req: Request<Body>) -> Result<Response<Body>, Infallible> 
                 Err(e) => {
                     let builder = Response::builder()
                         .status(StatusCode::BAD_REQUEST)
+                        .header("Content-Type", "application/json");
+                    Ok(add_cors(builder).body(Body::from(format!("{{\"error\":\"read body failed: {}\"}}", e))).unwrap())
+                }
+            }
+        }
+        // Batch + AI summary endpoint
+        (&Method::POST, "/ingest-batch-summarize") => {
+            match hyper::body::to_bytes(req.into_body()).await {
+                Ok(bytes) => {
+                    let parsed: Result<Vec<TestCredential>, _> = serde_json::from_slice(&bytes);
+                    match parsed {
+                        Ok(list) => {
+                            info!("🧪 Received batch (summarize): {} credentials", list.len());
+
+                            let mut results: Vec<serde_json::Value> = Vec::with_capacity(list.len());
+                            for tc in list.into_iter() {
+                                let hibp = match check_password_with_hibp(&tc.password).await {
+                                    Ok(v) => v,
+                                    Err(e) => serde_json::json!({"error": e.to_string()}),
+                                };
+                                results.push(serde_json::json!({
+                                    "credential": {
+                                        "id": tc.id,
+                                        "name": tc.name,
+                                        "url": tc.url,
+                                        "username": tc.username
+                                    },
+                                    "hibp": hibp
+                                }));
+                            }
+
+                            let total_checked = results.len();
+                            let total_pwned = results.iter().filter(|r| r
+                                .get("hibp")
+                                .and_then(|h| h.get("pwned"))
+                                .and_then(|v| v.as_bool())
+                                == Some(true)
+                            ).count();
+                            let results_json = serde_json::to_string(&results).unwrap_or("[]".to_string());
+                            let (ai_markdown, ai_structured): (String, Option<serde_json::Value>) = match summarize_with_redpill(&results_json).await {
+                                Ok(markdown) => (markdown, None::<serde_json::Value>),
+                                Err(e) => {
+                                    error!("Red Pill summarize failed: {}", e);
+                                    (format!("AI summarize failed: {}", e), None::<serde_json::Value>)
+                                }
+                            };
+
+                            // Log AI output and counts for observability
+                            info!("📊 Summary counts: checked={} pwned={}", total_checked, total_pwned);
+                            info!("📝 AI summary markdown:\n{}", ai_markdown);
+
+                            let response = serde_json::json!({
+                                "ok": true,
+                                "results": results,
+                                "ai": { "summary": ai_markdown, "structured": ai_structured, "stats": {"total_checked": total_checked, "total_pwned": total_pwned} }
+                            });
+                            let builder = Response::builder()
+                                .status(StatusCode::OK)
+                                .header("Content-Type", "application/json");
+                            Ok(add_cors(builder).body(Body::from(response.to_string())).unwrap())
+                        }
+                        Err(e) => {
+                            let builder = Response::builder()
+                                .status(StatusCode::BAD_REQUEST)
+                                .header("Content-Type", "application/json");
+                            Ok(add_cors(builder).body(Body::from(format!("{{\"error\":\"invalid json: {}\"}}", e))).unwrap())
+                        }
+                    }
+                }
+                Err(e) => {
+                    let builder = Response::builder()
+                    .status(StatusCode::BAD_REQUEST)
                         .header("Content-Type", "application/json");
                     Ok(add_cors(builder).body(Body::from(format!("{{\"error\":\"read body failed: {}\"}}", e))).unwrap())
                 }
@@ -297,6 +370,88 @@ async fn check_password_with_hibp(password: &str) -> Result<serde_json::Value> {
         hash_suffix: suffix.to_string(),
     };
     Ok(serde_json::to_value(result)?)
+}
+
+/// Call Phala Red Pill (OpenAI-compatible) to summarize the batch results.
+async fn summarize_with_redpill(results_json: &str) -> Result<String> {
+    let api_key = env::var("PHALA_API_KEY")
+        .map_err(|_| eyre::eyre!("PHALA_API_KEY not set"))?;
+    let base = env::var("REDPILL_API_BASE").unwrap_or_else(|_| "https://api.red-pill.ai".to_string());
+    let model = env::var("REDPILL_MODEL").unwrap_or_else(|_| "gpt-4o".to_string());
+    let candidates = vec![
+        env::var("REDPILL_API_PATH").unwrap_or_else(|_| "/v1/chat/completions".to_string()),
+        "/chat/completions".to_string(),
+        "/v1/completions".to_string(),
+    ];
+
+    // Prompt engineering: structured, readable Markdown with character; safe, no secrets.
+    let system_prompt = r#"
+You are a friendly cybersecurity assistant. Produce a clear, human-readable report in GitHub-Flavored Markdown.
+
+Formatting rules:
+- Use a short title and tasteful emojis (no more than 3 total).
+- Add clear sections with H3 headings: "Stats", "Affected Accounts", "Recommendations", and "Next Steps".
+- In Stats: use exactly these labels — `Total Accounts Checked:` and `Total Accounts Pwned:` — followed by the numbers.
+- In Affected Accounts: use a table with columns: Site, Username, Pwn Count. Only list items where pwned=true.
+- In Recommendations: 3-5 concise bullet points; mention unique passwords, password manager, 2FA, and monitoring.
+- In Next Steps: one short paragraph.
+- Do NOT include any plaintext passwords or hash suffixes.
+- Keep it under 2000 characters.
+"#;
+    let user_prompt = format!(
+        "Summarize this JSON array with items: credential {{id,name,url,username}} and hibp {{pwned,count,hash_prefix,hash_suffix}}.\nReturn only Markdown as per the rules.\n\nJSON:\n{}",
+        results_json
+    );
+
+    let body = serde_json::json!({
+        "model": model,
+        "temperature": 0.2,
+        "stream": false,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+    });
+
+    let client = reqwest::Client::new();
+    let mut last_err: Option<String> = None;
+    for path in candidates {
+        let url = format!("{}{}", base.trim_end_matches('/'), path);
+        info!("Calling Red Pill endpoint: {}", url);
+        let req = client
+            .post(&url)
+            .bearer_auth(&api_key)
+            .header("X-API-Key", &api_key)
+            .header(reqwest::header::ACCEPT, "application/json")
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .header(reqwest::header::USER_AGENT, "GrandWarden-ROFL/1.0 (+grandwarden)")
+            .json(&body);
+        let resp = match req.send().await {
+            Ok(r) => r,
+            Err(e) => { last_err = Some(format!("request_error:{}", e)); continue; }
+        };
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if status.is_success() {
+            let v: serde_json::Value = serde_json::from_str(&text).unwrap_or(serde_json::json!({"raw": text}));
+            if let Some(content) = v
+                .get("choices")
+                .and_then(|c| c.as_array())
+                .and_then(|arr| arr.get(0))
+                .and_then(|c0| c0.get("message"))
+                .and_then(|m| m.get("content"))
+                .and_then(|c| c.as_str())
+            {
+                return Ok(content.to_string());
+            } else {
+                return Ok(v.to_string());
+            }
+        } else {
+            last_err = Some(format!("{} {}", status, text.chars().take(200).collect::<String>()));
+            continue;
+        }
+    }
+    Err(eyre::eyre!(format!("redpill_call_failed: {}", last_err.unwrap_or_else(|| "unknown".to_string()))))
 }
 
 // Integration guide for when Sui contracts are ready:

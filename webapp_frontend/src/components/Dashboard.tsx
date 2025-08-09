@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, Key, Settings as SettingsIcon, Eye, EyeOff, Copy, Globe, Github, Mail, ShoppingCart, Briefcase, AlertTriangle, Wallet, BarChart3, Linkedin, Users } from 'lucide-react'
+import AISummary from './AISummary'
 import AddPasswordModal, { NewPasswordData } from './AddPasswordModal'
 import AutofillStatus from './AutofillStatus'
 import { ToastProps } from './Toast'
@@ -25,6 +26,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set())
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [aiSummary, setAiSummary] = useState<string | null>(null)
   const navigate = useNavigate()
   
   const [passwordList, setPasswordList] = useState<PasswordEntry[]>([
@@ -206,6 +208,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
     }
   }
 
+  const sendBatchAndSummarize = async () => {
+    const batch = passwordList.slice(0, 5).map(p => ({
+      id: p.id,
+      name: p.name,
+      url: p.url,
+      username: p.username,
+      password: p.password,
+    }))
+    try {
+      const roflUrl = (import.meta.env.VITE_ROFL_SUMMARY_ENDPOINT as string) || 'http://localhost:8080/ingest-batch-summarize'
+      const res = await fetch(roflUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch)
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const summary = data?.ai?.summary || 'No AI summary'
+      setAiSummary(summary)
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Summary failed', message: e?.message || 'Unknown error', duration: 3000 })
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden container mx-auto max-w-4xl">
       {/* Search and Add Section */}
@@ -274,10 +300,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
         >
           <span>AI (Send Batch of Credentials)</span>
         </button>
+
+        {/* AI Summary Button */}
+        <button
+          onClick={sendBatchAndSummarize}
+          className="cyber-button w-full flex items-center justify-center space-x-3 py-3"
+        >
+          <span>AI (Batch + Summary)</span>
+        </button>
       </div>
 
       {/* Passwords List */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
+        {aiSummary && (
+          <div className="mb-4">
+            <AISummary summary={aiSummary} onClose={() => setAiSummary(null)} />
+          </div>
+        )}
         <div className="space-y-3">
           {filteredPasswords.map((password) => {
             const IconComponent = password.icon
