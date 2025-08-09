@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { motion } from "motion/react";
 import { 
   Shield, 
   Key, 
@@ -40,7 +41,14 @@ import { useState, useEffect } from "react";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  display: 'swap',
+});
+
+const interTight = Inter({
+  variable: "--font-inter-tight",
+  subsets: ["latin"],
+  weight: ["600", "700", "800", "900"],
   display: 'swap',
 });
 
@@ -124,15 +132,21 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={`${inter.variable} font-sans min-h-screen bg-background`}>
+    <div className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background`}>
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-6 lg:px-8">
           {/* Logo and brand */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <Shield className="h-8 w-8 text-primary" />
-              <span className="text-xl font-semibold text-foreground">Grand Warden</span>
+              <Image
+                src="/logo.png"
+                alt="Grand Warden Logo"
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
+              <span className="text-xl brand-text text-foreground">Grand Warden</span>
             </div>
             <Badge variant="secondary" className="hidden sm:inline-flex">
               Dashboard
@@ -172,15 +186,39 @@ export default function Dashboard() {
       </header>
 
       {/* Main content */}
-      <main className="container px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         {/* Welcome section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back, Marcus</h1>
-          <p className="text-muted-foreground">Your security dashboard is ready. Here's your password vault overview.</p>
-        </div>
+        <motion.div 
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <motion.h1 
+            className="text-3xl md:text-4xl heading-modern text-foreground mb-2"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.6, ease: "easeOut" }}
+          >
+            Welcome back, Marcus
+          </motion.h1>
+          <motion.p 
+            className="text-muted-foreground"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+          >
+            Your security dashboard is ready. Here's your password vault overview.
+          </motion.p>
+        </motion.div>
 
         {/* Security overview cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <motion.div 
+          className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+        >
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Security Score</CardTitle>
@@ -236,16 +274,21 @@ export default function Dashboard() {
               </p>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <motion.div 
+          className="grid gap-6 lg:grid-cols-3"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
+        >
           {/* Password vault */}
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Password Vault</CardTitle>
+                    <CardTitle className="heading-bold">Password Vault</CardTitle>
                     <CardDescription>Manage your stored passwords and credentials</CardDescription>
                   </div>
                   <Button>
@@ -310,7 +353,7 @@ export default function Dashboard() {
             {/* Quick actions */}
             <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle className="heading-bold">Quick Actions</CardTitle>
                 <CardDescription>Common password management tasks</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -336,7 +379,7 @@ export default function Dashboard() {
             {/* Security insights */}
             <Card>
               <CardHeader>
-                <CardTitle>Security Insights</CardTitle>
+                <CardTitle className="heading-bold">Security Insights</CardTitle>
                 <CardDescription>Recommendations to improve your security</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -360,7 +403,7 @@ export default function Dashboard() {
             {/* Recent activity */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
+                <CardTitle className="heading-bold">Recent Activity</CardTitle>
                 <CardDescription>Your latest password management actions</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -380,7 +423,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </div>
-        </div>
+        </motion.div>
       </main>
     </div>
   );
