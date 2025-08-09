@@ -255,12 +255,88 @@ export default function Dashboard() {
           </motion.p>
         </motion.div>
 
+        {/* NFT Security Status Display */}
+        <motion.div 
+          className="mb-8"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+        >
+          <Card className="max-w-md mx-auto">
+            <CardContent className="p-6">
+              <div className="text-center space-y-4">
+                {/* NFT Image */}
+                <div className="relative w-48 h-48 mx-auto">
+                  <div className={`absolute inset-0 rounded-lg border-2 ${
+                    securityScore > 80 
+                      ? 'bg-gradient-to-br from-green-400/20 to-emerald-600/20 border-green-400/50' 
+                      : securityScore > 60 
+                      ? 'bg-gradient-to-br from-yellow-400/20 to-orange-600/20 border-yellow-400/50'
+                      : 'bg-gradient-to-br from-red-400/20 to-red-600/20 border-red-400/50'
+                  } backdrop-blur-sm overflow-hidden`}>
+                    {/* Placeholder NFT Image Background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700">
+                      <Image
+                        src="/placeholder-avatar.svg"
+                        alt="Security NFT"
+                        fill
+                        className="object-cover opacity-10"
+                      />
+                    </div>
+                    
+                    {/* Central Shield Icon */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Shield className={`h-20 w-20 ${
+                        securityScore > 80 
+                          ? 'text-green-400' 
+                          : securityScore > 60 
+                          ? 'text-yellow-400'
+                          : 'text-red-400'
+                      }`} />
+                    </div>
+                    
+                    {/* Score overlay */}
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <div className="bg-black/50 backdrop-blur-sm rounded px-2 py-1 text-center">
+                        <span className="text-white text-xs font-medium">{securityScore}% Secure</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* NFT Title & Category */}
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-foreground">
+                    {securityScore > 80 
+                      ? 'Fortress Guardian' 
+                      : securityScore > 60 
+                      ? 'Shield Bearer'
+                      : 'Vulnerable Keeper'}
+                  </h3>
+                  <Badge variant={securityScore > 80 ? 'default' : securityScore > 60 ? 'secondary' : 'destructive'}>
+                    Security NFT • Level {Math.floor(securityScore / 20) + 1}
+                  </Badge>
+                </div>
+
+                {/* Short Description */}
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                  {securityScore > 80 
+                    ? 'Elite password security guardian with exceptional vault protection.' 
+                    : securityScore > 60 
+                    ? 'Reliable security defender with room for improvement.'
+                    : 'Novice security keeper requiring immediate attention.'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* Security overview cards */}
         <motion.div 
           className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+          transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
         >
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -443,28 +519,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Recent activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="heading-bold">Recent Activity</CardTitle>
-                <CardDescription>Your latest password management actions</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3">
-                    {getActivityIcon(activity.type)}
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm text-foreground">{activity.action}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{activity.item}</span>
-                        <span>•</span>
-                        <span>{activity.time}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+
           </div>
         </motion.div>
       </main>
