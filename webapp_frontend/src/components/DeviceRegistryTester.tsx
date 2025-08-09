@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit'
 import { Transaction } from '@mysten/sui/transactions'
-import { v4 as uuidv4 } from 'uuid'
 
 const PACKAGE_ID = '0xda0d195bf027d7991d602b196d3e0ad5e8c4e167a8beb9d9a8b0f6d33b4ce723'
 const MODULE = 'device_registry'
@@ -92,19 +91,39 @@ export default function DeviceRegistryTester() {
       }
 
       const tx = new Transaction()
-      // Create device info
-      const deviceInfo = tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::register_device`,
-        arguments: [
-          tx.pure.string(deviceName),
-          tx.pure.string(deviceId),
-          tx.pure.address(resolvedOwner),
-        ],
-      })
-
       let regArg: any
       let createdNew = false
+
       if (registryObjectId) {
+        // If a registry exists, check if this device is already registered to avoid aborts
+        try {
+          const evs = await client.queryEvents({
+            query: { MoveEventType: `${PACKAGE_ID}::${MODULE}::DeviceRegistered` },
+            limit: 200,
+          })
+          const already = (evs.data || []).some((ev: any) => {
+            const parsed = ev.parsedJson || {}
+            const ownerMatch = (parsed.owner || '').toLowerCase() === resolvedOwner.toLowerCase()
+            const deviceMatch = parsed.device_id === deviceId
+            return ownerMatch && deviceMatch
+          })
+
+          if (already) {
+            // Only record access; skip add to avoid dynamic_field::add abort
+            tx.moveCall({
+              target: `${PACKAGE_ID}::${MODULE}::record_device_access`,
+              arguments: [tx.object(registryObjectId), tx.pure.string(deviceId)],
+            })
+            const res = await signAndExecute({ transaction: tx, chain: 'sui:testnet' })
+            // @ts-ignore
+            const digest = res?.digest || res?.effects?.transactionDigest || null
+            setLastDigest(digest)
+            return
+          }
+        } catch {
+          // If event query fails, fall through and attempt normal add
+        }
+
         regArg = tx.object(registryObjectId)
       } else {
         // Create a new registry in this transaction
@@ -114,6 +133,16 @@ export default function DeviceRegistryTester() {
         })
         createdNew = true
       }
+
+      // Create device info only when we intend to add a new device
+      const deviceInfo = tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE}::register_device`,
+        arguments: [
+          tx.pure.string(deviceName),
+          tx.pure.string(deviceId),
+          tx.pure.address(resolvedOwner),
+        ],
+      })
 
       // Add device into registry
       tx.moveCall({

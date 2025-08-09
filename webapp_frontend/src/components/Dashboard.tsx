@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 // SuiClient is not used directly here after refactor; keep getFullnodeUrl via helper module
 // import removed to satisfy linter
@@ -41,6 +42,7 @@ import AddPasswordModal, { NewPasswordData } from "./AddPasswordModal";
 import AutofillStatus from "./AutofillStatus";
 import { ToastProps } from "./Toast";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
+import AISummary from './AISummary'
 
 interface PasswordEntry {
   id: number;
@@ -86,6 +88,8 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
       return { icon: Globe, color: "bg-blue-600" };
     } else if (domain.includes("work") || domain.includes("company")) {
       return { icon: Briefcase, color: "bg-blue-600" };
+      
+    const [aiSummary, setAiSummary] = useState<string | null>(null)
     } else {
       return { icon: Globe, color: "bg-cyber-600" };
     }
@@ -345,6 +349,82 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
       password.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const sendTestPayload = async () => {
+    const payload = {
+      id: 1,
+      name: 'Gmail',
+      url: 'gmail.com',
+      username: 'john.doe@gmail.com',
+      password: 'johndoe'
+    }
+    try {
+      const roflUrl = import.meta.env.VITE_ROFL_ENDPOINT || 'http://localhost:8080/ingest-test'
+      const res = await fetch(roflUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json().catch(() => null)
+      if (data?.hibp) {
+        const status = data.hibp.pwned ? `Pwned ${data.hibp.count} times` : 'Not found in HIBP'
+        addToast({ type: 'success', title: 'ROFL Response', message: status, duration: 3500 })
+      } else {
+        addToast({ type: 'success', title: 'Sent to ROFL', message: 'Test payload sent successfully', duration: 2500 })
+      }
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Send failed', message: e?.message || 'Unknown error', duration: 3000 })
+    }
+  }
+
+  const sendBatchPayload = async () => {
+    const batch = passwordList.slice(0, 5).map(p => ({
+      id: p.id,
+      name: p.name,
+      url: p.url,
+      username: p.username,
+      password: p.password,
+    }))
+    try {
+      const roflUrl = (import.meta.env.VITE_ROFL_BATCH_ENDPOINT as string) || 'http://localhost:8080/ingest-batch'
+      const res = await fetch(roflUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch)
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const pwnedCount = Array.isArray(data) ? data.filter((r: any) => r?.hibp?.pwned).length : 0
+      addToast({ type: 'success', title: 'Batch checked', message: `${pwnedCount} of ${batch.length} pwned`, duration: 4000 })
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Batch failed', message: e?.message || 'Unknown error', duration: 3000 })
+    }
+  }
+
+  const sendBatchAndSummarize = async () => {
+    const batch = passwordList.slice(0, 5).map(p => ({
+      id: p.id,
+      name: p.name,
+      url: p.url,
+      username: p.username,
+      password: p.password,
+    }))
+    try {
+      const roflUrl = (import.meta.env.VITE_ROFL_SUMMARY_ENDPOINT as string) || 'http://localhost:8080/ingest-batch-summarize'
+      const res = await fetch(roflUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch)
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const summary = data?.ai?.summary || 'No AI summary'
+      setAiSummary(summary)
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Summary failed', message: e?.message || 'Unknown error', duration: 3000 })
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden container mx-auto max-w-4xl">
       {/* Search and Add Section */}
@@ -413,10 +493,39 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
           <Key className="w-5 h-5" strokeWidth={2} />
           <span>{isRetrieving ? "Retrieving…" : "Retrieve Credentials"}</span>
         </button>
+
+        {/* AI Test Button */}
+        {/* <button
+          onClick={sendTestPayload}
+          className="cyber-button-secondary w-full flex items-center justify-center space-x-3 py-3"
+        >
+          <span>AI (Send Test Payload)</span>
+        </button> */}
+
+        {/* AI Batch Button */}
+        {/* <button
+          onClick={sendBatchPayload}
+          className="cyber-button-secondary w-full flex items-center justify-center space-x-3 py-3"
+        >
+          <span>AI (Send Batch of Credentials)</span>
+        </button> */}
+
+        {/* AI Summary Button */}
+        <button
+          onClick={sendBatchAndSummarize}
+          className="cyber-button w-full flex items-center justify-center space-x-3 py-3"
+        >
+          <span>AI (Batch + Summary)</span>
+        </button>
       </div>
 
       {/* Passwords List */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
+        {aiSummary && (
+          <div className="mb-4">
+            <AISummary summary={aiSummary} onClose={() => setAiSummary(null)} />
+          </div>
+        )}
         <div className="space-y-3">
           {filteredPasswords.map((password) => {
             const IconComponent = password.icon;

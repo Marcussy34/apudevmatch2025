@@ -19,9 +19,9 @@ services:
       SAPPHIRE_CHAIN_ID: "23295"
       CONTRACT_ATOMIC_VAULT_MANAGER: "0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C"
 
-      # Sui blockchain configuration (ready for integration)
+      # Sui blockchain configuration (reads from .env)
       SUI_RPC_URL: "https://fullnode.testnet.sui.io:443"
-      SUI_CONTRACT_PACKAGE: "0x0" # Will be updated when Sui contracts are deployed
+      SUI_CONTRACT_PACKAGE: "${SUI_CONTRACT_PACKAGE}"
 
       # Logging configuration
       RUST_LOG: "info"
@@ -30,6 +30,10 @@ services:
     # Secrets (loaded from .env file)
     env_file:
       - .env
+
+    # Ensure the service is reachable inside the TDX VM via this port
+    expose:
+      - "8080"
 
     # Resource limits (matching rofl.yaml)
     deploy:
@@ -52,6 +56,9 @@ services:
     # Network configuration for blockchain RPC access
     networks:
       - rofl-network
+
+    ports:
+      - "8080:8080"
 
     # Logging configuration
     logging:

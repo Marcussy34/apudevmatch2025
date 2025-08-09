@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@mysten/dapp-kit": "^0.17.2",
     "@mysten/enoki": "^0.11.5",
     "@mysten/seal": "^0.4.20",
@@ -18,7 +19,9 @@
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.15.0"
+    "react-markdown": "^9.1.0",
+    "react-router-dom": "^6.15.0",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
