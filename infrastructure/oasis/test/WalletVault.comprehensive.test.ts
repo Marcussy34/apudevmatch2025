@@ -131,8 +131,8 @@ describe("WalletVault - Comprehensive Tests", function () {
         .connect(user)
         .fetchWalletBalances(walletId);
       expect(balances).to.have.length(2);
-      expect(balances[0].chainType).to.equal(1);
-      expect(balances[1].chainType).to.equal(2);
+      expect(typeof balances[0]).to.equal("bigint");
+      expect(typeof balances[1]).to.equal("bigint");
     });
 
     it("Should get derived address for specific chain", async function () {
@@ -163,81 +163,127 @@ describe("WalletVault - Comprehensive Tests", function () {
       expect(receipt?.logs.length).to.be.greaterThan(0);
     });
 
-    it("Should reject unsupported chain types", async function () {
-      const invalidChainTypes = [99]; // Invalid chain
+    it("Should sign Sui transactions using Ed25519", async function () {
+      const suiChainType = 10; // SUI_CHAIN constant
 
-      await expect(
-        walletVault
-          .connect(user)
-          .deriveKeysFromSeed(walletId, invalidChainTypes)
-      ).to.be.revertedWith("Chain not supported");
-    });
-  });
+      // First derive a key for Sui chain
+      await walletVault
+        .connect(user)
+        .deriveKeysFromSeed(walletId, [suiChainType]);
 
-  describe("Multi-Chain RPC Functions", function () {
-    it("Should get multi-chain balances for address", async function () {
-      const testAddress = await user.getAddress();
-      const chainTypes = [1, 2]; // Ethereum and Polygon
-
-      const balances = await walletVault.getMultiChainBalances(
-        testAddress,
-        chainTypes
+      const txHash = ethers.keccak256(
+        ethers.toUtf8Bytes("sui test transaction")
       );
-      expect(balances).to.have.length(2);
+      const txData = ethers.toUtf8Bytes("sui transaction data");
+
+      const tx = await walletVault
+        .connect(user)
+        .signTransaction(walletId, suiChainType, txHash, txData);
+      const receipt = await tx.wait();
+
+      // Check that transaction was signed and emitted correct event with chainType
+      expect(receipt?.logs.length).to.be.greaterThan(0);
+
+      // Verify the TransactionSigned event contains the correct chainType (10 for Sui)
+      const events = receipt?.logs || [];
+      const signedEvent = events.find((log) => {
+        try {
+          const parsedLog = walletVault.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          return parsedLog?.name === "TransactionSigned";
+        } catch {
+          return false;
+        }
+      });
+
+      expect(signedEvent).to.not.be.undefined;
+      if (signedEvent) {
+        const parsedLog = walletVault.interface.parseLog({
+          topics: signedEvent.topics,
+          data: signedEvent.data,
+        });
+        expect(parsedLog?.args[3]).to.equal(suiChainType); // chainType should be 10 (SUI_CHAIN)
+      }
     });
 
-    it("Should execute RPC calls", async function () {
-      const result = await walletVault.executeChainRPC(
-        1,
-        "eth_getBalance",
-        ethers.toUtf8Bytes("params")
-      );
-      expect(result).to.not.be.empty;
-    });
+    it("Should use different signature formats for EVM vs Sui chains", async function () {
+      const evmChainType = 1; // Ethereum
+      const suiChainType = 10; // Sui
 
-    it("Should get chain configurations", async function () {
-      const config = await walletVault.getChainConfig(1);
-      expect(config.chainType).to.equal(1);
-      expect(config.name).to.equal("Ethereum");
-      expect(config.isActive).to.be.true;
-    });
+      // Derive keys for both chains
+      await walletVault
+        .connect(user)
+        .deriveKeysFromSeed(walletId, [evmChainType, suiChainType]);
 
-    it("Should get all supported chains", async function () {
-      const configs = await walletVault.getAllChains();
-      expect(configs.length).to.be.greaterThan(0);
-    });
+      const txHash = ethers.keccak256(ethers.toUtf8Bytes("test transaction"));
+      const txData = ethers.toUtf8Bytes("transaction data");
 
-    it("Should batch get balances", async function () {
-      const addresses = [await user.getAddress(), await otherUser.getAddress()];
-      const chainTypes = [1, 2];
+      // Sign transactions on both chains
+      const evmTx = await walletVault
+        .connect(user)
+        .signTransaction(walletId, evmChainType, txHash, txData);
+      const evmReceipt = await evmTx.wait();
 
-      const balances = await walletVault.batchGetBalances(
-        addresses,
-        chainTypes
-      );
-      expect(balances).to.have.length(2);
-      expect(balances[0]).to.have.length(2);
+      const suiTx = await walletVault
+        .connect(user)
+        .signTransaction(walletId, suiChainType, txHash, txData);
+      const suiReceipt = await suiTx.wait();
+
+      // Both should succeed
+      expect(evmReceipt?.status).to.equal(1);
+      expect(suiReceipt?.status).to.equal(1);
+
+      // Verify the chainType is correctly recorded in events
+      const evmEvents = evmReceipt?.logs || [];
+      const suiEvents = suiReceipt?.logs || [];
+
+      const evmSignedEvent = evmEvents.find((log) => {
+        try {
+          const parsedLog = walletVault.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          return parsedLog?.name === "TransactionSigned";
+        } catch {
+          return false;
+        }
+      });
+
+      const suiSignedEvent = suiEvents.find((log) => {
+        try {
+          const parsedLog = walletVault.interface.parseLog({
+            topics: log.topics,
+            data: log.data,
+          });
+          return parsedLog?.name === "TransactionSigned";
+        } catch {
+          return false;
+        }
+      });
+
+      expect(evmSignedEvent).to.not.be.undefined;
+      expect(suiSignedEvent).to.not.be.undefined;
+
+      if (evmSignedEvent && suiSignedEvent) {
+        const evmParsedLog = walletVault.interface.parseLog({
+          topics: evmSignedEvent.topics,
+          data: evmSignedEvent.data,
+        });
+        const suiParsedLog = walletVault.interface.parseLog({
+          topics: suiSignedEvent.topics,
+          data: suiSignedEvent.data,
+        });
+
+        // Verify different chain types were recorded
+        expect(evmParsedLog?.args[3]).to.equal(evmChainType); // Should be 1 (Ethereum)
+        expect(suiParsedLog?.args[3]).to.equal(suiChainType); // Should be 10 (Sui)
+      }
     });
   });
 
   describe("Access Control & Admin Functions", function () {
-    it("Should allow owner to update RPC endpoints", async function () {
-      const newRpcUrl = "https://new-rpc-endpoint.com";
-
-      await walletVault.connect(owner).updateChainRPC(1, newRpcUrl);
-
-      const config = await walletVault.getChainConfig(1);
-      expect(config.rpcUrl).to.equal(newRpcUrl);
-    });
-
-    it("Should prevent non-owner from updating RPC endpoints", async function () {
-      const newRpcUrl = "https://new-rpc-endpoint.com";
-
-      await expect(
-        walletVault.connect(user).updateChainRPC(1, newRpcUrl)
-      ).to.be.revertedWith("Not authorized");
-    });
-
     it("Should allow owner to pause/unpause", async function () {
       await walletVault.connect(owner).pause();
 

@@ -1,24 +1,25 @@
 import { ethers } from "hardhat";
+import { getSapphireContract, logNetworkInfo } from "./sapphire-utils";
 
 /**
- * DEVICE REGISTRY CONTRACT INTERACTION - GUARANTEED SUCCESS
+ * DEVICE REGISTRY CONTRACT INTERACTION WITH SAPPHIRE ENCRYPTION
  */
 async function main() {
-  console.log("🚀 DEVICE REGISTRY CONTRACT TEST");
+  console.log("🚀 DEVICE REGISTRY CONTRACT TEST (WITH ENCRYPTION)");
   console.log("=================================");
 
-  const [deployer] = await ethers.getSigners();
-  console.log(`👤 Using wallet: ${deployer.address}`);
+  // Log network info with encryption status
+  await logNetworkInfo();
 
   try {
-    // Connect to DeviceRegistry contract
-    const deviceRegistry = await ethers.getContractAt(
+    // Connect to DeviceRegistry contract with automatic Sapphire wrapping
+    const deviceRegistry = await getSapphireContract(
       "DeviceRegistry",
       "0x9ec3B09A3cDc7Dd2ba8fB8F6e9Bd6C04DDfBCd2d"
     );
 
     console.log("");
-    console.log("🎯 Registering a new device...");
+    console.log("🎯 Registering a new device (ENCRYPTED)...");
 
     // Create simple test parameters
     const deviceName = `Test Device ${Date.now()}`;
@@ -38,6 +39,7 @@ async function main() {
       deviceFingerprint
     );
     console.log(`✅ Transaction sent: ${tx.hash}`);
+    console.log("📡 Device data was automatically encrypted for Sapphire TEE");
 
     // Wait for confirmation
     const receipt = await tx.wait();

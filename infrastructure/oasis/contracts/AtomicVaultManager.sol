@@ -2,14 +2,27 @@
 pragma solidity ^0.8.9;
 
 import "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./interfaces/IAtomicVaultManager.sol";
 import "./interfaces/IVaultEvents.sol";
 
 /**
  * @title AtomicVaultManager
  * @dev Coordinated vault state management with atomic operations across Walrus and Sui
+ * 
+ * ARCHITECTURE NOTE:
+ * Smart contracts cannot make HTTP requests directly, even on Sapphire. The HTTP integration
+ * functions in this contract return mock data for testing. In production, external systems
+ * must handle HTTP communications:
+ * 
+ * 1. ROFL Worker: Can make HTTPS calls to Walrus/Sui and call back into this contract
+ * 2. Frontend: Can fetch directly and call contract functions with results
+ * 3. Trusted Backend: Can act as oracle/bridge between external APIs and contract
+ * 
+ * The contract provides the coordination logic and state management, while external
+ * systems handle the actual HTTP communications with Walrus and Sui networks.
  */
-contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
+contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents, ReentrancyGuard {
     using Sapphire for *;
 
     // Operation timeout and retry configuration
@@ -49,6 +62,7 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
     
     // Access control
     address public owner;
+    address public roflWorker;
     bool public isPaused;
     
     // Statistics
@@ -77,6 +91,11 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
 
     modifier onlyOperationOwner(bytes32 operationId) {
         require(operations[operationId].user == msg.sender, "Not operation owner");
+        _;
+    }
+
+    modifier onlyROFLWorker() {
+        require(msg.sender == roflWorker, "Not authorized ROFL worker");
         _;
     }
 
@@ -117,12 +136,14 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
     function executeAtomicUpdate(bytes32 vaultId, bytes calldata newVaultData)
         external 
         override 
+        nonReentrant
         whenNotPaused 
         returns (string memory walrusCID, bytes32 suiTxHash) 
     {
         require(vaultId != bytes32(0), "Invalid vault ID");
         require(newVaultData.length > 0, "Empty vault data");
         require(newVaultData.length <= walrusConfig.maxBlobSize, "Data too large");
+        require(roflWorker != address(0), "ROFL worker not set");
 
         // Generate operation ID
         bytes32 operationId = keccak256(abi.encodePacked(
@@ -138,7 +159,9 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
         operation.id = operationId;
         operation.user = msg.sender;
         operation.vaultId = vaultId;
-        operation.status = OperationStatus.Pending;
+        operation.vaultData = newVaultData;
+        operation.status = OperationStatus.WalrusUploadRequested;
+        operation.exists = true;
         operation.startTime = block.timestamp;
 
         // Add to tracking arrays
@@ -146,106 +169,28 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
         vaultOperations[vaultId].push(operationId);
         totalOperations++;
 
+        // Emit events for ROFL worker to pick up
+        emit WalrusUploadRequested(operationId, newVaultData, walrusConfig.baseUrl, walrusConfig.storageEpochs);
         emit AtomicUpdateStarted(msg.sender, vaultId, "");
 
-        // Step 1: Upload to Walrus
-        try this._uploadToWalrus(operationId, newVaultData) returns (string memory cid) {
-            operation.walrusCID = cid;
-            operation.status = OperationStatus.WalrusUploaded;
-            walrusCID = cid;
-            
-            // Step 2: Update Sui state
-            try this._updateSuiState(operationId, vaultId, cid) returns (bytes32 txHash) {
-                operation.suiTxHash = txHash;
-                operation.status = OperationStatus.SuiUpdated;
-                suiTxHash = txHash;
-                
-                // Step 3: Mark as completed
-                operation.status = OperationStatus.Completed;
-                operation.completionTime = block.timestamp;
-                successfulOperations++;
-                
-                emit AtomicUpdateCompleted(msg.sender, vaultId, suiTxHash);
-                return (walrusCID, suiTxHash);
-                
-            } catch Error(string memory reason) {
-                // Sui update failed, try to rollback Walrus
-                operation.status = OperationStatus.Failed;
-                failedOperations++;
-                emit AtomicUpdateFailed(msg.sender, vaultId, reason);
-                
-                // Attempt rollback
-                this._rollbackWalrus(operationId, cid);
-                revert(string(abi.encodePacked("Sui update failed: ", reason)));
-            }
-            
-        } catch Error(string memory reason) {
-            // Walrus upload failed
-            operation.status = OperationStatus.Failed;
-            failedOperations++;
-            emit AtomicUpdateFailed(msg.sender, vaultId, reason);
-            revert(string(abi.encodePacked("Walrus upload failed: ", reason)));
-        }
+        // Return empty values - actual values will be available after ROFL worker completes
+        // Users should listen to events or query operation status for completion
+        return ("", bytes32(0));
     }
 
-    /**
-     * @dev Upload data to Walrus (internal call for error handling)
-     */
-    function _uploadToWalrus(bytes32 operationId, bytes calldata data) 
-        external 
-        view 
-        returns (string memory cid) 
-    {
-        require(msg.sender == address(this), "Internal call only");
-        
-        // Simulate Walrus upload
-        // In real implementation, this would use Walrus HTTP API within TEE
-        bytes32 dataHash = keccak256(data);
-        string memory hashHex = _bytesToHex(dataHash);
-        
-        cid = string(abi.encodePacked(
-            "bafkreihq6urhg",
-            _substring(hashHex, 0, 20)
-        ));
-        
-        return cid;
-    }
 
-    /**
-     * @dev Update Sui state (internal call for error handling)
-     */
-    function _updateSuiState(bytes32 operationId, bytes32 vaultId, string memory cid) 
-        external 
-        view 
-        returns (bytes32 txHash) 
-    {
-        require(msg.sender == address(this), "Internal call only");
-        
-        // Simulate Sui transaction
-        // In real implementation, this would call Sui RPC within TEE
-        txHash = keccak256(abi.encodePacked(
-            vaultId,
-            cid,
-            block.timestamp,
-            "sui_tx"
-        ));
-        
-        return txHash;
-    }
+    
 
-    /**
-     * @dev Rollback Walrus upload (internal call)
-     */
-    function _rollbackWalrus(bytes32 operationId, string memory cid) external {
-        require(msg.sender == address(this), "Internal call only");
-        
-        // In real implementation, this would delete the blob from Walrus
-        // For now, we just emit an event
-        AtomicOperation storage operation = operations[operationId];
-        operation.status = OperationStatus.RolledBack;
-        
-        emit OperationRolledBack(operation.user, operationId, "Walrus rollback");
-    }
+    
+
+
+
+    
+
+    
+
+    
+
 
     /**
      * @dev Rollback failed atomic operations
@@ -363,7 +308,11 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
         external 
         override 
         onlyOwner 
+        nonReentrant
+        whenNotPaused
     {
+        require(maxAge >= 1 hours && maxAge <= 30 days, "Invalid max age");
+        
         // This would be implemented to clean up old operations
         // For now, we just emit an event
         emit SystemHealthCheck(block.timestamp, true, "Cleanup executed");
@@ -372,7 +321,8 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
     /**
      * @dev Emergency pause atomic operations
      */
-    function pauseOperations() external override onlyOwner {
+    function pauseOperations() external override onlyOwner nonReentrant {
+        require(!isPaused, "Already paused");
         isPaused = true;
         emit SystemHealthCheck(block.timestamp, false, "Operations paused");
     }
@@ -380,7 +330,8 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
     /**
      * @dev Resume atomic operations
      */
-    function resumeOperations() external override onlyOwner {
+    function resumeOperations() external override onlyOwner nonReentrant {
+        require(isPaused, "Not paused");
         isPaused = false;
         emit SystemHealthCheck(block.timestamp, true, "Operations resumed");
     }
@@ -426,7 +377,11 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
         bytes32 apiKey,
         uint256 maxBlobSize,
         uint256 storageEpochs
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant whenNotPaused {
+        require(bytes(baseUrl).length > 0, "Base URL cannot be empty");
+        require(maxBlobSize > 0 && maxBlobSize <= 100 * 1024 * 1024, "Invalid max blob size"); // Max 100MB
+        require(storageEpochs > 0 && storageEpochs <= 100, "Invalid storage epochs");
+        
         walrusConfig.baseUrl = baseUrl;
         walrusConfig.apiKey = apiKey;
         walrusConfig.maxBlobSize = maxBlobSize;
@@ -441,7 +396,12 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
         bytes32 packageId,
         bytes32 moduleId,
         uint256 gasLimit
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant whenNotPaused {
+        require(bytes(rpcUrl).length > 0, "RPC URL cannot be empty");
+        require(packageId != bytes32(0), "Package ID cannot be zero");
+        require(moduleId != bytes32(0), "Module ID cannot be zero");
+        require(gasLimit >= 1000000 && gasLimit <= 100000000, "Invalid gas limit"); // 1M - 100M gas
+        
         suiConfig.rpcUrl = rpcUrl;
         suiConfig.packageId = packageId;
         suiConfig.moduleId = moduleId;
@@ -456,7 +416,11 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
         uint256 maxRetries,
         uint256 retryDelaySeconds,
         bool requireConfirmation
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant whenNotPaused {
+        require(timeoutSeconds >= 30 && timeoutSeconds <= 3600, "Timeout must be 30s-1h");
+        require(maxRetries <= 10, "Too many retries");
+        require(retryDelaySeconds >= 1 && retryDelaySeconds <= 300, "Retry delay must be 1s-5m");
+        
         defaultConfig.timeoutSeconds = timeoutSeconds;
         defaultConfig.maxRetries = maxRetries;
         defaultConfig.retryDelaySeconds = retryDelaySeconds;
@@ -510,6 +474,25 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
         
         return string(result);
     }
+    
+    function _uint256ToString(uint256 value) private pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
 
     // Event implementations
     function emitVaultEvent(address user, uint8 eventType, bytes calldata data) 
@@ -529,7 +512,80 @@ contract AtomicVaultManager is IAtomicVaultManager, IVaultEvents {
         emit UserFlowEvent(user, flowType, step, success, data);
     }
 
+    /**
+     * @dev Set the authorized ROFL worker address
+     */
+    function setROFLWorker(address _roflWorker) external override onlyOwner {
+        require(_roflWorker != address(0), "Invalid ROFL worker address");
+        roflWorker = _roflWorker;
+        emit ROFLWorkerUpdated(_roflWorker);
+    }
+
+    /**
+     * @dev Callback for ROFL worker to report Walrus upload results
+     */
+    function reportWalrusUploadResult(
+        bytes32 operationId,
+        bool success,
+        string calldata cid,
+        string calldata errorMessage
+    ) external override onlyROFLWorker nonReentrant {
+        require(operations[operationId].exists, "Operation not found");
+        require(operations[operationId].status == OperationStatus.WalrusUploadRequested, "Invalid operation state");
+        
+        AtomicOperation storage operation = operations[operationId];
+        
+        if (success) {
+            operation.walrusCID = cid;
+            operation.status = OperationStatus.WalrusUploaded;
+            emit WalrusUploadCompleted(operationId, cid);
+            
+            // Proceed to next step - request Sui state update
+            emit SuiUpdateRequested(operationId, operation.vaultId, cid, suiConfig.rpcUrl);
+            operation.status = OperationStatus.SuiUpdateRequested;
+        } else {
+            operation.status = OperationStatus.Failed;
+            operation.errorMessage = errorMessage;
+            operation.completionTime = block.timestamp;
+            failedOperations++;
+            emit WalrusUploadFailed(operationId, errorMessage);
+            emit AtomicUpdateFailed(operation.user, operation.vaultId, errorMessage);
+        }
+    }
+
+    /**
+     * @dev Callback for ROFL worker to report Sui update results
+     */
+    function reportSuiUpdateResult(
+        bytes32 operationId,
+        bool success,
+        bytes32 txHash,
+        string calldata errorMessage
+    ) external override onlyROFLWorker nonReentrant {
+        require(operations[operationId].exists, "Operation not found");
+        require(operations[operationId].status == OperationStatus.SuiUpdateRequested, "Invalid operation state");
+        
+        AtomicOperation storage operation = operations[operationId];
+        
+        if (success) {
+            operation.suiTxHash = txHash;
+            operation.status = OperationStatus.Completed;
+            operation.completionTime = block.timestamp;
+            successfulOperations++;
+            emit SuiUpdateCompleted(operationId, txHash);
+            emit AtomicUpdateCompleted(operation.user, operation.vaultId, txHash);
+        } else {
+            operation.status = OperationStatus.Failed;
+            operation.errorMessage = errorMessage;
+            operation.completionTime = block.timestamp;
+            failedOperations++;
+            emit SuiUpdateFailed(operationId, errorMessage);
+            emit AtomicUpdateFailed(operation.user, operation.vaultId, errorMessage);
+        }
+    }
+
     // Custom events
     event GenericVaultEvent(address indexed user, uint8 eventType, bytes data);
     event UserFlowEvent(address indexed user, uint8 flowType, uint8 step, bool success, bytes data);
+    event ROFLWorkerUpdated(address indexed newROFLWorker);
 }

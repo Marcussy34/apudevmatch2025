@@ -159,7 +159,10 @@ describe("RecoveryManager", function () {
         recoveryManager
           .connect(user)
           .initiateRecovery(threshold, encryptedRecoveryData)
-      ).to.emit(recoveryManager, "RecoveryInitiated");
+      ).to.emit(
+        recoveryManager,
+        "RecoveryInitiated(address,bytes32,uint256)"
+      );
 
       const recoveryRequests = await recoveryManager.getUserRecoveryRequests(
         await user.getAddress()
@@ -220,7 +223,10 @@ describe("RecoveryManager", function () {
       // Second guardian approves - should complete recovery
       await expect(
         recoveryManager.connect(guardian2).approveRecovery(recoveryId)
-      ).to.emit(recoveryManager, "RecoveryCompleted");
+      ).to.emit(
+        recoveryManager,
+        "RecoveryCompleted(address,bytes32,uint256)"
+      );
     });
 
     it("Should prevent non-guardian from approving", async function () {
@@ -429,7 +435,19 @@ describe("RecoveryManager", function () {
         recoveryManager
           .connect(owner)
           .emergencyRecovery(userAddress, newOwner, "Security breach")
-      ).to.emit(recoveryManager, "RecoveryInitiated");
+      ).to.emit(
+        recoveryManager,
+        "RecoveryInitiated(address,bytes32,uint256)"
+      );
+      // Also emits RecoveryCompleted per implementation
+      await expect(
+        recoveryManager
+          .connect(owner)
+          .emergencyRecovery(userAddress, newOwner, "Security breach 2")
+      ).to.emit(
+        recoveryManager,
+        "RecoveryCompleted(address,bytes32,uint256)"
+      );
     });
 
     it("Should prevent non-owner from admin functions", async function () {

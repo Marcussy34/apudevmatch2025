@@ -3,14 +3,23 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@oasisprotocol/sapphire-hardhat": "^2.22.2",
-    "hardhat": "^2.26.1"
+    "hardhat": "^2.26.1",
+    "solidity-coverage": "^0.8.5"
   },
   "dependencies": {
     "@oasisprotocol/sapphire-contracts": "^0.2.14",
+    "@oasisprotocol/sapphire-ethers-v6": "^6.0.1",
     "dotenv": "^17.2.1",
     "ethers": "^6.8.0",
     "bip39": "^3.1.0",
     "hdkey": "^2.1.0",
     "@ethersproject/hdnode": "^5.7.0"
+  },
+  "scripts": {
+    "test": "NODE_OPTIONS=--max-old-space-size=6144 npx hardhat test",
+    "test:coverage": "NODE_OPTIONS=--max-old-space-size=8192 npx hardhat coverage --temp artifacts-coverage",
+    "test:performance": "npx hardhat test test/performance/",
+    "deploy": "npx hardhat run scripts/deploy.ts",
+    "compile": "npx hardhat compile"
   }
 }

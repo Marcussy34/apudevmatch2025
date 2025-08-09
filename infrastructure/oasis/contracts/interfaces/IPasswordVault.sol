@@ -8,8 +8,7 @@ pragma solidity ^0.8.9;
 interface IPasswordVault {
     // Events for user flow
     event CredentialAdded(address indexed user, bytes32 indexed vaultId, string domain, uint256 timestamp);
-    event VaultBlobUpdated(address indexed user, bytes32 indexed vaultId, string newCID, bytes32 suiTxHash);
-    event BreachAlert(address indexed user, uint256 severity, string message);
+    // Note: VaultBlobUpdated and BreachAlert are declared in IVaultEvents
 
     /**
      * @dev Add credential to existing vault

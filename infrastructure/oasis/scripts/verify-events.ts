@@ -87,10 +87,6 @@ async function main() {
   const recoveryManager = await RecoveryManager.deploy();
   await recoveryManager.waitForDeployment();
 
-  const MultiChainRPC = await ethers.getContractFactory("MultiChainRPC");
-  const multiChainRPC = await MultiChainRPC.deploy();
-  await multiChainRPC.waitForDeployment();
-
   const AtomicVaultManager = await ethers.getContractFactory(
     "AtomicVaultManager"
   );
@@ -266,29 +262,7 @@ async function main() {
       .createRecoveryShares(2, shareData);
   });
 
-  // 5. Multi-Chain RPC Events
-  console.log("\n🌐 Multi-Chain RPC Events:");
-
-  await verifyEvent("MultiChainRPC", "ChainConfigUpdated", async () => {
-    return await multiChainRPC
-      .connect(deployer)
-      .updateChainRPC(1, "https://new-test-rpc.com");
-  });
-
-  await verifyEvent("MultiChainRPC", "BalanceFetched", async () => {
-    const testAddress = await user.getAddress();
-    return await multiChainRPC
-      .connect(deployer)
-      .updateBalanceCache(testAddress, 1, ethers.parseEther("1"));
-  });
-
-  await verifyEvent("MultiChainRPC", "PriceFeedUpdated", async () => {
-    return await multiChainRPC
-      .connect(deployer)
-      .updatePriceFeed(1, ethers.parseEther("3500"), "test-oracle");
-  });
-
-  // 6. Atomic Vault Manager Events
+  // 5. Atomic Vault Manager Events
   console.log("\n⚛️ Atomic Vault Manager Events:");
 
   await verifyEvent("AtomicVaultManager", "AtomicUpdateStarted", async () => {

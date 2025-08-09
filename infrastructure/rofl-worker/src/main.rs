@@ -26,13 +26,14 @@ use std::env;
 /// - 100% event translation accuracy
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize structured logging for ROFL
+    // Initialize structured logging
     tracing_subscriber::fmt()
         .with_env_filter(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string())
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "info,grand_warden_rofl=debug".to_string())
         )
-        .with_target(false)
-        .without_time()
+        .with_target(true)
+        .with_thread_ids(true)
+        .json()
         .init();
 
     info!("🚀 Grand Warden ROFL Critical Data Bridge Starting");

@@ -1,11 +1,22 @@
 ﻿import { ethers } from "ethers";
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
 
 async function liveTest() {
-  console.log("🚀 LIVE CONTRACT INTERACTION TEST");
+  console.log("🚀 LIVE CONTRACT INTERACTION TEST (WITH ENCRYPTION)");
   console.log("=================================");
 
-  const provider = new ethers.JsonRpcProvider("https://testnet.sapphire.oasis.io");
-  const wallet = new ethers.Wallet("89299a570d0d8959c788417b88f3a214b8d68001fba2eb10672199001caebb7b", provider);
+  // Create base provider
+  const baseProvider = new ethers.JsonRpcProvider("https://testnet.sapphire.oasis.io");
+  
+  // CRITICAL: Wrap provider for automatic encryption
+  const provider = wrapEthersProvider(baseProvider);
+  
+  // CRITICAL: Wrap wallet for encrypted signing
+  const baseWallet = new ethers.Wallet("89299a570d0d8959c788417b88f3a214b8d68001fba2eb10672199001caebb7b", provider);
+  const wallet = wrapEthersSigner(baseWallet);
 
   const vaultAddress = "0xB6B183a041D077d5924b340EBF41EE4546fE0bcE";
   const vaultAbi = [
@@ -15,17 +26,20 @@ async function liveTest() {
 
   const vault = new ethers.Contract(vaultAddress, vaultAbi, wallet);
 
-  console.log("🎯 Creating vault transaction...");
+  console.log("🎯 Creating vault transaction (ENCRYPTED)...");
 
   try {
-    const vaultData = ethers.toUtf8Bytes(Live Test );
+    const vaultData = ethers.toUtf8Bytes("Live Test Encrypted Data");
+    
+    // This call will now be automatically encrypted
     const tx = await vault.createVault(vaultData);
 
-    console.log(✅ Transaction: );
+    console.log(`✅ Transaction: ${tx.hash}`);
+    console.log("📡 Transaction data was automatically encrypted for Sapphire TEE");
 
     const receipt = await tx.wait();
-    console.log(✅ Block: );
-    console.log(✅ Gas: );
+    console.log(`✅ Block: ${receipt.blockNumber}`);
+    console.log(`✅ Gas: ${receipt.gasUsed}`);
 
     console.log("");
     console.log("🔍 NOW CHECK YOUR SUBGRAPH!");
@@ -41,13 +55,13 @@ async function checkSubgraph() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        query: { _meta { block { number } } vaults { id } },
+        query: `{ _meta { block { number } } vaults { id } }`,
       }),
     });
 
     const data = await response.json();
-    console.log(📊 Subgraph Block: );
-    console.log(🏦 Total Vaults: );
+    console.log(`📊 Subgraph Block: ${data.data?._meta?.block?.number || 'unknown'}`);
+    console.log(`🏦 Total Vaults: ${data.data?.vaults?.length || 0}`);
   } catch (error) {
     console.error("❌ Subgraph error:", error);
   }

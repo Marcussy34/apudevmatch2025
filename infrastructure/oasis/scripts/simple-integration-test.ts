@@ -148,12 +148,8 @@ async function main() {
     console.log(`   ✅ Device registration and security systems functional`);
   }
 
-  // Step 7: Check multi-chain balances
-  console.log("\n7️⃣ Checking multi-chain balances...");
-  const multiChainRPC = await ethers.getContractAt(
-    "MultiChainRPC",
-    "0x2bcaA2dDbAE6609Cbd63D3a4B3dd0af881759472"
-  );
+  // Step 7: Check wallet balances (simplified - frontend handles multi-chain)
+  console.log("\n7️⃣ Checking wallet balances...");
 
   try {
     const balances = await walletVault
@@ -161,26 +157,16 @@ async function main() {
       .fetchWalletBalances(walletId);
     console.log(`   📊 Found ${balances.length} chain balances`);
 
-    for (const balance of balances) {
-      const chainConfig = await multiChainRPC.getChainConfig(balance.chainType);
+    for (let i = 0; i < balances.length; i++) {
       console.log(
-        `   💰 ${chainConfig.name}: ${ethers.formatEther(balance.balance)} ${
-          balance.tokenSymbol
-        }`
+        `   💰 Chain ${i + 1}: ${ethers.formatEther(balances[i])} tokens`
       );
     }
   } catch (error) {
     console.log(`   ⚠️  Balance check skipped (access control working)`);
 
-    // Show that MultiChainRPC works independently
-    const testAddress = await user.getAddress();
-    const balances = await multiChainRPC.getMultiChainBalances(
-      testAddress,
-      [1, 2]
-    );
-    console.log(
-      `   📊 Multi-chain RPC working: ${balances.length} chain balances fetched`
-    );
+    // Frontend will handle multi-chain functionality
+    console.log("   📊 Multi-chain functionality moved to frontend");
   }
 
   // Summary

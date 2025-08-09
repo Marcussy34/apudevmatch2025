@@ -6,8 +6,7 @@ pragma solidity ^0.8.9;
  * @dev Main interface for Grand Warden vault system
  */
 interface IGrandWarden {
-    // Events for The Graph indexing
-    event VaultCreated(address indexed user, bytes32 indexed vaultId, uint256 timestamp);
+    // Events for The Graph indexing (VaultCreated is declared in IVaultEvents)
     event VaultUpdated(address indexed user, bytes32 indexed vaultId, uint256 timestamp);
     event VaultAccessed(address indexed user, bytes32 indexed vaultId, uint256 timestamp);
 

@@ -26,6 +26,33 @@ A mandatory third pillar is a **live, cross-chain data layer powered by The Grap
 - **Sui zkLogin** – Seed-phrase-free onboarding (Google/Apple identity)
 - **The Graph** – Self-hosted node with custom Sapphire emulator for real-time indexing
 
+#### Updated Event & Mirroring Model
+
+- Sui emits canonical public events (no secrets) that include `eventId` and per-source `seq` for ordering:
+
+  - `DeviceRegistered(user, deviceId, deviceName, publicKey, registeredAt, eventId, seq)`
+  - `DeviceStatusChanged(user, deviceId, newStatus, changedAt, reason?, eventId, seq)`
+  - `VaultPointerCreated(user, vaultId, walrusCid, metadataHash, createdAt, eventId, seq)`
+  - `VaultPointerSet(user, vaultId, walrusCid, metadataHash, stage, updatedAt, eventId, seq)` where `stage ∈ {Provisional|Finalized|RolledBack}`
+  - `BlobACLUpdated(user, blobId, policy, authorizedDevices[], updatedAt, eventId, seq)`
+  - `RecoveryInitiated/Approved/Completed(..., eventId, seq)`
+
+- ROFL Worker:
+
+  - Computes/validates `eventId`, enforces exactly-once and monotonic `seq`.
+  - Maintains durable cursor/replay; exposes metrics (lag, queue depth, success rate).
+  - Calls Sapphire with attested identity or allowlisted key.
+
+- Sapphire (MirrorInbox):
+
+  - `mirrorEvent(user, eventType, payload, eventId, seq, attestation)` or typed methods.
+  - Verifies attestation/allowlist, idempotency (`processed[eventId]`) and ordering (`lastSeq[user]`).
+  - Dispatches to domain contracts and emits canonical EVM events.
+
+- Canonical ABI: `TransactionSigned(address user, bytes32 walletId, bytes32 txHash, uint8 chainType)` across contracts/ABIs.
+
+- Atomic 3‑phase flow: Walrus provisional → Sui pointer update → finalize/rollback, with Sapphire emitting `AtomicUpdateCompleted`/`OperationRolledBack`.
+
 ### Technology Roles & Responsibilities
 
 #### 🔵 Sui - Public Coordination and State Layer
@@ -58,8 +85,15 @@ A mandatory third pillar is a **live, cross-chain data layer powered by The Grap
 
 - **Enclave-Based Operations:** Hosts the core Password Vault and Wallet Vault smart contracts. All sensitive logic, like password decryption or transaction signing, happens inside its secure enclave
 - **Private Key Custody & Signing:** Securely stores decryption keys for user vaults. When a user wants to sign a transaction (for EVM or Sui), the encrypted private key is loaded into the Sapphire enclave, used for signing, and then immediately purged. The key is never exposed
+- **Simplified Multi-Chain Support:** Provides generic transaction signing capabilities while frontend handles chain-specific RPC calls and balance fetching for better flexibility and performance
 - **Synthetic Event Emission:** Acts as the destination for the ROFL mirror. It receives translated data from Sui and emits corresponding standard EVM events (e.g., VaultCreated, DeviceRegistered, BreachAlert)
 - **Data Source for Indexing:** These EVM events emitted by Sapphire are the sole data source that The Graph indexes to build its real-time data layer
+
+Implementation notes:
+
+- Add `MirrorInbox` contract (attestation/allowlist, idempotency, ordering; payload.version).
+- `GrandWardenVault`: TEE decrypt on view paths; never emit secrets.
+- `WalletVault`: generic transaction signing; frontend handles chain-specific details and RPC calls.
 
 #### 🌉 Oasis ROFL - Critical Data Bridge
 
