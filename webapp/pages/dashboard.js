@@ -1023,6 +1023,7 @@ export default function Dashboard() {
                                 alt={nftData.nfts[0].name || "NFT"}
                                 fill
                                 className="object-cover rounded-lg"
+                                unoptimized={nftData.nfts[0].imageUrl.startsWith('ipfs://')}
                                 onError={(e) => {
                                   // Fallback to shield icon if image fails to load
                                   e.target.style.display = "none";

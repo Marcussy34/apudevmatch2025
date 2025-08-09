@@ -1,6 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: '**',
+      },
+    ],
+    loader: 'custom',
+    loaderFile: './lib/imageLoader.js',
+  },
   async rewrites() {
     const target = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
     return [

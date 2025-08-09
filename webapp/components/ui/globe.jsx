@@ -37,21 +37,40 @@ const Globe = memo(function Globe({ globeConfig, data }) {
 
   // Initialize globe only once with delay for performance
   useEffect(() => {
-    if (!globeRef.current && groupRef.current) {
+    if (!globeRef.current) {
       // Use requestIdleCallback for better performance
       const initGlobe = () => {
-        globeRef.current = new ThreeGlobe();
-        groupRef.current.add(globeRef.current);
-        setIsInitialized(true);
+        if (!globeRef.current && groupRef.current) {
+          globeRef.current = new ThreeGlobe();
+          groupRef.current.add(globeRef.current);
+          setIsInitialized(true);
+        }
       };
 
+      // Add a small delay to ensure the ref is properly set
       if ('requestIdleCallback' in window) {
         requestIdleCallback(initGlobe);
       } else {
-        setTimeout(initGlobe, 0);
+        setTimeout(initGlobe, 16); // Wait for next frame
       }
     }
   }, []);
+
+  // Additional effect to handle case where groupRef is set after initial render
+  useEffect(() => {
+    if (!globeRef.current && !isInitialized && groupRef.current) {
+      const initGlobe = () => {
+        if (!globeRef.current && groupRef.current) {
+          globeRef.current = new ThreeGlobe();
+          groupRef.current.add(globeRef.current);
+          setIsInitialized(true);
+        }
+      };
+
+      // Small delay to ensure everything is ready
+      setTimeout(initGlobe, 16);
+    }
+  }, [groupRef.current, isInitialized]);
 
   // Build material when globe is initialized or when relevant props change
   useEffect(() => {
@@ -220,6 +239,20 @@ const Globe = memo(function Globe({ globeConfig, data }) {
       clearTimeout(startRings);
     };
   }, [isInitialized, data]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      if (globeRef.current && groupRef.current) {
+        try {
+          groupRef.current.remove(globeRef.current);
+          globeRef.current = null;
+        } catch (error) {
+          console.warn('Globe cleanup error:', error);
+        }
+      }
+    };
+  }, []);
 
   return <group ref={groupRef} />;
 });
