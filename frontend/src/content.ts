@@ -52,6 +52,23 @@ class GrandWardenAutofill {
     document.addEventListener('click', (e) => this.handleOutsideClick(e))
     
     console.log('Grand Warden: Content script loaded')
+
+    // Listen for webapp auth broadcasts
+    window.addEventListener('message', async (event) => {
+      try {
+        if (event.origin !== 'http://localhost:5173') return
+        const data = event.data
+        if (!data || typeof data !== 'object') return
+        if (data.type === 'GW_AUTH' && data.payload?.address) {
+          await chrome.storage.local.set({ gw_session: { address: data.payload.address, provider: data.payload.provider || 'google', ts: Date.now() } })
+          console.log('Grand Warden: Stored session from webapp auth', data.payload)
+        }
+        if (data.type === 'GW_LOGOUT') {
+          await chrome.storage.local.remove('gw_session')
+          console.log('Grand Warden: Cleared session from webapp logout')
+        }
+      } catch {}
+    })
   }
 
   private detectLoginFields() {

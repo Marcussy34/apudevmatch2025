@@ -1,7 +1,6 @@
 [package]
-name = "DeviceRegistry"
+name = "grandwarden-device-registry"
 version = "0.0.1"
-edition = "2024"
 
 [addresses]
 grandwarden = "0x0"

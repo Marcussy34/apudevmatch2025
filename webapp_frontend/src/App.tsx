@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useCurrentAccount, useDisconnectWallet } from '@mysten/dapp-kit'
 import Header from './components/Header'
@@ -51,6 +51,17 @@ function App() {
     disconnect()
     navigate('/')
   }
+
+  // Broadcast login/logout to extension listeners on the same origin
+  useEffect(() => {
+    try {
+      if (currentAccount?.address) {
+        window.postMessage({ type: 'GW_AUTH', payload: { address: currentAccount.address, provider: 'google' } }, window.origin)
+      } else {
+        window.postMessage({ type: 'GW_LOGOUT' }, window.origin)
+      }
+    } catch {}
+  }, [currentAccount])
 
   const addToast = (toast: Omit<ToastProps, 'onClose' | 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9)
