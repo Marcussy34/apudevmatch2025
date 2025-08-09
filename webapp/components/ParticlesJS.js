@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Note: particles.js doesn't have proper ES modules, so we'll load it dynamically
 const ParticlesJS = ({ className = "", config = null }) => {
   const containerRef = useRef(null);
   const particlesLoadedRef = useRef(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const loadParticles = async () => {
@@ -136,6 +138,14 @@ const ParticlesJS = ({ className = "", config = null }) => {
               if (canvas && particlesConfig.background?.color?.value) {
                 canvas.style.backgroundColor = particlesConfig.background.color.value;
               }
+              
+              // Trigger loading completion
+              setIsLoaded(true);
+              
+              // Start fade-in animation after a short delay
+              setTimeout(() => {
+                setIsVisible(true);
+              }, 200);
             }, 100);
             
             particlesLoadedRef.current = true;
@@ -162,7 +172,7 @@ const ParticlesJS = ({ className = "", config = null }) => {
     <div 
       id="particles-js" 
       ref={containerRef}
-      className={`pointer-events-none ${className}`}
+      className={`pointer-events-none transition-opacity duration-600 ease-out ${className}`}
       style={{
         position: 'fixed',
         top: 0,
@@ -170,7 +180,8 @@ const ParticlesJS = ({ className = "", config = null }) => {
         width: '100vw',
         height: '100vh',
         zIndex: 0,
-        backgroundColor: 'transparent'
+        backgroundColor: 'transparent',
+        opacity: isVisible ? 1 : 0
       }}
     />
   );

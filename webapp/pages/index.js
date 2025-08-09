@@ -190,7 +190,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button size="lg" className="px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105 shadow-lg">
-              Start Securing
+              Get Started
             </Button>
             <Button variant="outline" size="lg" className="border-gray-400 hover:border-white text-gray-300 hover:text-white px-8 py-4 rounded-full text-lg font-semibold transition-all hover:scale-105">
               View Demo →
