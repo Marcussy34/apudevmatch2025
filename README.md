@@ -51,7 +51,7 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 - Provides concise, actionable recommendations to improve your security
 - Supports seedless onboarding via zkLogin (Google/Facebook)
 - All sensitive operations (analysis, signing) happen inside a TEE (ROFL/Sapphire)
-- Real-time event mirroring and analytics via The Graph
+
 - Open, auditable architecture—no secrets ever leave trusted execution
 
 ---
@@ -68,8 +68,6 @@ Sui Blockchain (zkLogin, NFT, Device Registry)
 Oasis Sapphire (TEE, Vault, Wallet)
     ↓
 ROFL Worker (Event Mirroring)
-    ↓
-The Graph (Analytics, Real-time UI)
 ```
 
 _(Insert architecture diagram here)_
@@ -90,7 +88,7 @@ _(Insert architecture diagram here)_
 - **Seal** for client-side encryption
 - **Sui Blockchain** for on-chain NFT and device registry
 - **OpenAI** for confidential AI analysis (via ROFL)
-- **The Graph** for real-time analytics and event subscriptions
+
 - **Docker** for local development and deployment
 
 ---
@@ -104,7 +102,7 @@ _(Insert architecture diagram here)_
 - **Backend Contracts**: `/infrastructure/oasis/contracts/`
 - **AI Analysis**: ROFL enclave (see `/infrastructure/rofl-worker/README.md`)
 - **Decentralized Storage**: Walrus + Seal integration (see `/docs/BACKEND_SUI_WALRUS_SEAL_DESIGN.md`)
-- **Graph Subgraph**: Real-time analytics (see `/docs/PLAN.md`)
+
 
 ---
 
@@ -113,7 +111,7 @@ _(Insert architecture diagram here)_
 ### Prerequisites
 - Node.js 18+ (or 20+)
 - npm or pnpm
-- Docker (for ROFL worker and local Graph node)
+- Docker (for ROFL worker)
 - Modern browser
 
 ### Frontend (Extension)
