@@ -142,7 +142,7 @@ export default function Home() {
             className="rounded-lg"
           />
           <motion.span 
-            className="text-xl heading-bold text-white overflow-hidden whitespace-nowrap"
+            className="text-xl brand-text text-white overflow-hidden whitespace-nowrap"
             initial={{ width: "auto", opacity: 1 }}
             animate={{ 
               width: isScrollingDown ? "0px" : "auto",
@@ -279,7 +279,7 @@ export default function Home() {
                   height={32}
                   className="rounded-lg"
                 />
-                <span className="text-xl heading-bold text-white">Grand Warden</span>
+                <span className="text-xl brand-text text-white">Grand Warden</span>
               </div>
               <p className="text-gray-400">
                 The future of password security, powered by blockchain technology.
