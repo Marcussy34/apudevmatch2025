@@ -234,20 +234,20 @@ export default function Home() {
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
             <motion.span
+              className="text-white"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.4, ease: "easeOut" }}
             >
-              Secure with
+              Grand{" "}
             </motion.span>
-            <br />
             <motion.span
               className="text-primary"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
+              transition={{ delay: 0.2, duration: 0.4, ease: "easeOut" }}
             >
-              Grand Warden
+              Warden
             </motion.span>
           </motion.h1>
 
@@ -257,7 +257,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
           >
-            Experience the future of password security with blockchain-powered
+            Secure your passwords with blockchain-powered
             vault.
           </motion.p>
 
