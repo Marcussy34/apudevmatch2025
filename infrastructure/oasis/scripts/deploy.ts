@@ -124,6 +124,15 @@ async function main() {
     // 5. Deploy AtomicVaultManager (Coordinated Operations)
     const atomicVaultManager = await deployContract("AtomicVaultManager");
 
+    // 6. Deploy MirrorInbox (ROFL Event Mirroring)
+    const mirrorInbox = await deployContract("MirrorInbox", [
+      await grandWardenVault.getAddress(),
+      await walletVault.getAddress(),
+      await deviceRegistry.getAddress(),
+      await atomicVaultManager.getAddress(),
+      await recoveryManager.getAddress()
+    ]);
+
     console.log("🧪 Verifying deployments...\n");
 
     // Verify each contract is working (with encryption)
@@ -187,6 +196,14 @@ async function main() {
         test: async () => {
           const stats = await atomicVaultManager.connect(wrappedDeployer).getOperationStats();
           return `✅ Operation stats retrieved: ${stats.total} total operations (encrypted)`;
+        },
+      },
+      {
+        name: "MirrorInbox",
+        test: async () => {
+          const config = await mirrorInbox.connect(wrappedDeployer).getConfig();
+          const contractAddresses = await mirrorInbox.connect(wrappedDeployer).getContractAddresses();
+          return `✅ MirrorInbox configured: max gap ${config.maxGap}, ${contractAddresses.length > 0 ? 'contracts linked' : 'no contracts'} (encrypted)`;
         },
       },
     ];

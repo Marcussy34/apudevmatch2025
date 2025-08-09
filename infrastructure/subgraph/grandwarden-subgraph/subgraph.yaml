@@ -72,10 +72,8 @@ dataSources:
           handler: handleWalletImported
         - event: BalancesFetched(indexed address,indexed bytes32,uint256)
           handler: handleBalancesFetched
-        - event: TransactionSigned(indexed address,indexed bytes32,bytes32)
+        - event: TransactionSigned(indexed address,indexed bytes32,bytes32,uint8,uint256)
           handler: handleTransactionSigned
-        - event: TransactionSigned(indexed address,indexed bytes32,bytes32,uint8)
-          handler: handleTransactionSignedWithChain
         - event: GenericVaultEvent(indexed address,uint8,bytes)
           handler: handleGenericVaultEvent
         - event: UserFlowEvent(indexed address,uint8,uint8,bool,bytes)
@@ -104,7 +102,7 @@ dataSources:
         - name: DeviceRegistry
           file: ./abis/DeviceRegistry.json
       eventHandlers:
-        - event: DeviceRegistered(indexed address,indexed bytes32,string)
+        - event: DeviceRegistered(indexed address,indexed bytes32,string,uint256)
           handler: handleDeviceRegistered
         - event: DeviceAuthorized(indexed address,indexed bytes32,address)
           handler: handleDeviceAuthorized
@@ -147,33 +145,49 @@ dataSources:
         - event: RecoveryCompleted(indexed address,indexed bytes32,uint256)
           handler: handleRecoveryCompleted
 
-  # Multi Chain RPC - Cross-chain operations
+  # MirrorInbox - ROFL event mirroring from Sui to Sapphire
   - kind: ethereum/contract
-    name: MultiChainRPC
+    name: MirrorInbox
     network: oasis
     source:
-      address: "0x2bcaA2dDbAE6609Cbd63D3a4B3dd0af881759472"
-      abi: MultiChainRPC
-      startBlock: 12891666
+      address: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
+      abi: MirrorInbox
+      startBlock: 6
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6
       language: wasm/assemblyscript
-      file: ./src/mappings/multiChainRPC.ts
+      file: ./src/mappings/mirrorInbox.ts
       entities:
         - User
-        - CrossChainOperation
-        - ChainConfig
+        - Vault
+        - Device
+        - Wallet
+        - Transaction
+        - BreachAlert
+        - VaultBlobUpdate
+        - VaultEvent
+        - GenericVaultEvent
       abis:
-        - name: MultiChainRPC
-          file: ./abis/MultiChainRPC.json
+        - name: MirrorInbox
+          file: ./abis/MirrorInbox.json
       eventHandlers:
-        - event: CrossChainOperationStarted(indexed address,indexed bytes32,uint8,uint8)
-          handler: handleCrossChainOperationStarted
-        - event: CrossChainOperationCompleted(indexed address,indexed bytes32,bool)
-          handler: handleCrossChainOperationCompleted
-        - event: ChainBalanceUpdated(indexed address,indexed bytes32,uint8,uint256)
-          handler: handleChainBalanceUpdated
+        - event: VaultCreated(indexed address,indexed bytes32,uint256)
+          handler: handleVaultCreated
+        - event: DeviceRegistered(indexed address,indexed bytes32,string,uint256)
+          handler: handleDeviceRegistered
+        - event: BreachAlert(indexed address,uint256,string)
+          handler: handleBreachAlert
+        - event: WalletImported(indexed address,indexed bytes32,string,uint256)
+          handler: handleWalletImported
+        - event: TransactionSigned(indexed address,indexed bytes32,bytes32,uint8,uint256)
+          handler: handleTransactionSigned
+        - event: VaultBlobUpdated(indexed address,indexed bytes32,string,bytes32)
+          handler: handleVaultBlobUpdated
+        - event: VaultEvent(indexed address,uint8,uint8,bool,bytes)
+          handler: handleVaultEvent
+        - event: EventMirrored(indexed bytes32,uint64,indexed address,uint8,bytes,uint256)
+          handler: handleEventMirrored
 
   # Atomic Vault Manager - Atomic operations coordinator
   - kind: ethereum/contract

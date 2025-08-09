@@ -144,7 +144,7 @@ contract DeviceRegistry is IVaultEvents, ReentrancyGuard {
         // Add to user's device list
         userDevices[msg.sender].push(deviceId);
 
-        emit DeviceRegistered(msg.sender, deviceId, deviceName);
+        emit DeviceRegistered(msg.sender, deviceId, deviceName, block.timestamp);
         return deviceId;
     }
 

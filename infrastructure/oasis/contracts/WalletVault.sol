@@ -212,7 +212,7 @@ contract WalletVault is IWalletVault, IVaultEvents, ReentrancyGuard {
         signature = _signTransactionGeneric(wallet, txHash, txData);
 
         wallet.lastUsed = block.timestamp;
-        emit TransactionSigned(msg.sender, walletId, txHash, chainType);
+        emit TransactionSigned(msg.sender, walletId, txHash, chainType, block.timestamp);
         
         return signature;
     }

@@ -7,8 +7,7 @@ pragma solidity ^0.8.9;
  */
 interface IWalletVault {
 
-    // Events for user flow - TransactionSigned is declared in IVaultEvents
-    event WalletImported(address indexed user, bytes32 indexed walletId, string name, uint256 timestamp);
+    // Events for user flow (WalletImported is declared in IVaultEvents)
     event BalancesFetched(address indexed user, bytes32 indexed walletId, uint256 totalValue);
 
     /**
