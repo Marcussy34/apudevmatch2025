@@ -104,7 +104,7 @@ export default function Home() {
   return (
     <div className={`${inter.variable} ${interTight.variable} font-sans`}>
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between py-4 px-6 lg:px-8 bg-[#0A0B1E]/95 backdrop-blur-sm border-b border-gray-800/50">
+      <nav className="sticky top-0 z-50 flex items-center justify-between py-4 px-6 lg:px-8 bg-[#040612]/95 backdrop-blur-sm border-b border-gray-900/70">
         <div className="flex items-center gap-2 ml-4">
           <Image
             src="/logo.png"
@@ -171,26 +171,6 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-24 px-6 relative">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 font-[family-name:var(--font-inter-tight)]">
-              Security as you expect it
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              Built with cutting-edge technology.
-            </p>
-          </div>
-          
-          <BentoGrid>
-            {features.map((feature, idx) => (
-              <BentoCard key={idx} {...feature} />
-            ))}
-          </BentoGrid>
-        </div>
-      </section>
-
       {/* Trust Section */}
       <section id="security" className="py-24 px-6 bg-gradient-to-r from-surface-primary/50 to-surface-secondary/50">
         <div className="max-w-7xl mx-auto text-center">
@@ -238,8 +218,28 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Features Section */}
+      <section id="features" className="py-24 px-6 relative">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 font-[family-name:var(--font-inter-tight)]">
+              Security as you expect it
+            </h2>
+            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+              Built with cutting-edge technology.
+            </p>
+          </div>
+          
+          <BentoGrid>
+            {features.map((feature, idx) => (
+              <BentoCard key={idx} {...feature} />
+            ))}
+          </BentoGrid>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="py-16 px-6 border-t border-gray-800">
+      <footer className="py-16 px-6 border-t border-gray-900 bg-[#040612]">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
