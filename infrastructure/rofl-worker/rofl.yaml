@@ -1,108 +1,84 @@
-# ROFL Application Manifest
-# Minimal manifest to build a TDX container-based ROFL app bundle
-
-name: grand-warden-rofl
+name: rofl-worker
 version: 0.1.0
 tee: tdx
 kind: container
-
-# The compose file defines the containerized services that run inside the TEE
-compose: ./compose.yaml
-
-# Requested resources inside the TEE
 resources:
-  memory: 1024Mi
+  memory: 512
   cpus: 1
-  storage: 2048Mi
-
-# Networking permissions for outbound access (HTTPs for HIBP)
-network:
-  egress:
-    - protocol: tcp
-      port: 443
-      host: api.pwnedpasswords.com
-
-# Environment variables & secrets mapping (if needed later)
-# secrets:
-#   - name: RED_PILL_API_KEY
-#     source: env:RED_PILL_API_KEY
-
-# Optional health check used by provider
-health:
-  http:
-    path: /health
-    port: 8080
-    interval: 15s
-    timeout: 5s
-
-# Grand Warden ROFL Critical Data Bridge
-# Official ROFL manifest following Oasis documentation patterns
-
-name: grand-warden-bridge
-version: 1.0.0
-description: "Critical Data Bridge connecting Sui events to Sapphire for The Graph indexing"
-
-# TEE configuration (following official ROFL patterns)
-tee: tdx
-kind: container
-
-# Resource requirements (reasonable for bridge operations)
-resources:
-  memory: 1Gi
-  cpu: 1000m
-  storage: 2Gi
-
-# Environment variables for ROFL configuration
-env:
-  # Sapphire configuration
-  - name: SAPPHIRE_RPC_URL
-    value: "https://testnet.sapphire.oasis.dev"
-  - name: SAPPHIRE_CHAIN_ID
-    value: "23295"
-  - name: CONTRACT_ATOMIC_VAULT_MANAGER
-    value: "0x811182419a4e4F419ec100ac0Cd63fc1Fef2810C"
-
-  # Sui configuration (ready for integration)
-  - name: SUI_RPC_URL
-    value: "https://fullnode.testnet.sui.io:443"
-  - name: SUI_CONTRACT_PACKAGE
-    value: "0x0"
-
-  # Logging configuration
-  - name: RUST_LOG
-    value: "info"
-  - name: RUST_BACKTRACE
-    value: "1"
-
-# Secrets (private keys handled securely)
-secrets:
-  - name: SAPPHIRE_PRIVATE_KEY
-    description: "Private key for Sapphire transactions"
-
-# Network access for blockchain RPC calls
-networking:
-  outbound:
-    - protocol: https
-      port: 443
-      description: "HTTPS access for blockchain RPC calls"
-    - protocol: http
-      port: 80
-      description: "HTTP access for blockchain RPC calls"
-
-# Health check endpoint (optional)
-health_check:
-  path: /health
-  port: 8080
-  interval: 30s
-
-# Metadata for ROFL registry
-metadata:
-  author: "Grand Warden Team"
-  license: "MIT"
-  repository: "https://github.com/grandwarden/rofl-bridge"
-  tags:
-    - "blockchain-bridge"
-    - "sui"
-    - "sapphire"
-    - "the-graph"
-    - "defi"
+  storage:
+    kind: disk-persistent
+    size: 512
+artifacts:
+  firmware: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.5.0/ovmf.tdx.fd#db47100a7d6a0c1f6983be224137c3f8d7cb09b63bb1c7a5ee7829d8e994a42f
+  kernel: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.5.0/stage1.bin#23877530413a661e9187aad2eccfc9660fc4f1a864a1fbad2f6c7d43512071ca
+  stage2: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.5.0/stage2-podman.tar.bz2#631349bef06990dd6ae882812a0420f4b35f87f9fe945b274bcfb10fc08c4ea3
+  container:
+    runtime: https://github.com/oasisprotocol/oasis-sdk/releases/download/rofl-containers%2Fv0.6.0/rofl-containers#bed48a05eb946e2316caa9e7b3091c7f7abff35c3f1e791b4afbd64a5d331b2a
+    compose: compose.yaml
+deployments:
+  default:
+    app_id: rofl1qrynutt5cvqt08r858wlyahnjk54lu547qte0xv3
+    network: testnet
+    paratime: sapphire
+    admin: marcus
+    oci_repository: rofl.sh/344d11d4-e0bd-471e-b1c6-172bbfd4cccc:1754770557
+    trust_root:
+      height: 27891980
+      hash: 4048b052bb9d200c98534c7a2a5ce1dc04940d56b1ace610c3d231b9ea9373c1
+    policy:
+      quotes:
+        pcs:
+          tcb_validity_period: 30
+          min_tcb_evaluation_data_number: 18
+          tdx: {}
+      enclaves:
+        - id: l/jbRrWJ9kDiyDZozt9LIJYHgRI8rJ6R/3xnn6DfshQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
+        - id: zYDTNcS3oVNrZ0g1MK9XWMYnVgT8KQhzG67WiYS5c7QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
+      endorsements:
+        - any: {}
+      fees: endorsing_node
+      max_expiration: 3
+    secrets:
+      - name: SAPPHIRE_PRIVATE_KEY
+        value: pGJwa1ggpRfdmgw0GBIKMx5J6q7usNGpLyPi1oZYOGJ0FV7t4VBkbmFtZVgkfUuqbeZuTX0sjtmXornwT94dGAXqYAwDHGVFF1LXhKAO7xE8ZW5vbmNlT6uGnIDwwaEDHI4i8XP3UGV2YWx1ZVhQgSwB+xS9s5oC6Nec05Y5/G/pJOimTOT5qof3Dz1HW5VRhv3Wc3Ane005zKXA2aGxW7RjM0GuyyTejVqT9crWlK4gXLnmmXp7dGLovXZy8/8=
+      - name: CONTRACT_ATOMIC_VAULT_MANAGER
+        value: pGJwa1ggj8bAcdcRygbEH3h7WrNsbHUyRRUMlXD46gu+rLxFQ2dkbmFtZVgtjEzS8YKctQNc41dzYV8IiOogXAVya9bgAyoOpv+EFHCDscGx6lWC5bLuLRElZW5vbmNlT92IZXKo7lX5asXtM26/b2V2YWx1ZVg6vkhv1beeN5v205LIPF2QaibeSX+KJ4pJ+j8WxZeIH7U2ixf2nY2YbPnrweHGedPO+nlIsFG1CSrNrA==
+      - name: SAPPHIRE_RPC_URL
+        value: pGJwa1ggrkOugrRCL8xS1brpBwjuddU0DDS6Qnu7e2RYunXhVw1kbmFtZVggDvieSktzMMI826c820K7TjER+Gu1hPkJItzs/xbbR3Zlbm9uY2VP7LKG/tYDedufC+HvyxZ2ZXZhbHVlWDKWL90pQU2TfWFni5omciXynKBhWvdFzftXBvRpAvvUFvl89+2sTbQimCsRIrIOFNmawg==
+      - name: SUI_RPC_URL
+        value: pGJwa1ggAoPE7UyqUN8npgyJTiycrFqx8inUcUrLAeqh+W9FK3ZkbmFtZVgbm7rKrAr2pKR1xP0ZEGiWRn4dy6KeLi7zcgs2ZW5vbmNlT3rIQ3D8XHi1Aa1M5NCIRmV2YWx1ZVgz65YElGaJsfSOYQaW7H1NocSrpiO1uqkkJF/BpoxV4eiUNb4lC09RvmRK8xYEDm6D29cv
+      - name: SUI_CONTRACT_PACKAGE
+        value: pGJwa1ggx5PtjdgQVWp2Qc8YnVeotHCOJWA0vfyF8wRD9hb5k0dkbmFtZVgkgPa+XFncL9ICws7whFY7Y1TXfvWKzUF9USV7QPOxOHRzKm6qZW5vbmNlT6wvzBBaNi683UOXnz8BT2V2YWx1ZVhS1bMggXsJ97yL0dJexLtc5aP+riqJamYspIPI5ND5UHKTgYgveWYVQfNYcvcsPfu3hhocNMwbd7gqfkWupOHOyk3YTuVlo6DMWl38LsAOG2jovA==
+      - name: WALRUS_BASE_URL
+        value: pGJwa1gg7NSQWwj1MzWMjNluZG+KoCH+nH/RmkEyOHYrTrXfUUBkbmFtZVgfdZxWHu2cw/3VR5sKnsykhvG03fwjwHTeUzqoPalnGGVub25jZU8ycqlRwmFYyHUc+uQAJ3xldmFsdWVYNb/y4KCyoWbKGlcRK2WCdifdN/Z8OD8tyLzNRCQLHfoiI2A5lPqrI2XVeW9zwGpFTM1oPdYT
+      - name: WALRUS_RESPONSE_CID_KEY
+        value: pGJwa1ggtzDWeaK3c0i3rGeIel5ApLf8SSAdzRPekyVxGja7CGBkbmFtZVgnsHsp97IaDh6y4iEEM6Htuvf+NJcCpzrAQdix3tFBlhDaJbWC2UYeZW5vbmNlT2hsCjosX9YfvioFcXcrg2V2YWx1ZVNCvW5pSuLskiLv7btN5/02ylv5
+      - name: REQUEST_TIMEOUT_SECS
+        value: pGJwa1ggOPVVMq4Tb76E6qynUmv4FVKNVbpxfPQITpI7jtNQV11kbmFtZVgkUYzKOewPXXhBxK18wjNhaa24XvATTegODY72rIJ3WDjL0fQZZW5vbmNlT9m1UUegJhPIcU+gk0i7GmV2YWx1ZVIlos+dgAen4+sT/ha5jhh6R7o=
+      - name: MAX_RETRIES
+        value: pGJwa1ggAxA9xCHQM/I9k0giIsfWl7KggRtYND7RH6jtJpshBndkbmFtZVgb6jMgIsPI7B35NBoc4nGE7vYKw2JbkYmxBaouZW5vbmNlT6ZAko17bEx0Au/ade6+xmV2YWx1ZVEI5wfH8cqjvCtDHcchc9bkuQ==
+      - name: MAX_CONCURRENT_OPERATIONS
+        value: pGJwa1gg4045AxuOsVNzu7UletTD4xxYpa3HNdEm4Km+sW9OF1xkbmFtZVgpzEJnOI9HWSCZ8GwJqNNDP9hCWePHPzJc/ubVGEvYTytTgsyxzFBh/DFlbm9uY2VPJLn7vj+aG7r8fLpIofSyZXZhbHVlUnXOjyXN5F7Bu3Xam2LCnV5t3Q==
+      - name: MAX_BLOCK_RANGE
+        value: pGJwa1gg/JOhQdQjlOE4dgnTXDDpbGQr8D+pBNBJA09JrtOPIkBkbmFtZVgfM6m4C8sikW7pGdxqLFzpcHDsZEKzsYC4/dxkJHwwx2Vub25jZU/NbuYvdn5zoIVAx795Tm5ldmFsdWVU/PK68DTTYZONVPjrVRntIJeYVV8=
+      - name: CONFIRMATION_BLOCKS
+        value: pGJwa1ggDPPKER/CNYLgmAVsrl/HKjAePLD0hiBNtOdZ5A8RCklkbmFtZVgj0lSc8FstbbS1F6cW7S8xZuIiQyz1gfSFd8M+u6340NpQ23Flbm9uY2VPZsbFr2h6hQ61cFgPPFuUZXZhbHVlUYUa/NAUGMOHPJV9+T5Q0vUg
+      - name: STORAGE_PATH
+        value: pGJwa1ggGmmsM2mpB3tQbbI0haQ7U5K7pc3PAB8VFo3oiDRlfS9kbmFtZVgcdpRp2Sb2DLpHMrEhb9WG0zaOHJp8ptqZZvY4zWVub25jZU+TKPDpFvMW4ojOkMUMkedldmFsdWVYHhbv8zF+Z3errUcl/JK2YAaaTyjs4IwDQUD/cOSl6A==
+      - name: METRICS_PORT
+        value: pGJwa1ggpQQJjgy42G/PrwRbl2yHzdTl8ckSQDSZh40iyTFanghkbmFtZVgcDLCpzX8w3CP64pv8FOzgK108lCG3je5uyH7GkGVub25jZU+fIxcYnTeXVDWTm23cOi1ldmFsdWVU+z4GKjB5rE9ASQgeZcTe24QjKpM=
+      - name: RUST_LOG
+        value: pGJwa1ggP4+NdJNVrAB0uthbh2FOYadBnz+X+yfP0FlELZJzJTZkbmFtZVgYSVlMz1w0mqUC5p2Q2kNqNJXGlt8IlvFmZW5vbmNlTy1Ll3GBsviT7+ApMYrdU2V2YWx1ZVgsfYYUDoI9a7LAar+vNt9iKjoEZ6z/Lq64zYp3oZztKkecbEPOILz5vpvaKVE=
+      - name: PHALA_API_KEY
+        value: pGJwa1gg0qcxXrFJWa4DiMr1fjm2/Y3JO6jZ3Tu7jmLVMO8RWlFkbmFtZVgdSkcdTKjRu+cM8A/qHZHNDbzVRjmx4tKykZCyX41lbm9uY2VPE9y+i9UhOYjGc7dIYd2PZXZhbHVlWEOLVHgbwW4v1ua+xLcOo+1A90hx8zyQ2Zgb3DMZniurgWJ9L4iSgerCBBNv90YED/6Lz1hOQsri7v4s+zk4lQJ0g8pn
+      - name: REDPILL_API_BASE
+        value: pGJwa1ggN2DNZpNuZaooc21e/nfle+rspRNWWPCi2d5whmvUtUBkbmFtZVggH7Ifk+CDC0k41h7s8L2kBewEh+qAzNfCRfB6rGnprcBlbm9uY2VPll04k3Z84+vT3kNmfyBIZXZhbHVlWCexLWAdYBj6zGK1WSadOFYKcmwc/41/kB/bPS4xzUuARdFLPrwkkPo=
+      - name: REDPILL_API_PATH
+        value: pGJwa1ggtSyq2c8VWkyHWa12GzUUQznNADY/HU1inaZD65TPHyFkbmFtZVggF1wrz5ID9EN6f3/npr/ffRt0cjRanByIj17Y/jDZQ+5lbm9uY2VPn6OwWm0X2jQTQijJbo5nZXZhbHVlWCS491Sz/o4NEk1GoxN49xkPKN/Bi4LpsG1A0jJ3GB2S8PgAjDU=
+      - name: REDPILL_MODEL
+        value: pGJwa1ggpz3oGr52G3zRCq3Of/deNLJzfuwfiR9c8GF3ziRvoBJkbmFtZVgdAhZuVK/Enph4Fru3rr91sRrSKZriwOT1nEfH/3llbm9uY2VPE6uWdhz6Rbtwe0LFG8vGZXZhbHVlVtFzy9pV47ZZA8GUal/xLLCWzkzeoN0=
+    machines:
+      default:
+        provider: oasis1qp2ens0hsp7gh23wajxa4hpetkdek3swyyulyrmz
+        offer: playground_short
+        id: 000000000000022f
