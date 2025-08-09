@@ -59,6 +59,42 @@ app.post("/api/store-credentials", async (req: Request, res: Response) => {
   }
 });
 
+// Encrypt-only endpoint: returns base64 ciphertext for frontend Walrus flow
+app.post("/api/encrypt-only", async (req: Request, res: Response) => {
+  try {
+    const { credentials, lean } = req.body as {
+      credentials: any;
+      lean?: boolean;
+    };
+    if (!credentials)
+      return res.status(400).json({ error: "Missing credentials" });
+    const { ciphertextB64, size } = await credentialService.encryptOnly(
+      credentials,
+      { lean: !!lean }
+    );
+    // Naive estimator: ~0.001 WAL per 50KB for epochs=1 (scale: 1 WAL = 1e9 base units)
+    const estimatedWalHuman = Math.max(
+      0.001,
+      Math.ceil(size / (50 * 1024)) * 0.001
+    );
+    const estimatedWalBaseUnits = BigInt(
+      Math.round(estimatedWalHuman * 1_000_000_000)
+    );
+    res.json({
+      success: true,
+      data: {
+        ciphertextB64,
+        size,
+        estimatedWalHuman,
+        estimatedWalBaseUnits: estimatedWalBaseUnits.toString(),
+      },
+    });
+  } catch (error) {
+    console.error("❌ [encrypt-only] Error:", error);
+    res.status(500).json({ error: "Failed to encrypt" });
+  }
+});
+
 // Build WAL exchange transaction for Enoki signing
 app.post(
   "/api/walrus/exchange/prepare",
@@ -90,6 +126,116 @@ app.post(
       console.error("❌ [prepare] Error preparing WAL exchange:", error);
       res.status(500).json({
         error: "Failed to prepare WAL exchange",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Sponsor WAL exchange (gas sponsored via Enoki)
+app.post(
+  "/api/walrus/exchange/sponsor",
+  async (req: Request, res: Response) => {
+    try {
+      const { userAddress, amountMist } = req.body as {
+        userAddress: string;
+        amountMist?: number;
+      };
+
+      if (!userAddress) {
+        return res.status(400).json({ error: "Missing userAddress" });
+      }
+
+      const { bytes, digest } =
+        await credentialService.sponsorWalExchangeTransaction(
+          userAddress,
+          amountMist ? BigInt(amountMist) : 1_000_000n
+        );
+
+      res.json({ success: true, data: { bytes, digest } });
+    } catch (error) {
+      console.error("❌ [sponsor] Error sponsoring WAL exchange:", error);
+      res.status(500).json({
+        error: "Failed to sponsor WAL exchange",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
+// Generic sponsor and execute endpoints (for register/certify)
+app.post("/api/walrus/sponsor", async (req: Request, res: Response) => {
+  try {
+    const {
+      transactionKindBytesB64,
+      sender,
+      allowedMoveCallTargets,
+      allowedAddresses,
+    } = req.body as any;
+    if (!transactionKindBytesB64 || !sender) {
+      return res
+        .status(400)
+        .json({ error: "Missing transactionKindBytesB64 or sender" });
+    }
+    const { bytes, digest } = await credentialService.sponsorTransaction({
+      transactionKindBytesB64,
+      sender,
+      allowedMoveCallTargets,
+      allowedAddresses,
+    });
+    res.json({ success: true, data: { bytes, digest } });
+  } catch (error) {
+    console.error("❌ [sponsor generic] Error:", error);
+    res.status(500).json({ error: "Failed to sponsor transaction" });
+  }
+});
+
+app.post("/api/walrus/execute", async (req: Request, res: Response) => {
+  try {
+    const { digest, signature } = req.body as {
+      digest: string;
+      signature: string;
+    };
+    if (!digest || !signature) {
+      return res.status(400).json({ error: "Missing digest or signature" });
+    }
+    const result = await credentialService.executeSponsoredTransaction(
+      digest,
+      signature
+    );
+    res.json({ success: true, data: { digest: result.digest } });
+  } catch (error) {
+    console.error("❌ [execute generic] Error:", error);
+    res.status(500).json({ error: "Failed to execute transaction" });
+  }
+});
+
+// Execute sponsored WAL exchange (needs user signature)
+app.post(
+  "/api/walrus/exchange/execute",
+  async (req: Request, res: Response) => {
+    try {
+      const { digest, signature } = req.body as {
+        digest: string;
+        signature: string;
+      };
+
+      if (!digest || !signature) {
+        return res.status(400).json({ error: "Missing digest or signature" });
+      }
+
+      const result = await credentialService.executeSponsoredTransaction(
+        digest,
+        signature
+      );
+      res.json({ success: true, data: { digest: result.digest } });
+    } catch (error) {
+      console.error(
+        "❌ [execute] Error executing sponsored WAL exchange:",
+        error
+      );
+      res.status(500).json({
+        error: "Failed to execute sponsored WAL exchange",
         message: error instanceof Error ? error.message : "Unknown error",
       });
     }
@@ -175,4 +321,7 @@ app.listen(port, () => {
   console.log(`🚀 Grand Warden Backend API running on port ${port}`);
   console.log(`🔗 Health check: http://localhost:${port}/health`);
   console.log(`📝 API docs: http://localhost:${port}/api/status`);
+  console.log(
+    `🏦 ENOKI SECRET enabled: ${process.env.ENOKI_SECRET_KEY ? "yes" : "no"}`
+  );
 });

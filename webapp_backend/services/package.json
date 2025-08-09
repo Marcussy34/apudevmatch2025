@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@mysten/enoki": "^0.11.5",
     "@mysten/seal": "^0.4.20",
     "@mysten/sui": "^1.37.1",
     "@mysten/walrus": "^0.6.0",

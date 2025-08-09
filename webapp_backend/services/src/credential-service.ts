@@ -4,7 +4,9 @@ import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { fromB64, fromHex, toHex, parseStructTag } from "@mysten/sui/utils";
 import { SealClient, getAllowlistedKeyServers } from "@mysten/seal";
 import { WalrusClient, TESTNET_WALRUS_PACKAGE_CONFIG } from "@mysten/walrus";
+import { EnokiClient } from "@mysten/enoki";
 import * as dotenv from "dotenv";
+import { gzipSync } from "zlib";
 
 dotenv.config();
 
@@ -28,7 +30,9 @@ export class CredentialService {
   private packageId: string;
   private logCapId: string;
   private sealClient: SealClient;
-
+  private enokiClient?: EnokiClient;
+  private sealPackageId: string;
+  private walrusClient: WalrusClient;
   constructor() {
     // Initialize Sui client for testnet (Seal key servers are on testnet)
     this.suiClient = new SuiClient({
@@ -48,11 +52,28 @@ export class CredentialService {
       verifyKeyServers: false,
     });
 
-    // Published package and LogCap IDs from our Move deployment on testnet
-    this.packageId =
-      "0x2e634d60897600fba92e7b35479148afbcf025a508e815bd5e8ea5e13e32289f";
-    this.logCapId =
-      "0x70779328d3f5218e1a72bb9b7e51e07b466aa4780a84300068c68014a1c396a3";
+    // Initialize Enoki client for sponsored tx (optional)
+    if (process.env.ENOKI_SECRET_KEY) {
+      this.enokiClient = new EnokiClient({
+        apiKey: process.env.ENOKI_SECRET_KEY,
+      });
+    }
+
+    this.sealPackageId = process.env.SEAL_PACKAGE_ID || "";
+
+    // Published package and LogCap IDs from our Move deployment on testnet (env-driven)
+    this.packageId = process.env.STORE_LOGGER_PACKAGE_ID || "";
+    this.logCapId = process.env.STORE_LOGGER_LOG_CAP_ID || "";
+    if (!this.packageId || !this.logCapId) {
+      console.warn(
+        "[store_logger] STORE_LOGGER_PACKAGE_ID / STORE_LOGGER_LOG_CAP_ID not set; logging will be simulated until configured."
+      );
+    }
+    // Walrus client (testnet)
+    this.walrusClient = new WalrusClient({
+      network: "testnet",
+      suiClient: this.suiClient,
+    });
   }
 
   /**
@@ -147,6 +168,114 @@ export class CredentialService {
   }
 
   /**
+   * Sponsor WAL exchange transaction (gas sponsored via Enoki)
+   * Returns sponsored bytes (transaction kind) and digest
+   */
+  async sponsorWalExchangeTransaction(
+    userAddress: string,
+    amountMist: bigint = 1_000_000n
+  ): Promise<{ bytes: string; digest: string }> {
+    if (!this.enokiClient) {
+      throw new Error("Enoki client not configured; set ENOKI_SECRET_KEY");
+    }
+
+    // Resolve exchange ids
+    const exchangeId = TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[3];
+    const exchangeObjResp = await this.suiClient.core.getObjects({
+      objectIds: [exchangeId],
+    });
+    const exchangeObj = exchangeObjResp.objects.find(
+      (o: any) => !(o instanceof Error)
+    );
+    if (!exchangeObj || !("type" in exchangeObj)) {
+      throw new Error("Failed to load walrus exchange object");
+    }
+    const walExchangePackageId = parseStructTag(
+      (exchangeObj as any).type
+    ).address;
+
+    const tx = new Transaction();
+    // Not strictly required for onlyTransactionKind, but OK to set
+    tx.setSenderIfNotSet(userAddress);
+    const [suiForExchange] = tx.splitCoins(tx.gas, [amountMist]);
+    const [walCoin] = tx.moveCall({
+      package: walExchangePackageId,
+      module: "wal_exchange",
+      function: "exchange_for_wal",
+      arguments: [
+        tx.object(exchangeId),
+        suiForExchange,
+        tx.pure.u64(amountMist),
+      ],
+    }) as any;
+    // Consume the split SUI coin
+    tx.mergeCoins(tx.gas, [suiForExchange]);
+    // Transfer WAL to user
+    tx.transferObjects([walCoin], userAddress);
+
+    const kindBytes = await tx.build({
+      client: this.suiClient,
+      onlyTransactionKind: true,
+    });
+
+    const allowedTarget = `${walExchangePackageId}::wal_exchange::exchange_for_wal`;
+    const sponsored = await this.enokiClient.createSponsoredTransaction({
+      network: "testnet",
+      transactionKindBytes: Buffer.from(kindBytes).toString("base64"),
+      sender: userAddress,
+      allowedMoveCallTargets: [allowedTarget],
+      allowedAddresses: [userAddress],
+    });
+
+    return { bytes: sponsored.bytes, digest: sponsored.digest };
+  }
+
+  /**
+   * Execute a sponsored transaction (requires user's signature)
+   */
+  async executeSponsoredTransaction(
+    digest: string,
+    signature: string
+  ): Promise<{ digest: string }> {
+    if (!this.enokiClient) {
+      throw new Error("Enoki client not configured; set ENOKI_SECRET_KEY");
+    }
+    await this.enokiClient.executeSponsoredTransaction({ digest, signature });
+    return { digest };
+  }
+
+  /** Generic sponsor API for provided transaction kind bytes */
+  async sponsorTransaction(params: {
+    transactionKindBytesB64: string;
+    sender: string;
+    allowedMoveCallTargets?: string[];
+    allowedAddresses?: string[];
+  }): Promise<{ bytes: string; digest: string }> {
+    if (!this.enokiClient) {
+      throw new Error("Enoki client not configured; set ENOKI_SECRET_KEY");
+    }
+    const {
+      transactionKindBytesB64,
+      sender,
+      allowedMoveCallTargets,
+      allowedAddresses,
+    } = params;
+    const req: any = {
+      network: "testnet",
+      transactionKindBytes: transactionKindBytesB64,
+      sender,
+    };
+    if (allowedMoveCallTargets && allowedMoveCallTargets.length) {
+      req.allowedMoveCallTargets = allowedMoveCallTargets;
+    }
+    if (allowedAddresses && allowedAddresses.length) {
+      req.allowedAddresses = allowedAddresses;
+    }
+    const sponsored = await this.enokiClient.createSponsoredTransaction(req);
+    return { bytes: sponsored.bytes, digest: sponsored.digest };
+  }
+
+  /**
    * Submit signed transaction (from Enoki)
    */
   async submitSignedTransaction(
@@ -182,7 +311,6 @@ export class CredentialService {
       // Keep the older package ID as fallback in case of migrations.
       const walCoinTypes = [
         "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
-        "0x82593828ed3fcb8c6a235eac9abd0adbe9c5f9bbffa9b1e7a45cdd884481ef9f::wal::WAL",
       ];
 
       let totalWAL = 0n;
@@ -267,31 +395,71 @@ export class CredentialService {
     console.log("🔒 Encrypting credentials with Seal...");
 
     try {
-      // Convert credentials to JSON and then to bytes
-      const jsonString = JSON.stringify(credentials);
-      const data = new TextEncoder().encode(jsonString);
+      // Build a compact representation and gzip-compress to reduce WAL cost
+      const compact = {
+        s: (credentials.site || "").trim(),
+        u: (credentials.username || "").trim(),
+        p: (credentials.password || "").trim(),
+      };
+      const jsonBytes = new TextEncoder().encode(JSON.stringify(compact));
+      const payload = gzipSync(jsonBytes, { level: 9 });
 
-      // Generate a unique ID for this encryption
-      const nonce = crypto.getRandomValues(new Uint8Array(5));
-      const policyObjectBytes = fromHex(this.packageId);
-      const id = toHex(new Uint8Array([...policyObjectBytes, ...nonce]));
-
-      // Encrypt using Seal with threshold 2 (requires 2 out of 5 key servers)
-      const { encryptedObject: encryptedBytes } = await this.sealClient.encrypt(
-        {
-          threshold: 2,
-          packageId: this.packageId,
-          id,
-          data,
-        }
-      );
+      // Generate a valid 32-byte Sui object id for Seal's encryption id (0x-prefixed)
+      const id = `0x${toHex(crypto.getRandomValues(new Uint8Array(32)))}`;
+      const { encryptedObject } = await this.sealClient.encrypt({
+        threshold: 2,
+        packageId: this.sealPackageId,
+        id,
+        data: payload,
+      });
 
       console.log("🔒 Credentials encrypted successfully with Seal");
-      return encryptedBytes;
+      return encryptedObject;
     } catch (error) {
       console.error("❌ Seal encryption failed:", error);
       throw new Error(`Failed to encrypt with Seal: ${error}`);
     }
+  }
+
+  /**
+   * Public helper to return encrypted bytes as base64 (for frontend Walrus flow)
+   */
+  async encryptOnly(
+    credentials: CredentialData,
+    options?: { lean?: boolean }
+  ): Promise<{ ciphertextB64: string; size: number }> {
+    const lean = options?.lean === true;
+    const payloadBytes = (() => {
+      if (lean) {
+        // Minimal payload: password only
+        const pwd = (credentials.password || "").trim();
+        return new TextEncoder().encode(pwd);
+      }
+      // Default compact JSON
+      const compact = {
+        s: (credentials.site || "").trim(),
+        u: (credentials.username || "").trim(),
+        p: (credentials.password || "").trim(),
+      };
+      return new TextEncoder().encode(JSON.stringify(compact));
+    })();
+
+    // Compress and encrypt (avoid gzip overhead for very small payloads)
+    const payload =
+      payloadBytes.length <= 64
+        ? payloadBytes
+        : gzipSync(payloadBytes, { level: 9 });
+    const id = `0x${toHex(crypto.getRandomValues(new Uint8Array(32)))}`;
+    const { encryptedObject } = await this.sealClient.encrypt({
+      threshold: 2,
+      packageId: this.sealPackageId,
+      id,
+      data: payload,
+    });
+    return {
+      ciphertextB64: Buffer.from(encryptedObject).toString("base64"),
+      size: encryptedObject.length,
+    };
   }
 
   /**
@@ -300,96 +468,17 @@ export class CredentialService {
   private async uploadToWalrus(
     encryptedData: Uint8Array
   ): Promise<{ blobId: string; cid: string }> {
-    console.log("📤 Uploading to Walrus using HTTP API...");
+    console.log("📤 Uploading to Walrus as raw blob via backend signer...");
 
     try {
-      // Use Walrus HTTP API: try aggregator first, then known publishers
-      const aggregatorUrl =
-        process.env.WALRUS_URL?.trim() || "https://testnet-v2.wal.app";
-      const walrusPublishers = [
-        aggregatorUrl,
-        "https://publisher1.walrus.space",
-        "https://publisher2.staketab.org",
-        "https://publisher3.redundex.com",
-        "https://publisher4.nodes.guru",
-        "https://publisher5.banansen.dev",
-        "https://publisher6.everstake.one",
-      ];
-
-      let uploadSuccess = false;
-      let result: any = null;
-
-      for (const publisher of walrusPublishers) {
-        try {
-          console.log(`📤 Trying Walrus publisher: ${publisher}`);
-          const body = Buffer.from(encryptedData);
-          const response = await fetch(`${publisher}/v1/blobs?epochs=10`, {
-            method: "PUT",
-            body,
-            headers: {
-              "Content-Type": "application/octet-stream",
-            },
-          });
-
-          if (response.ok) {
-            result = await response.json();
-            console.log(`✅ Upload successful with ${publisher}:`, result);
-            uploadSuccess = true;
-            break;
-          } else {
-            console.log(
-              `⚠️ Publisher ${publisher} failed: HTTP ${response.status}`
-            );
-          }
-        } catch (error) {
-          console.log(`⚠️ Publisher ${publisher} error:`, error);
-        }
-      }
-
-      if (!uploadSuccess) {
-        console.warn(
-          "⚠️ All Walrus endpoints failed - using simulation fallback"
-        );
-        // Simulation fallback to avoid blocking dev while endpoints are down
-        const mockBlobId = `blob_${Date.now()}_${Math.random()
-          .toString(36)
-          .substr(2, 9)}`;
-        const mockCid = mockBlobId;
-        console.log("📤 Using simulated Walrus upload:", {
-          blobId: mockBlobId,
-          cid: mockCid,
-          dataSize: encryptedData.length,
-        });
-        return {
-          blobId: mockBlobId,
-          cid: mockCid,
-        };
-      }
-
-      // Extract blob ID from the response
-      let blobId: string;
-      let cid: string;
-
-      if (result.newlyCreated?.blobObject?.blobId) {
-        // New blob created
-        blobId = result.newlyCreated.blobObject.blobId;
-        cid = blobId;
-        console.log("📤 New blob created:", blobId);
-      } else if (result.alreadyCertified?.blobId) {
-        // Blob already exists
-        blobId = result.alreadyCertified.blobId;
-        cid = blobId;
-        console.log("📤 Blob already exists:", blobId);
-      } else {
-        throw new Error("Invalid response format from Walrus");
-      }
-
-      console.log("📤 Upload successful (REAL WALRUS):", { blobId, cid });
-
-      return {
-        blobId,
-        cid,
-      };
+      const { blobId } = await this.walrusClient.writeBlob({
+        blob: encryptedData,
+        deletable: false,
+        epochs: 1,
+        signer: this.keypair,
+      });
+      console.log("📤 Upload successful (raw blob):", { blobId });
+      return { blobId, cid: blobId };
     } catch (error) {
       console.error("❌ Walrus upload failed:", error);
       throw new Error(`Failed to upload to Walrus: ${error}`);
@@ -428,5 +517,4 @@ export class CredentialService {
       hasSealClient: !!this.sealClient,
     };
   }
-
 }

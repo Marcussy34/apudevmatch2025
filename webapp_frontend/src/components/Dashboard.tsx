@@ -24,13 +24,17 @@ import AddPasswordModal, { NewPasswordData } from "./AddPasswordModal";
 import AutofillStatus from "./AutofillStatus";
 import { ToastProps } from "./Toast";
 import {
-  storeCredentials,
   checkWalBalance,
   completeWalExchange,
+  writeCredentialsToWalrus,
+  encryptOnlyPrecheck,
+  checkWalBalanceByType,
+  discoverWalrusTargets,
 } from "../services/backend-integration";
 import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
+  useSignTransaction,
 } from "@mysten/dapp-kit";
 
 interface PasswordEntry {
@@ -65,6 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
   const currentAccount = useCurrentAccount();
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
+  const { mutateAsync: signTransaction } = useSignTransaction();
 
   const [passwordList, setPasswordList] = useState<PasswordEntry[]>([
     {
@@ -126,19 +131,57 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
     }
   }, [currentAccount?.address]);
 
-  const checkUserWalBalance = async () => {
-    if (!currentAccount?.address) return;
+  const checkUserWalBalance = async (): Promise<{
+    hasTokens: boolean;
+    balance: string;
+  } | null> => {
+    if (!currentAccount?.address) return null;
 
     setIsCheckingBalance(true);
     try {
       const balance = await checkWalBalance(currentAccount.address);
       setWalBalance(balance);
       console.log("🪙 WAL balance checked:", balance);
+      return balance;
     } catch (error) {
       console.error("❌ Failed to check WAL balance:", error);
-      setWalBalance({ hasTokens: false, balance: "0" });
+      const fallback = { hasTokens: false, balance: "0" };
+      setWalBalance(fallback);
+      return fallback;
     } finally {
       setIsCheckingBalance(false);
+    }
+  };
+
+  const handleDiscoverTargets = async () => {
+    if (!currentAccount?.address) {
+      addToast({
+        type: "warning",
+        title: "Connect Wallet",
+        message: "Connect your wallet to discover Walrus move targets",
+        duration: 4000,
+      });
+      return;
+    }
+    try {
+      const targets = await discoverWalrusTargets(currentAccount.address);
+      console.log("[Enoki Allow-List] Discovered Walrus targets:", targets);
+      addToast({
+        type: "info",
+        title: "Walrus Targets",
+        message:
+          targets.length > 0
+            ? `${targets[0]}${targets.length > 1 ? ", ..." : ""}`
+            : "No targets found",
+        duration: 6000,
+      });
+    } catch (e) {
+      addToast({
+        type: "error",
+        title: "Discovery Failed",
+        message: e instanceof Error ? e.message : "Unable to discover targets",
+        duration: 5000,
+      });
     }
   };
 
@@ -161,7 +204,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
       const result = await completeWalExchange(
         currentAccount.address,
         signAndExecuteTransaction,
-        1_000_000 // 1 SUI for WAL tokens
+        100_000_000 // Request ~0.1 WAL (increase from 0.002)
       );
 
       console.log("✅ WAL exchange completed:", result.digest);
@@ -286,20 +329,99 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
         }
       }
 
-      // Prepare credential data for backend
+      // Prepare credential data for encryption (handled by backend encrypt-only)
       const credentialData = {
         site: newPasswordData.url,
         username: newPasswordData.username,
         password: newPasswordData.password,
-        notes: `Site: ${newPasswordData.name}`,
       };
 
-      // Store credential in Walrus via backend (Enoki handles wallet management)
-      const result = await storeCredentials(
-        credentialData,
-        currentAccount?.address
+      // Refresh balance and pre-check WAL estimate
+      const freshBalance = await checkUserWalBalance();
+      const pre = await encryptOnlyPrecheck(credentialData);
+      // Check balance for the exact WAL coin type used by Walrus register
+      const exactTypeBalance = currentAccount?.address
+        ? await checkWalBalanceByType(currentAccount.address)
+        : 0n;
+      const estimatedBaseUnits = BigInt(
+        pre.estimatedWalBaseUnits ??
+          Math.round(pre.estimatedWalHuman * 1_000_000_000).toString()
       );
-      console.log("✅ Credential stored successfully:", result);
+      // include buffer (~register + overhead): 2x (certify is SUI-only per docs)
+      const requiredBaseUnits = estimatedBaseUnits * 2n;
+      const haveBaseUnits =
+        exactTypeBalance > 0n
+          ? exactTypeBalance
+          : freshBalance
+          ? BigInt(freshBalance.balance)
+          : walBalance
+          ? BigInt(walBalance.balance)
+          : 0n;
+      const neededHuman = Number(requiredBaseUnits) / 1_000_000_000;
+      const haveHuman = Number(haveBaseUnits) / 1_000_000_000;
+
+      // Always show info toast with estimate
+      addToast({
+        type: "info",
+        title: "WAL Estimate",
+        message: `Estimated ~${(Number(pre.estimatedWalHuman) || 0).toFixed(
+          2
+        )} WAL base; ~${neededHuman.toFixed(
+          2
+        )} WAL with overhead; you have ${haveHuman.toFixed(
+          2
+        )} WAL (current coin type)`,
+        duration: 4000,
+      });
+
+      if (haveBaseUnits < requiredBaseUnits) {
+        addToast({
+          type: "warning",
+          title: "More WAL Needed",
+          message: `Need about ${neededHuman.toFixed(
+            2
+          )} WAL with overhead; you have ${haveHuman.toFixed(
+            2
+          )}. Use 'Get More WAL Tokens' first.`,
+          duration: 6000,
+        });
+        return;
+      }
+
+      // Store credential in Walrus from the frontend via upload relay
+      if (!currentAccount?.address) throw new Error("No wallet address");
+      let blobId: string | undefined;
+      try {
+        const res = await writeCredentialsToWalrus(
+          credentialData,
+          currentAccount.address,
+          signTransaction,
+          pre.ciphertextB64,
+          signAndExecuteTransaction
+        );
+        if (!res || !res.blobId) {
+          console.error("[Walrus] writeCredentialsToWalrus returned:", res);
+          throw new Error("Store flow returned no blobId");
+        }
+        blobId = res.blobId;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (
+          msg.includes("Not enough coins of type") ||
+          msg.includes("satisfy requested balance")
+        ) {
+          addToast({
+            type: "warning",
+            title: "Insufficient WAL",
+            message:
+              "Not enough WAL for register/certify. Use 'Get More WAL Tokens' and try again.",
+            duration: 6000,
+          });
+          return;
+        }
+        throw e;
+      }
+      console.log("✅ Credential stored successfully. BlobId:", blobId);
 
       // Add to local state for UI display
       const { icon, color } = getIconForUrl(newPasswordData.url);
@@ -320,7 +442,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
       addToast({
         type: "success",
         title: "Password Stored Securely!",
-        message: `${newPasswordData.name} has been encrypted and stored in Walrus`,
+        message: `${
+          newPasswordData.name
+        } stored in Walrus (blobId: ${blobId.slice(0, 10)}...)`,
         duration: 4000,
       });
     } catch (error) {
@@ -382,7 +506,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
                 {isCheckingBalance ? "Checking..." : walBalance?.balance || "0"}
               </span>
             </div>
-            {!walBalance?.hasTokens && (
+            <div className="flex items-center space-x-2">
               <button
                 onClick={handleWalExchange}
                 disabled={isExchanging}
@@ -396,11 +520,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onSignOut, addToast }) => {
                 ) : (
                   <>
                     <Coins className="w-4 h-4" strokeWidth={1.5} />
-                    <span>Get WAL Tokens</span>
+                    <span>
+                      {walBalance?.hasTokens
+                        ? "Get More WAL Tokens"
+                        : "Get WAL Tokens"}
+                    </span>
                   </>
                 )}
               </button>
-            )}
+              <button
+                onClick={handleDiscoverTargets}
+                className="cyber-button-secondary px-3 py-1.5 text-sm"
+                title="Discover Walrus Move Call Targets"
+              >
+                Discover Targets
+              </button>
+            </div>
           </div>
         </div>
       )}
