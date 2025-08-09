@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { motion } from "motion/react";
 import { Shield, Brain, Palette, Video } from "lucide-react";
+import { useInView } from "motion/react";
 import { Modal, ModalBody, ModalContent, ModalFooter, ModalTrigger } from "@/components/ui/animated-modal";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ParticlesJS from "@/components/ParticlesJS";
 import { GlobeDemo } from "@/components/GlobeDemo";
 
@@ -268,29 +269,56 @@ export default function Home() {
       </section>
 
       {/* Globe Section */}
-      <section id="security" className="relative z-10 py-24">
+      <motion.section 
+        id="security" 
+        className="relative z-10 py-24"
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        viewport={{ once: true, margin: "-100px" }}
+      >
         <GlobeDemo />
-      </section>
+      </motion.section>
 
       {/* Features Section */}
-      <section id="features" className="relative pt-24 pb-44 px-6 z-10">
+      <motion.section 
+        id="features" 
+        className="relative pt-24 pb-44 px-6 z-10"
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        viewport={{ once: true, margin: "-100px" }}
+      >
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+            viewport={{ once: true }}
+          >
             <h2 className="text-4xl md:text-5xl heading-modern text-white mb-6">
               Security as you expect it
             </h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto">
               Built with cutting-edge technology.
             </p>
-          </div>
+          </motion.div>
           
-          <BentoGrid>
-            {features.map((feature, idx) => (
-              <BentoCard key={idx} {...feature} />
-            ))}
-          </BentoGrid>
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut", delay: 0.4 }}
+            viewport={{ once: true }}
+          >
+            <BentoGrid>
+              {features.map((feature, idx) => (
+                <BentoCard key={idx} {...feature} />
+              ))}
+            </BentoGrid>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Footer */}
       <footer className="relative py-16 px-6 border-t border-gray-700/60 bg-[#040612] z-10">

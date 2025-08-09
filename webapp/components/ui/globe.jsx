@@ -35,12 +35,21 @@ const Globe = memo(function Globe({ globeConfig, data }) {
     ...globeConfig,
   };
 
-  // Initialize globe only once
+  // Initialize globe only once with delay for performance
   useEffect(() => {
     if (!globeRef.current && groupRef.current) {
-      globeRef.current = new ThreeGlobe();
-      groupRef.current.add(globeRef.current);
-      setIsInitialized(true);
+      // Use requestIdleCallback for better performance
+      const initGlobe = () => {
+        globeRef.current = new ThreeGlobe();
+        groupRef.current.add(globeRef.current);
+        setIsInitialized(true);
+      };
+
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(initGlobe);
+      } else {
+        setTimeout(initGlobe, 0);
+      }
     }
   }, []);
 
@@ -65,75 +74,103 @@ const Globe = memo(function Globe({ globeConfig, data }) {
   useEffect(() => {
     if (!globeRef.current || !isInitialized || !data) return;
 
-    const arcs = data;
-    let points = [];
-    for (let i = 0; i < arcs.length; i++) {
-      const arc = arcs[i];
-      const rgb = hexToRgb(arc.color);
-      points.push({
-        size: defaultProps.pointSize,
-        order: arc.order,
-        color: arc.color,
-        lat: arc.startLat,
-        lng: arc.startLng,
-      });
-      points.push({
-        size: defaultProps.pointSize,
-        order: arc.order,
-        color: arc.color,
-        lat: arc.endLat,
-        lng: arc.endLng,
-      });
-    }
+    // Use requestIdleCallback to prevent blocking main thread
+    const buildGlobeData = () => {
+      const arcs = data;
+      let points = [];
+      for (let i = 0; i < arcs.length; i++) {
+        const arc = arcs[i];
+        points.push({
+          size: defaultProps.pointSize,
+          order: arc.order,
+          color: arc.color,
+          lat: arc.startLat,
+          lng: arc.startLng,
+        });
+        points.push({
+          size: defaultProps.pointSize,
+          order: arc.order,
+          color: arc.color,
+          lat: arc.endLat,
+          lng: arc.endLng,
+        });
+      }
 
-    // remove duplicates for same lat and lng
-    const filteredPoints = points.filter(
-      (v, i, a) =>
-        a.findIndex((v2) =>
-          ["lat", "lng"].every(
-            (k) => v2[k] === v[k],
-          ),
-        ) === i,
-    );
-
-    globeRef.current
-      .hexPolygonsData(countries.features)
-      .hexPolygonResolution(2)
-      .hexPolygonMargin(0.8)
-      .showAtmosphere(defaultProps.showAtmosphere)
-      .atmosphereColor(defaultProps.atmosphereColor)
-      .atmosphereAltitude(defaultProps.atmosphereAltitude)
-      .hexPolygonColor(() => defaultProps.polygonColor);
-
-    globeRef.current
-      .arcsData(data)
-      .arcStartLat((d) => d.startLat * 1)
-      .arcStartLng((d) => d.startLng * 1)
-      .arcEndLat((d) => d.endLat * 1)
-      .arcEndLng((d) => d.endLng * 1)
-      .arcColor((e) => e.color)
-      .arcAltitude((e) => e.arcAlt * 1)
-      .arcStroke(() => [0.32, 0.28, 0.3][Math.round(Math.random() * 2)])
-      .arcDashLength(defaultProps.arcLength)
-      .arcDashInitialGap((e) => e.order * 1)
-      .arcDashGap(15)
-      .arcDashAnimateTime(() => defaultProps.arcTime);
-
-    globeRef.current
-      .pointsData(filteredPoints)
-      .pointColor((e) => e.color)
-      .pointsMerge(true)
-      .pointAltitude(0.0)
-      .pointRadius(2);
-
-    globeRef.current
-      .ringsData([])
-      .ringColor(() => defaultProps.polygonColor)
-      .ringMaxRadius(defaultProps.maxRings)
-      .ringPropagationSpeed(RING_PROPAGATION_SPEED)
-      .ringRepeatPeriod(
-        (defaultProps.arcTime * defaultProps.arcLength) / defaultProps.rings,
+      // remove duplicates for same lat and lng
+      const filteredPoints = points.filter(
+        (v, i, a) =>
+          a.findIndex((v2) =>
+            ["lat", "lng"].every(
+              (k) => v2[k] === v[k],
+            ),
+          ) === i,
       );
+
+      // Load countries data progressively - start with minimal set
+      globeRef.current
+        .hexPolygonsData(countries.features.slice(0, 20)) // Load only first 20 countries for fastest initial render
+        .hexPolygonResolution(1) // Lower resolution initially
+        .hexPolygonMargin(0.9)
+        .showAtmosphere(defaultProps.showAtmosphere)
+        .atmosphereColor(defaultProps.atmosphereColor)
+        .atmosphereAltitude(defaultProps.atmosphereAltitude)
+        .hexPolygonColor(() => defaultProps.polygonColor);
+
+      globeRef.current
+        .arcsData(data)
+        .arcStartLat((d) => d.startLat * 1)
+        .arcStartLng((d) => d.startLng * 1)
+        .arcEndLat((d) => d.endLat * 1)
+        .arcEndLng((d) => d.endLng * 1)
+        .arcColor((e) => e.color)
+        .arcAltitude((e) => e.arcAlt * 1)
+        .arcStroke(() => 0.3) // Fixed stroke for performance
+        .arcDashLength(defaultProps.arcLength)
+        .arcDashInitialGap((e) => e.order * 1)
+        .arcDashGap(15)
+        .arcDashAnimateTime(() => defaultProps.arcTime);
+
+      globeRef.current
+        .pointsData(filteredPoints)
+        .pointColor((e) => e.color)
+        .pointsMerge(true)
+        .pointAltitude(0.0)
+        .pointRadius(2);
+
+      globeRef.current
+        .ringsData([])
+        .ringColor(() => defaultProps.polygonColor)
+        .ringMaxRadius(defaultProps.maxRings)
+        .ringPropagationSpeed(RING_PROPAGATION_SPEED)
+        .ringRepeatPeriod(
+          (defaultProps.arcTime * defaultProps.arcLength) / defaultProps.rings,
+        );
+
+      // Progressive loading of more countries
+      setTimeout(() => {
+        if (globeRef.current) {
+          globeRef.current
+            .hexPolygonsData(countries.features.slice(0, 100))
+            .hexPolygonResolution(2); // Increase resolution
+        }
+      }, 1000);
+
+      // Load all countries with full resolution
+      setTimeout(() => {
+        if (globeRef.current) {
+          globeRef.current
+            .hexPolygonsData(countries.features)
+            .hexPolygonResolution(2)
+            .hexPolygonMargin(0.8);
+        }
+      }, 3000);
+    };
+
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(buildGlobeData);
+    } else {
+      setTimeout(buildGlobeData, 100);
+    }
   }, [
     isInitialized,
     data,
@@ -148,32 +185,39 @@ const Globe = memo(function Globe({ globeConfig, data }) {
     defaultProps.maxRings,
   ]);
 
-  // Handle rings animation with cleanup
+  // Handle rings animation with cleanup - delayed start
   useEffect(() => {
     if (!globeRef.current || !isInitialized || !data) return;
 
-    const interval = setInterval(() => {
-      if (!globeRef.current) return;
+    // Delay rings animation to prevent initial freeze
+    const startRings = setTimeout(() => {
+      const interval = setInterval(() => {
+        if (!globeRef.current) return;
 
-      const newNumbersOfRings = genRandomNumbers(
-        0,
-        data.length,
-        Math.floor((data.length * 2) / 5),
-      );
+        const newNumbersOfRings = genRandomNumbers(
+          0,
+          data.length,
+          Math.floor((data.length * 1) / 5), // Reduced ring count
+        );
 
-      const ringsData = data
-        .filter((d, i) => newNumbersOfRings.includes(i))
-        .map((d) => ({
-          lat: d.startLat,
-          lng: d.startLng,
-          color: d.color,
-        }));
+        const ringsData = data
+          .filter((d, i) => newNumbersOfRings.includes(i))
+          .map((d) => ({
+            lat: d.startLat,
+            lng: d.startLng,
+            color: d.color,
+          }));
 
-      globeRef.current.ringsData(ringsData);
-    }, 4000);
+        globeRef.current.ringsData(ringsData);
+      }, 6000); // Increased interval
+
+      return () => {
+        clearInterval(interval);
+      };
+    }, 3000); // Wait 3 seconds before starting rings
 
     return () => {
-      clearInterval(interval);
+      clearTimeout(startRings);
     };
   }, [isInitialized, data]);
 
@@ -216,9 +260,11 @@ export function World(props) {
         antialias: false, 
         powerPreference: "high-performance",
         stencil: false,
-        depth: false
+        depth: false,
+        preserveDrawingBuffer: false
       }}
-      frameloop="demand"
+      frameloop="always"
+      dpr={[1, 1.5]}
     >
       <WebGLRendererConfig />
       <ambientLight color={globeConfig.ambientLight} intensity={0.6} />

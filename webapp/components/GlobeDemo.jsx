@@ -1,13 +1,36 @@
 "use client";
-import React, { memo } from "react";
+import React, { memo, useState, useEffect } from "react";
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
  
 const World = dynamic(() => import("../components/ui/globe").then((m) => m.World), {
   ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-64 h-64 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></div>
+    </div>
+  ),
 });
  
 export const GlobeDemo = memo(function GlobeDemo() {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isPreloading, setIsPreloading] = useState(false);
+
+  useEffect(() => {
+    // Start preloading earlier but show later for smoother transition
+    const preloadTimer = setTimeout(() => {
+      setIsPreloading(true);
+    }, 800);
+
+    const showTimer = setTimeout(() => {
+      setIsVisible(true);
+    }, 1500);
+
+    return () => {
+      clearTimeout(preloadTimer);
+      clearTimeout(showTimer);
+    };
+  }, []);
   const globeConfig = {
     pointSize: 3,
     globeColor: "#062056",
@@ -131,7 +154,24 @@ export const GlobeDemo = memo(function GlobeDemo() {
           </p>
         </motion.div>
         <div className="absolute top-40 left-0 right-0 bottom-0 w-full z-10">
-          <World data={sampleArcs} globeConfig={globeConfig} />
+          {isPreloading && (
+            <div 
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                isVisible ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <World data={sampleArcs} globeConfig={globeConfig} />
+            </div>
+          )}
+          {!isVisible && (
+            <div 
+              className={`flex items-center justify-center h-full transition-opacity duration-500 ${
+                isPreloading ? 'opacity-0' : 'opacity-100'
+              }`}
+            >
+              <div className="w-64 h-64 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></div>
+            </div>
+          )}
         </div>
       </div>
     </div>
