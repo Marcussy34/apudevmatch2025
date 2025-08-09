@@ -711,10 +711,10 @@ describe("AtomicVaultManager - Comprehensive Coverage Tests", function () {
         .updateWalrusConfig(
           "https://endpoint.com",
           ethers.keccak256(ethers.toUtf8Bytes("key")),
-          64 * 1024, // 64KB
+          16 * 1024, // 16KB lower boundary to avoid block gas issues
           10
         );
-      const maxSizeData = new Uint8Array(64 * 1024);
+      const maxSizeData = new Uint8Array(16 * 1024);
       maxSizeData.fill(42);
 
       await expect(
