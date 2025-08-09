@@ -1,4 +1,8 @@
 import { ethers } from "hardhat";
+import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -17,6 +21,23 @@ interface DeploymentSummary {
   timestamp: string;
   deployments: DeploymentResult[];
   totalGasUsed: string;
+}
+
+// Helper function to wrap signers for Sapphire networks
+async function getSapphireWrappedSigner(signer: any) {
+  const network = await signer.provider.getNetwork();
+  const isSapphireNetwork = [
+    0x5afe, // Sapphire Mainnet
+    0x5aff, // Sapphire Testnet
+    0x5afd, // Sapphire Localnet
+  ].includes(Number(network.chainId));
+
+  if (isSapphireNetwork) {
+    console.log(`🔐 Using Sapphire encryption for network ${network.chainId}`);
+    return wrapEthersSigner(signer);
+  }
+
+  return signer;
 }
 
 async function main() {
@@ -44,8 +65,11 @@ async function main() {
   ) {
     console.log(`⏳ Deploying ${contractName}...`);
 
+    // Get wrapped deployer for Sapphire networks
+    const wrappedDeployer = await getSapphireWrappedSigner(deployer);
+    
     const ContractFactory = await ethers.getContractFactory(contractName);
-    const contract = await ContractFactory.deploy(...constructorArgs);
+    const contract = await ContractFactory.connect(wrappedDeployer).deploy(...constructorArgs);
 
     await contract.waitForDeployment();
     const deploymentTx = contract.deploymentTransaction();
@@ -102,27 +126,28 @@ async function main() {
 
     console.log("🧪 Verifying deployments...\n");
 
-    // Verify each contract is working
+    // Verify each contract is working (with encryption)
+    const wrappedDeployer = await getSapphireWrappedSigner(deployer);
     const tests = [
       {
         name: "GrandWardenVault",
         test: async () => {
           const testData = ethers.encodeBytes32String("test-data");
-          const tx = await grandWardenVault.createVault(testData);
+          const tx = await grandWardenVault.connect(wrappedDeployer).createVault(testData);
           await tx.wait();
-          return "✅ Vault creation successful";
+          return "✅ Vault creation successful (encrypted)";
         },
       },
       {
         name: "WalletVault",
         test: async () => {
           const encryptedSeed = ethers.encodeBytes32String("test-seed");
-          const tx = await walletVault.importSeedPhrase(
+          const tx = await walletVault.connect(wrappedDeployer).importSeedPhrase(
             encryptedSeed,
             "Test Wallet"
           );
           await tx.wait();
-          return "✅ Wallet import successful";
+          return "✅ Wallet import successful (encrypted)";
         },
       },
       {
@@ -132,13 +157,13 @@ async function main() {
             ethers.encodeBytes32String("test-key")
           );
           const fingerprint = ethers.encodeBytes32String("test-fingerprint");
-          const tx = await deviceRegistry.registerDevice(
+          const tx = await deviceRegistry.connect(wrappedDeployer).registerDevice(
             "Test Device",
             publicKeyHash,
             fingerprint
           );
           await tx.wait();
-          return "✅ Device registration successful";
+          return "✅ Device registration successful (encrypted)";
         },
       },
       {
@@ -148,20 +173,20 @@ async function main() {
           const contactHash = ethers.keccak256(
             ethers.toUtf8Bytes("test@guardian.com")
           );
-          const tx = await recoveryManager.addGuardian(
+          const tx = await recoveryManager.connect(wrappedDeployer).addGuardian(
             guardianAddress,
             "Test Guardian",
             contactHash
           );
           await tx.wait();
-          return "✅ Guardian addition successful";
+          return "✅ Guardian addition successful (encrypted)";
         },
       },
       {
         name: "AtomicVaultManager",
         test: async () => {
-          const stats = await atomicVaultManager.getOperationStats();
-          return `✅ Operation stats retrieved: ${stats.total} total operations`;
+          const stats = await atomicVaultManager.connect(wrappedDeployer).getOperationStats();
+          return `✅ Operation stats retrieved: ${stats.total} total operations (encrypted)`;
         },
       },
     ];

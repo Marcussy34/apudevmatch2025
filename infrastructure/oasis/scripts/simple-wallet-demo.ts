@@ -1,20 +1,20 @@
 import { ethers } from "hardhat";
+import { getSapphireContract, logNetworkInfo } from "./sapphire-utils";
 
 /**
  * Simple working transaction to demonstrate real-time subgraph capture
+ * WITH SAPPHIRE ENCRYPTION
  */
 async function main() {
-  console.log("🔥 SIMPLE WALLET IMPORT DEMONSTRATION");
+  console.log("🔥 SIMPLE WALLET IMPORT DEMONSTRATION (WITH ENCRYPTION)");
   console.log("This WILL work and emit a WalletImported event!");
   console.log("");
 
-  const [deployer] = await ethers.getSigners();
-  console.log(`👤 User Address: ${await deployer.getAddress()}`);
-  console.log(`⛓️ Network: Oasis Sapphire Testnet`);
-  console.log("");
+  // Log network info with encryption status
+  await logNetworkInfo();
 
-  // Connect to WalletVault contract
-  const walletVault = await ethers.getContractAt(
+  // Connect to WalletVault contract with automatic Sapphire wrapping
+  const walletVault = await getSapphireContract(
     "WalletVault", 
     "0x3B7dd63D236bDB0Fd85d556d2AC70e2746cF5F82"
   );
@@ -23,12 +23,12 @@ async function main() {
   const timestamp = Date.now();
   const walletName = `DemoWallet-${timestamp}`;
 
-  console.log("💰 Importing Wallet...");
+  console.log("💰 Importing Wallet (ENCRYPTED)...");
   console.log(`   📝 Wallet Name: ${walletName}`);
   
   try {
-    // Import wallet - this should work!
-    const tx = await walletVault.connect(deployer).importWallet(walletName);
+    // Import wallet with automatic encryption (signer already wrapped in getSapphireContract)
+    const tx = await walletVault.importWallet(walletName);
     console.log(`   📋 Transaction Hash: ${tx.hash}`);
     
     // Wait for confirmation

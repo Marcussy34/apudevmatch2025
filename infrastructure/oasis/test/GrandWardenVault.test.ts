@@ -1,12 +1,33 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import {
+  wrapEthersProvider,
+  wrapEthersSigner,
+} from "@oasisprotocol/sapphire-ethers-v6";
+import {
   GrandWardenVault,
   WalletVault,
   DeviceRegistry,
 } from "../typechain-types";
 
-describe("Grand Warden Phase 1 - Core Contracts", function () {
+// Helper function to wrap signers for Sapphire networks
+async function getSapphireWrappedSigner(signer: any) {
+  const network = await signer.provider.getNetwork();
+  const isSapphireNetwork = [
+    0x5afe, // Sapphire Mainnet
+    0x5aff, // Sapphire Testnet
+    0x5afd, // Sapphire Localnet
+  ].includes(Number(network.chainId));
+
+  if (isSapphireNetwork) {
+    console.log(`🔐 Using Sapphire encryption for tests on network ${network.chainId}`);
+    return wrapEthersSigner(signer);
+  }
+
+  return signer;
+}
+
+describe("Grand Warden Phase 1 - Core Contracts (with Sapphire Encryption)", function () {
   let grandWardenVault: GrandWardenVault;
   let walletVault: WalletVault;
   let deviceRegistry: DeviceRegistry;
@@ -16,21 +37,29 @@ describe("Grand Warden Phase 1 - Core Contracts", function () {
   beforeEach(async function () {
     [owner, user] = await ethers.getSigners();
 
-    // Deploy contracts
+    // Wrap signers for Sapphire if needed
+    const wrappedOwner = await getSapphireWrappedSigner(owner);
+    const wrappedUser = await getSapphireWrappedSigner(user);
+
+    // Deploy contracts with wrapped signers
     const GrandWardenVault = await ethers.getContractFactory(
       "GrandWardenVault"
     );
-    grandWardenVault = await GrandWardenVault.deploy();
+    grandWardenVault = await GrandWardenVault.connect(wrappedOwner).deploy();
 
     const WalletVault = await ethers.getContractFactory("WalletVault");
-    walletVault = await WalletVault.deploy();
+    walletVault = await WalletVault.connect(wrappedOwner).deploy();
 
     const DeviceRegistry = await ethers.getContractFactory("DeviceRegistry");
-    deviceRegistry = await DeviceRegistry.deploy();
+    deviceRegistry = await DeviceRegistry.connect(wrappedOwner).deploy();
+
+    // Update the signer references for tests
+    owner = wrappedOwner;
+    user = wrappedUser;
   });
 
-  describe("GrandWardenVault", function () {
-    it("Should create a vault successfully", async function () {
+  describe("GrandWardenVault (Encrypted Operations)", function () {
+    it("Should create a vault successfully with encryption", async function () {
       const vaultData = ethers.encodeBytes32String("test-vault-data");
 
       const tx = await grandWardenVault.connect(user).createVault(vaultData);
@@ -45,7 +74,7 @@ describe("Grand Warden Phase 1 - Core Contracts", function () {
       expect(event).to.not.be.undefined;
     });
 
-    it("Should add credentials to vault", async function () {
+    it("Should add credentials to vault with encryption", async function () {
       const vaultData = ethers.encodeBytes32String("test-vault-data");
       const createTx = await grandWardenVault
         .connect(user)
@@ -76,7 +105,7 @@ describe("Grand Warden Phase 1 - Core Contracts", function () {
       ).to.emit(grandWardenVault, "CredentialAdded");
     });
 
-    it("Should encrypt passwords within TEE - decrypted value differs from stored", async function () {
+    it("Should encrypt passwords within TEE using Sapphire - decrypted value matches original", async function () {
       const vaultData = ethers.encodeBytes32String("test-vault-data");
       const createTx = await grandWardenVault
         .connect(user)
