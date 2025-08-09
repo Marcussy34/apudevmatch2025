@@ -29,8 +29,8 @@ const interTight = Inter({
 const features = [
   {
     Icon: Shield,
-    name: "Zero-Knowledge Security",
-    description: "Your passwords are encrypted with Walrus and verified through Seal, ensuring complete privacy with mathematical certainty.",
+    name: "Decentralized & Encrypted",
+    description: "Your passwords are kept private with powerful Seal encryption and stored on the secure, decentralized Walrus network.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-1",
@@ -44,8 +44,8 @@ const features = [
   },
   {
     Icon: Brain,
-    name: "AI-Powered Insights",
-    description: "Advanced algorithms analyze your password patterns to identify vulnerabilities and suggest improvements for optimal security.",
+    name: "Confidential AI",
+    description: "Advanced algorithm analyzes password strength within a secure environment (ROFL). Your actual credentials are never exposed, ensuring complete confidentiality during the process.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-1",
@@ -65,7 +65,7 @@ const features = [
   {
     Icon: Palette,
     name: "NFT Security Portrait", 
-    description: "Mint unique NFTs that visualize your security posture, creating beautiful art from your digital protection status.",
+    description: "Get a unique NFT that represents your current security risk level. This on-chain badge serves as a verifiable record of your security posture.",
     href: "#",
     cta: "Learn more",
     className: "col-span-1 md:col-span-2",
