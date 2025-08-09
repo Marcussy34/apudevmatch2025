@@ -1,13 +1,17 @@
 services:
   mycontainer:
-    # remove build: for ROFL; image must be pullable from a registry
-    image: docker.io/shaddymy/grand-warden-rofl:latest
+    # Build locally using the Dockerfile
+    build: .
     platform: linux/amd64
+    ports:
+      - "8080:8080"
     environment:
       # keep only the vars you really use (or define as ROFL secrets)
       - TOKEN=${TOKEN}
+      - PHALA_API_KEY=${PHALA_API_KEY}
+      - REDPILL_API_BASE=${REDPILL_API_BASE}
+      - REDPILL_API_PATH=${REDPILL_API_PATH}
+      - REDPILL_MODEL=${REDPILL_MODEL}
     volumes:
       # persistent storage inside TEE (optional)
-      - /storage/rofl-storage:/app/rofl-storage
-      # ROFL control socket (if your app needs it)
-      - /run/rofl-appd.sock:/run/rofl-appd.sock
+      - ./rofl-storage:/app/rofl-storage

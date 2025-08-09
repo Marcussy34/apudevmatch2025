@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
+import { Button } from "./ui/button";
 
 function AIArtwork({ summaryMarkdown, stats, signAndExecute }) {
     const [status, setStatus] = useState("idle");
@@ -306,16 +307,16 @@ function AIArtwork({ summaryMarkdown, stats, signAndExecute }) {
                         className="w-full rounded-md border border-cyber-700"
                     />
                     <div className="flex gap-2">
-                        <button
+                        <Button
                             onClick={mintNft}
                             disabled={status === "generating" || !account}
-                            className={`cyber-button px-4 py-2 ${status === "generating" ? "opacity-50 cursor-not-allowed" : ""
-                                } ${!account ? "opacity-50 cursor-not-allowed" : ""}`}
+                            variant="default"
+                            className="cursor-pointer"
                         >
                             {status === "generating" ? "Minting NFT..." : "Mint Security NFT"}
-                        </button>
+                        </Button>
                         {!account && (
-                            <p className="text-cyber-400 text-xs self-center">
+                            <p className="text-muted-foreground text-xs self-center">
                                 Connect wallet to mint NFT
                             </p>
                         )}
