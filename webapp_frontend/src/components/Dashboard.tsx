@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 // SuiClient is not used directly here after refactor; keep getFullnodeUrl via helper module
 // import removed to satisfy linter
@@ -40,7 +39,7 @@ import AddPasswordModal, { NewPasswordData } from "./AddPasswordModal";
 import AutofillStatus from "./AutofillStatus";
 import { ToastProps } from "./Toast";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
-import AISummary from './AISummary'
+import AISummary from "./AISummary";
 
 interface PasswordEntry {
   id: number;
@@ -201,6 +200,66 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
             message: `Blob ID: ${blobId}`,
             duration: 6000,
           });
+
+          // Immediately retrieve, decrypt and display the newly stored credential
+          try {
+            addToast({
+              type: "info",
+              title: "Retrieving",
+              message: "Fetching and decrypting your new credential...",
+              duration: 4000,
+            });
+            const r = await getCredentialByBlobIdViaProxy(
+              blobId,
+              address,
+              signPersonalMessage,
+              idHex
+            );
+            const j = r.json;
+            if (j && j.name && j.url && j.username && j.password) {
+              const { icon, color } = getIconForUrl(j.url);
+              setPasswordList((prev) => [
+                {
+                  id: Math.max(0, ...prev.map((p) => p.id)) + 1,
+                  name: j.name,
+                  url: j.url,
+                  username: j.username,
+                  password: j.password,
+                  icon,
+                  color,
+                  lastUsed: "Just now",
+                },
+                ...prev,
+              ]);
+              addToast({
+                type: "success",
+                title: "Credential Ready",
+                message: `Added ${j.name}`,
+                duration: 5000,
+              });
+            }
+          } catch (err: any) {
+            const msg = String(err?.message || err);
+            if (
+              msg.includes("blob_not_certified") ||
+              msg.includes("BlobNotCertified")
+            ) {
+              addToast({
+                type: "warning",
+                title: "Not yet certified",
+                message:
+                  "It may take a moment to certify. Use Retrieve later if needed.",
+                duration: 6000,
+              });
+            } else {
+              addToast({
+                type: "error",
+                title: "Auto-retrieve failed",
+                message: msg,
+                duration: 6000,
+              });
+            }
+          }
         }
       }
     } catch (e: any) {
@@ -401,28 +460,35 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
   */
 
   const sendBatchAndSummarize = async () => {
-    const batch = passwordList.slice(0, 5).map(p => ({
+    const batch = passwordList.slice(0, 5).map((p) => ({
       id: p.id,
       name: p.name,
       url: p.url,
       username: p.username,
       password: p.password,
-    }))
+    }));
     try {
-      const roflUrl = (import.meta.env.VITE_ROFL_SUMMARY_ENDPOINT as string) || 'http://localhost:8080/ingest-batch-summarize'
+      const roflUrl =
+        (import.meta.env.VITE_ROFL_SUMMARY_ENDPOINT as string) ||
+        "http://localhost:8080/ingest-batch-summarize";
       const res = await fetch(roflUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(batch)
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      const summary = data?.ai?.summary || 'No AI summary'
-      setAiSummary(summary)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(batch),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const summary = data?.ai?.summary || "No AI summary";
+      setAiSummary(summary);
     } catch (e: any) {
-      addToast({ type: 'error', title: 'Summary failed', message: e?.message || 'Unknown error', duration: 3000 })
+      addToast({
+        type: "error",
+        title: "Summary failed",
+        message: e?.message || "Unknown error",
+        duration: 3000,
+      });
     }
-  }
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden container mx-auto max-w-4xl">
@@ -514,7 +580,7 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
           onClick={sendBatchAndSummarize}
           className="cyber-button w-full flex items-center justify-center space-x-3 py-3"
         >
-          <span>AI (Batch + Summary)</span>
+          <span>Batch Password Analyzer</span>
         </button>
       </div>
 

@@ -105,6 +105,7 @@ export default function Dashboard() {
   const walletDropdownRef = useRef(null);
   const [nftData, setNftData] = useState(null);
   const [isLoadingNfts, setIsLoadingNfts] = useState(false);
+  const [toasts, setToasts] = useState([]);
 
   // Form state for Add Password modal
   const [formData, setFormData] = useState({
@@ -123,7 +124,10 @@ export default function Dashboard() {
   // Click outside handler for wallet dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (walletDropdownRef.current && !walletDropdownRef.current.contains(event.target)) {
+      if (
+        walletDropdownRef.current &&
+        !walletDropdownRef.current.contains(event.target)
+      ) {
         setShowWalletInfo(false);
       }
     };
@@ -174,10 +178,29 @@ export default function Dashboard() {
     }
   };
 
+  // Simple toast helpers
+  const showToast = ({
+    type = "info",
+    title = "",
+    description = "",
+    duration = 4000,
+  }) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setToasts((prev) => [...prev, { id, type, title, description }]);
+    if (duration > 0) {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+    }
+  };
+  const dismissToast = (id) =>
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+
   // Basic metrics placeholders (will derive from real list)
   const [passwordList, setPasswordList] = useState([]);
+  const [localRefCount, setLocalRefCount] = useState(0);
   const securityScore = nftData?.securityScore || 85;
-  const totalPasswords = passwordList.length;
+  const totalPasswords = Math.max(passwordList.length, localRefCount);
   const weakPasswords = 0;
   const breachedPasswords = 0;
   const reusedPasswords = 0;
@@ -210,15 +233,28 @@ export default function Dashboard() {
             msg = await res.text();
           } catch {}
         }
-        alert(`AI summary failed: ${msg}`);
+        showToast({
+          type: "danger",
+          title: "AI summary failed",
+          description: msg,
+        });
         return;
       }
       const data = await res.json();
       const summary = data?.ai?.summary || "No AI summary";
       setAiSummary(summary);
+      showToast({
+        type: "success",
+        title: "AI summary ready",
+        description: "Added above the vault",
+      });
     } catch (e) {
       console.error("AI summary failed:");
-      alert(String(e?.message || e));
+      showToast({
+        type: "danger",
+        title: "AI summary error",
+        description: String(e?.message || e),
+      });
     }
   };
 
@@ -284,7 +320,7 @@ export default function Dashboard() {
   const handleRetrieveCredentials = async () => {
     try {
       if (!account?.address) {
-        alert("Connect wallet to retrieve");
+        showToast({ type: "warning", title: "Connect wallet to retrieve" });
         return;
       }
       let aggregated = [];
@@ -332,9 +368,16 @@ export default function Dashboard() {
         })
         .filter(Boolean);
       setPasswordList(next);
-      alert(`Retrieved ${next.length} credential(s)`);
+      showToast({
+        type: "success",
+        title: `Retrieved ${next.length} credential(s)`,
+      });
     } catch (e) {
-      alert(String(e?.message || e));
+      showToast({
+        type: "danger",
+        title: "Retrieve failed",
+        description: String(e?.message || e),
+      });
     }
   };
 
@@ -386,7 +429,7 @@ export default function Dashboard() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!account?.address) {
-      alert("Connect wallet first");
+      showToast({ type: "warning", title: "Connect wallet first" });
       return;
     }
     if (isSubmitting) return;
@@ -450,7 +493,68 @@ export default function Dashboard() {
           { epochs: 1, deletable: true, tipMax: 10000 }
         );
 
-      if (blobId) addBlobRef(account.address, { blobId, idHex });
+      if (blobId) {
+        addBlobRef(account.address, { blobId, idHex });
+        try {
+          const refsNow = getBlobRefs(account.address) || [];
+          setLocalRefCount(refsNow.length);
+        } catch {}
+
+        // Immediately retrieve, decrypt, and display the newly added credential
+        try {
+          showToast({
+            type: "info",
+            title: "Retrieving",
+            description: "Fetching and decrypting your new credential...",
+          });
+          const r = await getCredentialByBlobIdViaProxy(
+            blobId,
+            account.address,
+            signPersonalMessage,
+            idHex
+          );
+          const j = r.json;
+          if (j && j.name && j.url && j.username && j.password) {
+            setPasswordList((prev) => [
+              {
+                id: Math.max(0, ...prev.map((p) => p.id)) + 1,
+                name: j.name,
+                url: j.url,
+                username: j.username,
+                password: j.password,
+                strength: "Strong",
+                lastUsed: "Just now",
+                device: "laptop",
+              },
+              ...prev,
+            ]);
+            showToast({
+              type: "success",
+              title: "Credential Ready",
+              description: `Added ${j.name}`,
+            });
+          }
+        } catch (err) {
+          const msg = String(err?.message || err);
+          if (
+            msg.includes("blob_not_certified") ||
+            msg.includes("BlobNotCertified")
+          ) {
+            showToast({
+              type: "warning",
+              title: "Not yet certified",
+              description:
+                "It may take a moment to certify. Use Retrieve later if needed.",
+            });
+          } else {
+            showToast({
+              type: "danger",
+              title: "Auto-retrieve failed",
+              description: msg,
+            });
+          }
+        }
+      }
 
       // Reset form
       setFormData({
@@ -460,14 +564,18 @@ export default function Dashboard() {
         password: "",
       });
       setShowNewPassword(false);
-      alert(
-        `Encrypted & stored. Register: ${registerDigest}\nCertify: ${certifyDigest}${
-          blobId ? `\nBlob: ${blobId}` : ""
-        }`
-      );
+      showToast({
+        type: "success",
+        title: "Password saved",
+        description: blobId ? `Blob: ${blobId}` : "Encrypted & stored",
+      });
     } catch (err) {
       console.error("Add credential failed:", err);
-      alert(`Failed: ${String(err?.message || err)}`);
+      showToast({
+        type: "danger",
+        title: "Add credential failed",
+        description: String(err?.message || err),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -488,17 +596,32 @@ export default function Dashboard() {
     setShowWalletInfo(!showWalletInfo);
   };
 
+  // Keep a local count of stored blob refs per wallet
+  useEffect(() => {
+    if (account?.address) {
+      try {
+        const refs = getBlobRefs(account.address) || [];
+        setLocalRefCount(refs.length);
+      } catch {
+        setLocalRefCount(0);
+      }
+    } else {
+      setLocalRefCount(0);
+    }
+  }, [account?.address]);
+
   // Fetch wallet balance
   const fetchBalance = async () => {
     if (!account?.address || !suiClient) return;
-    
+
     setIsLoadingBalance(true);
     try {
       const balanceData = await suiClient.getBalance({
         owner: account.address,
       });
       // Convert from MIST to SUI
-      const suiBalance = Number(balanceData.totalBalance) / Number(MIST_PER_SUI);
+      const suiBalance =
+        Number(balanceData.totalBalance) / Number(MIST_PER_SUI);
       setBalance(suiBalance);
     } catch (error) {
       console.error("Failed to fetch balance:", error);
@@ -511,55 +634,62 @@ export default function Dashboard() {
   // Fetch NFTs from wallet
   const fetchNfts = async () => {
     if (!account?.address || !suiClient) return;
-    
+
     setIsLoadingNfts(true);
     try {
       const nfts = [];
       let cursor = null;
-      
+
       do {
         const page = await suiClient.getOwnedObjects({
           owner: account.address,
           cursor: cursor ?? undefined,
           limit: 50,
-          options: { 
-            showType: true, 
-            showContent: true, 
-            showDisplay: true 
+          options: {
+            showType: true,
+            showContent: true,
+            showDisplay: true,
           },
         });
-        
+
         for (const item of page.data) {
           const objectType = item?.data?.type;
-          
+
           // Check if this is likely an NFT (has display metadata and is not a coin)
-          if (objectType && 
-              !objectType.includes("::coin::Coin") && 
-              !objectType.includes("::blob::Blob") &&
-              !objectType.includes("::shared_blob::SharedBlob") &&
-              item?.data?.display) {
-            
+          if (
+            objectType &&
+            !objectType.includes("::coin::Coin") &&
+            !objectType.includes("::blob::Blob") &&
+            !objectType.includes("::shared_blob::SharedBlob") &&
+            item?.data?.display
+          ) {
             const display = item.data.display?.data || {};
             const content = item.data.content?.fields || {};
-            
+
             // Only include objects that have NFT-like characteristics
-            if (display.name || display.description || display.image_url || content.name) {
+            if (
+              display.name ||
+              display.description ||
+              display.image_url ||
+              content.name
+            ) {
               nfts.push({
                 id: item.data.objectId,
                 type: objectType,
                 name: display.name || content.name || "Unnamed NFT",
                 description: display.description || content.description || "",
-                imageUrl: display.image_url || content.image_url || content.url || "",
+                imageUrl:
+                  display.image_url || content.image_url || content.url || "",
                 attributes: content,
-                display
+                display,
               });
             }
           }
         }
-        
+
         cursor = page.hasNextPage ? page.nextCursor ?? null : null;
       } while (cursor);
-      
+
       // Set NFT data - only if we found actual NFTs
       if (nfts.length > 0) {
         console.log(`Found ${nfts.length} NFTs:`, nfts);
@@ -567,7 +697,7 @@ export default function Dashboard() {
           nfts,
           totalCount: nfts.length,
           // Calculate a simple security score based on NFT collection
-          securityScore: Math.min(85 + (nfts.length * 2), 98)
+          securityScore: Math.min(85 + nfts.length * 2, 98),
         });
       } else {
         console.log("No NFTs found in wallet");
@@ -586,6 +716,7 @@ export default function Dashboard() {
     disconnect();
     setShowWalletInfo(false);
     setBalance(null);
+    setLocalRefCount(0);
     // Redirect to index page after disconnect
     router.push("/");
   };
@@ -593,7 +724,9 @@ export default function Dashboard() {
   // Show loading screen while checking wallet connection
   if (isCheckingWallet) {
     return (
-      <div className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background flex items-center justify-center`}>
+      <div
+        className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background flex items-center justify-center`}
+      >
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className="text-muted-foreground">Checking wallet connection...</p>
@@ -612,6 +745,46 @@ export default function Dashboard() {
       <div
         className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background`}
       >
+        {/* Toast container */}
+        <div className="fixed top-4 right-4 z-[100] space-y-2">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="flex w-80 items-start gap-3 rounded-lg border bg-background p-3 shadow-lg"
+            >
+              <div className="pt-0.5">
+                {t.type === "success" ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : t.type === "warning" ? (
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                ) : t.type === "danger" ? (
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                ) : (
+                  <Activity className="h-4 w-4 text-blue-500" />
+                )}
+              </div>
+              <div className="flex-1">
+                {t.title && (
+                  <div className="text-sm font-medium text-foreground">
+                    {t.title}
+                  </div>
+                )}
+                {t.description && (
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {t.description}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => dismissToast(t.id)}
+                className="text-muted-foreground/70 hover:text-foreground"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
         {/* Header */}
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-6 lg:px-8">
@@ -656,17 +829,19 @@ export default function Dashboard() {
               <Button variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
               </Button>
-              
+
               {/* Wallet Display */}
               <div className="relative" ref={walletDropdownRef}>
-                <div 
+                <div
                   className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-2 transition-colors"
                   onClick={toggleWalletInfo}
                 >
                   <Avatar>
                     <AvatarImage src="/placeholder-avatar.svg" alt="User" />
                     <AvatarFallback>
-                      {account?.address ? account.address.slice(0, 2).toUpperCase() : "MD"}
+                      {account?.address
+                        ? account.address.slice(0, 2).toUpperCase()
+                        : "MD"}
                     </AvatarFallback>
                   </Avatar>
                   {account?.address && (
@@ -675,31 +850,43 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Wallet Info Dropdown */}
                 {showWalletInfo && account?.address && (
                   <div className="absolute right-0 top-full mt-2 w-84 bg-background border border-border rounded-lg shadow-lg z-50">
                     <div className="p-4 space-y-4">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-foreground">Wallet Connected</h3>
-                        <Button variant="ghost" size="icon" onClick={toggleWalletInfo}>
+                        <h3 className="text-sm font-medium text-foreground">
+                          Wallet Connected
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={toggleWalletInfo}
+                        >
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
-                      
+
                       {/* Balance Section */}
                       <div className="space-y-2">
-                        <div className="text-xs text-muted-foreground">Balance</div>
+                        <div className="text-xs text-muted-foreground">
+                          Balance
+                        </div>
                         <div className="flex items-center gap-2 bg-muted/50 p-3 rounded border">
                           <Wallet className="h-4 w-4 text-primary" />
                           {isLoadingBalance ? (
-                            <div className="text-sm text-muted-foreground">Loading...</div>
+                            <div className="text-sm text-muted-foreground">
+                              Loading...
+                            </div>
                           ) : balance !== null ? (
                             <div className="text-sm font-medium">
                               {balance.toFixed(4)} SUI
                             </div>
                           ) : (
-                            <div className="text-sm text-muted-foreground">Unable to load</div>
+                            <div className="text-sm text-muted-foreground">
+                              Unable to load
+                            </div>
                           )}
                           <Button
                             variant="ghost"
@@ -708,36 +895,47 @@ export default function Dashboard() {
                             onClick={fetchBalance}
                             disabled={isLoadingBalance}
                           >
-                            <RefreshCw className={`h-3 w-3 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+                            <RefreshCw
+                              className={`h-3 w-3 ${
+                                isLoadingBalance ? "animate-spin" : ""
+                              }`}
+                            />
                           </Button>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2">
-                        <div className="text-xs text-muted-foreground">Address</div>
+                        <div className="text-xs text-muted-foreground">
+                          Address
+                        </div>
                         <div className="text-sm font-mono bg-muted/50 p-3 rounded border break-words leading-relaxed">
                           {account.address}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 pt-2 border-t">
                         <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                        <span className="text-xs text-muted-foreground">Connected to Testnet</span>
+                        <span className="text-xs text-muted-foreground">
+                          Connected to Testnet
+                        </span>
                       </div>
-                      
+
                       <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="flex-1 text-xs"
                           onClick={() => {
                             navigator.clipboard.writeText(account.address);
-                            // You could add a toast notification here
+                            showToast({
+                              type: "success",
+                              title: "Address copied",
+                            });
                           }}
                         >
                           Copy Address
                         </Button>
-                        <Button 
-                          variant="destructive" 
+                        <Button
+                          variant="destructive"
                           className="flex-1 text-xs"
                           onClick={handleDisconnect}
                         >
@@ -794,7 +992,9 @@ export default function Dashboard() {
                         <div className="h-6 bg-muted animate-pulse rounded"></div>
                         <div className="h-4 bg-muted animate-pulse rounded w-32 mx-auto"></div>
                       </div>
-                      <p className="text-muted-foreground">Loading NFT status...</p>
+                      <p className="text-muted-foreground">
+                        Loading NFT status...
+                      </p>
                     </>
                   ) : nftData ? (
                     // NFT found state
@@ -820,7 +1020,7 @@ export default function Dashboard() {
                                 className="object-cover rounded-lg"
                                 onError={(e) => {
                                   // Fallback to shield icon if image fails to load
-                                  e.target.style.display = 'none';
+                                  e.target.style.display = "none";
                                 }}
                               />
                             </div>
@@ -864,13 +1064,12 @@ export default function Dashboard() {
                       {/* NFT Title & Category */}
                       <div className="space-y-2">
                         <h3 className="text-xl font-bold text-foreground">
-                          {nftData.nfts[0]?.name || (
-                            securityScore > 80
+                          {nftData.nfts[0]?.name ||
+                            (securityScore > 80
                               ? "Fortress Guardian"
                               : securityScore > 60
                               ? "Shield Bearer"
-                              : "Vulnerable Keeper"
-                          )}
+                              : "Vulnerable Keeper")}
                         </h3>
                         <Badge
                           variant={
@@ -881,24 +1080,28 @@ export default function Dashboard() {
                               : "warning"
                           }
                         >
-                          Security NFT • Level {Math.floor(securityScore / 20) + 1} • {nftData.totalCount} NFT{nftData.totalCount !== 1 ? 's' : ''}
+                          Security NFT • Level{" "}
+                          {Math.floor(securityScore / 20) + 1} •{" "}
+                          {nftData.totalCount} NFT
+                          {nftData.totalCount !== 1 ? "s" : ""}
                         </Badge>
                       </div>
 
                       {/* NFT Description */}
                       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                        {nftData.nfts[0]?.description || (
-                          securityScore > 80
+                        {nftData.nfts[0]?.description ||
+                          (securityScore > 80
                             ? "Elite password security guardian with exceptional vault protection."
                             : securityScore > 60
                             ? "Reliable security defender with room for improvement."
-                            : "Novice security keeper requiring immediate attention."
-                        )}
+                            : "Novice security keeper requiring immediate attention.")}
                       </p>
-                      
+
                       {nftData.totalCount > 1 && (
                         <p className="text-xs text-muted-foreground">
-                          +{nftData.totalCount - 1} more NFT{nftData.totalCount - 1 !== 1 ? 's' : ''} in collection
+                          +{nftData.totalCount - 1} more NFT
+                          {nftData.totalCount - 1 !== 1 ? "s" : ""} in
+                          collection
                         </p>
                       )}
                     </>
@@ -935,6 +1138,12 @@ export default function Dashboard() {
                         <h3 className="text-xl font-bold text-muted-foreground">
                           No Security NFT
                         </h3>
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground border-muted-foreground/30"
+                        >
+                          No NFTs • Connect wallet with NFTs
+                        </Badge>
                       </div>
 
                       {/* Placeholder Description */}
@@ -1135,7 +1344,7 @@ export default function Dashboard() {
                       className="w-full"
                       onClick={sendBatchAndSummarize}
                     >
-                      AI (Batch + Summary)
+                      Batch Password Analyzer
                     </Button>
                   </div>
                 </CardContent>
@@ -1166,7 +1375,7 @@ export default function Dashboard() {
                     onClick={sendBatchAndSummarize}
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    AI (Batch + Summary)
+                    Batch Password Analyzer
                   </Button>
                   <Button
                     variant="outline"
@@ -1174,7 +1383,11 @@ export default function Dashboard() {
                     onClick={fetchNfts}
                     disabled={isLoadingNfts}
                   >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingNfts ? 'animate-spin' : ''}`} />
+                    <RefreshCw
+                      className={`h-4 w-4 mr-2 ${
+                        isLoadingNfts ? "animate-spin" : ""
+                      }`}
+                    />
                     Refresh NFT Status
                   </Button>
                 </CardContent>
