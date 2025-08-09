@@ -1,6 +1,6 @@
 # 🚀 Grand Warden Comprehensive Build Plan
 
-_Created: January 2025 | Version: 1.0_  
+_Created: January 2025 | Version: 1.1 (MirrorInbox + Event Canon frozen)_  
 _Based on: PLAN.md v4 + Current Project Analysis_
 
 ---
@@ -63,7 +63,7 @@ This plan structures development into 6 sequential phases that build incremental
 - **Device Registry Contract**: Multi-device authentication and management with secure device authorization
 - **Access Control**: Role-based permissions and recovery mechanisms with atomic state updates
 - **Event System**: Comprehensive logging for Graph indexing with real-time UI notifications
-- **Multi-Chain RPC Integration**: Native support for Ethereum, Polygon, and other EVM chains within Sapphire TEE
+ - [Removed] Multi-Chain RPC inside Sapphire. Balance/RPC is frontend-managed to simplify contracts
 - **Atomic Vault Operations**: Secure blob encryption/decryption with coordinated Walrus and Sui state management
 - **MirrorInbox Entry**: Dedicated entrypoint for ROFL with attestation/allowlist, idempotency (eventId), ordering (seq), and payload.version
 
@@ -76,13 +76,12 @@ contracts/
 ├── WalletVault.sol          // Web3 wallet management with multi-chain support
 ├── DeviceRegistry.sol       // Device authentication
 ├── RecoveryManager.sol      // Backup and recovery
-├── MultiChainRPC.sol        // Multi-chain balance and RPC integration
 ├── AtomicVaultManager.sol   // Coordinated vault state management
+├── MirrorInbox.sol          // ROFL entrypoint: attestation/allowlist + idempotency/ordering + dispatch
 └── interfaces/
     ├── IGrandWarden.sol
     ├── IWalletVault.sol     // Enhanced wallet interface
     ├── IPasswordVault.sol   // Enhanced password interface
-    ├── IMultiChainRPC.sol   // Multi-chain RPC interface
     └── IVaultEvents.sol
 
 // Enhanced contract interfaces for user flow support
@@ -95,10 +94,6 @@ interface IWalletVault {
     // BIP39/BIP44 key derivation for multiple chains
     function deriveKeysFromSeed(bytes32 walletId, uint8[] calldata chainTypes)
         external returns (address[] memory addresses);
-
-    // Multi-chain balance fetching within TEE
-    function fetchWalletBalances(bytes32 walletId)
-        external view returns (ChainBalance[] memory balances);
 
     // Secure transaction signing (EVM now; Sui Ed25519 path added later)
     function signTransaction(bytes32 walletId, uint8 chainType, bytes32 txHash, bytes calldata txData)
@@ -136,8 +131,7 @@ interface IPasswordVault {
     event VaultBlobUpdated(address indexed user, bytes32 indexed vaultId, string newCID, bytes32 suiTxHash);
 }
 
-// Note: MultiChainRPC functionality has been moved to frontend
-// Frontend will handle multi-chain balance fetching and RPC calls directly
+// Note: Balance fetching and RPC calls are frontend-managed (outside TEE)
 // This simplifies the smart contract architecture and reduces gas costs
 
 interface IAtomicVaultManager {
@@ -157,6 +151,27 @@ interface IAtomicVaultManager {
     event AtomicUpdateCompleted(address indexed user, bytes32 indexed vaultId, bytes32 suiTxHash);
     event AtomicUpdateFailed(address indexed user, bytes32 indexed vaultId, string reason);
 }
+
+// MirrorInbox core interface & invariants
+interface IMirrorInbox {
+    /**
+     * ROFL calls to mirror Sui public events into Sapphire.
+     * Requirements:
+     * - msg.sender must be allowlisted (or verified attested identity)
+     * - processed[eventId] == false (idempotency)
+     * - seq > lastSeq[user] (monotonic ordering)
+     */
+    function mirrorEvent(
+        address user,
+        bytes32 eventType,
+        bytes calldata payload,
+        bytes32 eventId,
+        uint64 seq,
+        bytes calldata attestation
+    ) external;
+
+    function setAllowedSender(address rofl) external; // onlyOwner
+}
 ```
 
 **Key Events to Emit for User Flow Support**:
@@ -170,6 +185,21 @@ interface IAtomicVaultManager {
 - `VaultBlobUpdated(address indexed user, bytes32 vaultId, string newCID, bytes32 suiTxHash)` // For atomic updates
 - `AtomicUpdateCompleted(address indexed user, bytes32 vaultId, bytes32 suiTxHash)` // For UI confirmation
 - `TransactionSigned(address indexed user, bytes32 walletId, bytes32 txHash, uint8 chainType)` // Canonical signature
+
+#### Frozen Event Canon (Sapphire EVM)
+
+```solidity
+// Emitted by Sapphire contracts (native or via MirrorInbox dispatch)
+event VaultCreated(address indexed user, bytes32 indexed vaultId, uint256 timestamp);
+event DeviceRegistered(address indexed user, bytes32 indexed deviceId, string deviceName);
+event BreachAlert(address indexed user, uint256 severity, string message);
+event WalletImported(address indexed user, bytes32 indexed walletId, string name, uint256 timestamp);
+event TransactionSigned(address indexed user, bytes32 indexed walletId, bytes32 txHash, uint8 chainType);
+event VaultBlobUpdated(address indexed user, bytes32 indexed vaultId, string newCID, bytes32 suiTxHash);
+event AtomicUpdateStarted(address indexed user, bytes32 indexed vaultId, string walrusCID);
+event AtomicUpdateCompleted(address indexed user, bytes32 indexed vaultId, bytes32 suiTxHash);
+event AtomicUpdateFailed(address indexed user, bytes32 indexed vaultId, string reason);
+```
 
 #### Dependencies
 
@@ -189,7 +219,7 @@ interface IAtomicVaultManager {
 - [ ] Gas optimization completed for multi-chain operations
 - [ ] Security audit checklist passed for TEE operations
 - [ ] BIP39/BIP44 key derivation working correctly
-- [ ] Multi-chain RPC integration functional (ETH, MATIC, etc.)
+ - [ ] Frontend-based multi-chain RPC integration validated (ETH, MATIC, etc.)
 - [ ] Atomic vault operations tested and reliable
 - [ ] Balance fetching performance <2 seconds
 - [ ] Seed phrase import flow complete end-to-end
@@ -304,7 +334,7 @@ module grandwarden::walrus_manager {
 }
 ```
 
-**Key Events to Emit**:
+**Key Events to Emit (Sui)**:
 
 Include `eventId` and per-source `seq` on all events for mirroring correctness:
 
@@ -314,6 +344,10 @@ Include `eventId` and per-source `seq` on all events for mirroring correctness:
 - `VaultPointerSet(user, vault_id, walrus_cid, metadata_hash, stage, updated_at, eventId, seq)`
 - `BlobACLUpdated(user, blob_id, policy, authorized_devices[], updated_at, eventId, seq)`
 - `RecoveryInitiated/Approved/Completed(..., eventId, seq)`
+
+Invariants:
+- Every emitted Sui event MUST carry a globally unique `eventId` (e.g., keccak256(source+txDigest+logIndex)) and a per-user monotonic `seq`.
+- The ROFL worker rejects duplicates and out-of-order `seq`.
 
 #### Dependencies
 
@@ -388,14 +422,11 @@ subgraph/
     └── DeviceRegistry.json
 ```
 
-**Key Entities**:
+**Key Entities (align to Frozen Event Canon)**:
 
 - `User`: Aggregated user data and statistics
-- `VaultEntry`: Individual password vault entries
-- `WalletStorage`: Web3 wallet metadata
-- `Device`: Registered device information
-- `BreachAlert`: Security breach notifications
-- `Transaction`: Signed transaction records
+- `VaultCreated`, `DeviceRegistered`, `BreachAlert`, `WalletImported`, `TransactionSigned`, `VaultBlobUpdated`, `AtomicUpdateStarted`, `AtomicUpdateCompleted`, `AtomicUpdateFailed`
+- `User` aggregate, maintained via mapping updates (`totalVaults`, `totalDevices`, `totalBreaches`, `lastActivity`)
 
 #### Dependencies
 
@@ -431,7 +462,7 @@ subgraph/
 
 #### Completion Criteria
 
-1. **Data Integrity**: All events indexed without missing data
+1. **Data Integrity**: All Frozen Canon events indexed without missing data
 2. **Performance**: Query response times meet SLA
 3. **Real-time**: Subscriptions working for critical events
 4. **Schema**: Complete GraphQL API documented
@@ -469,7 +500,7 @@ src/
 │   │   ├── sapphire.ts       // Enhanced Sapphire integration with atomic operations
 │   │   ├── sui.ts            // Sui contract interaction with real-time updates
 │   │   ├── coordinator.ts    // Atomic cross-chain coordination logic
-│   │   └── multi-chain-rpc.ts // Multi-chain balance fetching service
+│   │   └── multi-chain-rpc.ts // Multi-chain balance fetching service (frontend-managed)
 │   ├── graphql.ts           // Apollo client with real-time subscriptions
 │   ├── encryption.ts        // Client-side encryption with secure memory management
 │   ├── walrus.ts           // Enhanced Walrus integration with atomic uploads
@@ -527,7 +558,7 @@ src/
 │   ├── blockchain/
 │   │   ├── sapphire.ts              // Enhanced Sapphire contract types
 │   │   ├── sui.ts                   // Sui Move contract types
-│   │   ├── multi-chain.ts           // Multi-chain balance and RPC types
+ │   │   ├── multi-chain.ts           // Multi-chain balance and RPC types (frontend-managed)
 │   │   └── events.ts                // Real-time event types
 │   ├── storage/
 │   │   ├── walrus.ts               // Walrus blob storage types
@@ -850,7 +881,7 @@ rofl-worker/
 │   ├── bridging/
 │   │   ├── sapphire_bridge.rs  // Enhanced Sapphire event emission for user flows
 │   │   ├── event_mapper.rs     // Event translation with user flow context
-│   │   ├── atomic_coordinator.rs // Coordinate atomic operations across chains
+│   │   ├── atomic_coordinator.rs // Coordinate atomic operations across chains (Walrus provisional/finalize + Sui pointer stages)
 │   │   └── failure_recovery.rs // Handle failed bridge operations and retry logic
 │   ├── processing/
 │   │   ├── event_queue.rs      // Prioritized event processing queue
@@ -889,6 +920,14 @@ rofl-worker/
 
 - **Priority Event Processing**: Monitor Sui network with priority queue for user flow events (vault creation, password saves, wallet imports)
 - **Atomic Operation Coordination**: Coordinate atomic operations across Sui and Sapphire to ensure data consistency
+#### ROFL Invariants & Storage
+
+- Durable cursor: persist last processed Sui checkpoint/sequence in local DB (e.g., RocksDB) to resume without gaps/dupes.
+- Dedupe store: `processed[eventId] = true` with TTL and periodic compaction.
+- Ordering: enforce `seq > lastSeq[user]`; queue out-of-order events until missing seq arrives.
+- Identity: use attestation where available or an allowlisted EOA; rotate keys with `MirrorInbox.setAllowedSender`.
+- Metrics: expose lag, queue depth, success/failure counts, retries, average end-to-end latency.
+
 - **Enhanced Event Translation**: Convert Sui events to Sapphire-compatible format with user flow context and metadata
 - **Failure Recovery System**: Handle failed bridge operations with retry logic, exponential backoff, and manual intervention alerts
 - **Real-time Performance Monitoring**: Track bridge performance, event processing latency, and user flow completion rates
@@ -1476,6 +1515,13 @@ Real-time Subscription → UI Notification
 ```
 
 **3. zkLogin-Coordinated Recovery Flow**:
+### Walrus + Seal Details
+
+- Endpoints: configure Walrus gateway base URL(s) and Seal policy endpoint(s) in environment (`WALRUS_GATEWAY_URL`, `SEAL_POLICY_URL`).
+- Blob format: encrypted vault snapshots as opaque bytes; compute `metadata_hash = keccak256(header || siteIndex || version)`. Store `walrus_cid` on Sui `VaultPointer`.
+- Atomic stages: `Provisional` (uploaded, not yet authoritative), `Finalized` (authoritative pointer on Sui), `RolledBack` (revert to prior CID). ROFL coordinates transitions; Sapphire finalizes via events.
+- Access: Seal enforces ACL from Sui `walrus_manager.BlobPermission { blob_id, owner, authorized_devices, access_policy }`. Authorized devices fetch via HTTPS; decryption remains inside Sapphire.
+
 
 ```
 zkLogin Auth (Primary Authentication) → Share Generation →
@@ -1869,35 +1915,24 @@ This comprehensive build plan provides a systematic approach to completing Grand
 
 ## ROFL Worker Integration Status (Phase 1 Complete)
 
-**✅ COMPLETED - Smart Contract ROFL Worker Integration:**
+**🚧 REQUIRED - MirrorInbox + ROFL Wiring Checklist:**
 
-The Sapphire smart contracts have been fully updated to support ROFL worker architecture:
+- [ ] Implement `MirrorInbox.sol` with `mirrorEvent(...)` and `setAllowedSender(...)`; enforce allowlist/attestation, idempotency (`processed[eventId]`), and ordering (`lastSeq[user]`).
+- [ ] Add dispatch from `MirrorInbox` to `GrandWardenVault`, `WalletVault`, `AtomicVaultManager`, `DeviceRegistry`, `RecoveryManager` based on `eventType`.
+- [ ] In `AtomicVaultManager.sol`, emit `WalrusUploadRequested` / `SuiUpdateRequested`; implement `reportWalrusUploadResult(...)` and `reportSuiUpdateResult(...)`; guard with `onlyROFL` using `setROFLWorker`.
+- [ ] Freeze event names/params as per Frozen Event Canon; regenerate subgraph ABIs and mappings.
+- [ ] Implement ROFL durable cursor, dedupe, ordering, retry/backoff, and metrics; configure `MIRROR_INBOX_ADDRESS` and allowlist key.
+- [ ] Configure Walrus/Seal endpoints (`WALRUS_GATEWAY_URL`, `SEAL_POLICY_URL`) and atomic stage transitions.
 
-- **AtomicVaultManager.sol**: HTTP calls removed, event-driven architecture implemented
+**Next Immediate Actions:**
 
-  - `WalrusUploadRequested` event emitted for ROFL worker to handle Walrus uploads
-  - `SuiUpdateRequested` event emitted for ROFL worker to handle Sui state updates
-  - `reportWalrusUploadResult()` and `reportSuiUpdateResult()` callback functions for ROFL worker
-  - `setROFLWorker()` access control function
-  - Contract size optimized from 31KB to deployable size (18.2% block limit)
+1. Implement `MirrorInbox.sol` + unit tests for idempotency/ordering.
+2. Update Sapphire contracts to emit Frozen Event Canon; export ABIs.
+3. Create Sui Move modules with `eventId/seq`; write tests to emit events.
+4. Implement ROFL worker (`infrastructure/rofl-worker/src/main.rs`) with Sui ingest → `MirrorInbox.mirrorEvent(...)` and atomic coordination.
+5. Update subgraph schema/mappings to Frozen Canon; redeploy locally.
+6. Add frontend service layers (`sapphire.ts`, `sui.ts`, `walrus.ts`) and wire to UI.
 
-- **WalletVault.sol**: Multi-chain balance fetching documented as ROFL worker responsibility
-- **All Tests Passing**: 18/18 AtomicVaultManager tests successful, contracts deploy correctly
-
-**🚧 NEXT IMMEDIATE TASK**: Implement ROFL worker in `infrastructure/rofl-worker/src/main.rs`
-
-**Next Immediate Actions**:
-
-1. ✅ **COMPLETED** - Phase 1 Sapphire smart contract development with ROFL worker integration
-2. **NEXT PRIORITY** - Implement ROFL worker in `infrastructure/rofl-worker/src/main.rs` for Sui event mirroring
-3. Set up Sui development environment and Move compiler for Phase 1.5
-4. Establish CI/CD pipeline for automated testing (both Hardhat and Sui)
-5. Plan security audit engagement early for multi-chain architecture
-
-The infrastructure foundation is strong, and the frontend components are well-developed. This enhanced build plan now includes comprehensive specifications for the exact user flows described - from seamless MetaMask seed phrase import with real-time balance display to effortless website password saving with atomic cross-chain coordination.
-
-With disciplined execution of this user-flow-optimized plan, Grand Warden will deliver the described user experience: users will see their wallets imported into a "fortress" with immediate balance updates, and password saves will complete with checkmark animations in under 2 seconds, all while maintaining the highest security standards through coordinated TEE operations, atomic cross-chain state management, and comprehensive threat protection.
-
-The plan ensures that every user interaction - from secure input handling to real-time notifications - is backed by robust technical implementations that abstract the complexity of cross-chain coordination while delivering a seamless, consumer-grade experience.
+With these in place, follow the phased gates to deliver the end-to-end user flows (wallet import, password save) with real-time Graph indexing and secure TEE custody.
 
 ---
