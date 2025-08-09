@@ -5,6 +5,16 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      '/gemini': {
+        target: 'https://generativelanguage.googleapis.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/gemini/, ''),
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     rollupOptions: {

@@ -70,6 +70,7 @@ import {
   getCredentialByBlobIdViaProxy,
 } from "@/lib/decryption";
 import AISummary from "@/components/AISummary";
+import AIArtwork from "@/components/AIArtwork";
 import { addBlobRef, getBlobRefs } from "@/lib/blobIds";
 
 const inter = Inter({
@@ -208,6 +209,7 @@ export default function Dashboard() {
   const recentPasswords = passwordList;
 
   const [aiSummary, setAiSummary] = useState(null);
+  const [aiStats, setAiStats] = useState(null);
 
   const sendBatchAndSummarize = async () => {
     try {
@@ -242,7 +244,9 @@ export default function Dashboard() {
       }
       const data = await res.json();
       const summary = data?.ai?.summary || "No AI summary";
+      const stats = data?.ai?.stats || null;
       setAiSummary(summary);
+      setAiStats(stats);
       showToast({
         type: "success",
         title: "AI summary ready",
@@ -966,7 +970,8 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.6, ease: "easeOut" }}
             >
-              Welcome back, {account?.address ? truncateAddress(account.address) : 'User'}
+              Welcome back,{" "}
+              {account?.address ? truncateAddress(account.address) : "User"}
             </motion.h1>
           </motion.div>
 
@@ -1148,7 +1153,9 @@ export default function Dashboard() {
 
                       {/* Placeholder Description */}
                       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                        No NFTs found in your wallet. Security status will be displayed when you acquire NFTs that represent your current security level.
+                        No NFTs found in your wallet. Security status will be
+                        displayed when you acquire NFTs that represent your
+                        current security level.
                       </p>
                     </>
                   )}
@@ -1208,8 +1215,7 @@ export default function Dashboard() {
                   {totalPasswords}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  <TrendingUp className="inline h-3 w-3 mr-1" />
-                  0 from last week
+                  <TrendingUp className="inline h-3 w-3 mr-1" />0 from last week
                 </p>
               </CardContent>
             </Card>
@@ -1281,6 +1287,13 @@ export default function Dashboard() {
                         summary={aiSummary}
                         onClose={() => setAiSummary(null)}
                       />
+                      <div className="mt-4">
+                        <AIArtwork
+                          summaryMarkdown={aiSummary}
+                          stats={aiStats ?? undefined}
+                          signAndExecute={signAndExecuteTransaction}
+                        />
+                      </div>
                     </div>
                   )}
                   <div className="space-y-4">

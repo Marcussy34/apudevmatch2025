@@ -39,7 +39,8 @@ import AddPasswordModal, { NewPasswordData } from "./AddPasswordModal";
 import AutofillStatus from "./AutofillStatus";
 import { ToastProps } from "./Toast";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
-import AISummary from "./AISummary";
+import AISummary from './AISummary'
+import AIArtwork from './AIArtwork'
 
 interface PasswordEntry {
   id: number;
@@ -69,6 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
 
   const [passwordList, setPasswordList] = useState<PasswordEntry[]>([]);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiStats, setAiStats] = useState<{ total_checked?: number; total_pwned?: number } | null>(null);
 
   const getIconForUrl = (
     url: string
@@ -472,14 +474,16 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
         (import.meta.env.VITE_ROFL_SUMMARY_ENDPOINT as string) ||
         "http://localhost:8080/ingest-batch-summarize";
       const res = await fetch(roflUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(batch),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const summary = data?.ai?.summary || "No AI summary";
-      setAiSummary(summary);
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch)
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const summary = data?.ai?.summary || 'No AI summary'
+      const stats = data?.ai?.stats || null
+      setAiSummary(summary)
+      setAiStats(stats)
     } catch (e: any) {
       addToast({
         type: "error",
@@ -587,8 +591,9 @@ const Dashboard: React.FC<DashboardProps> = ({ addToast }) => {
       {/* Passwords List */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {aiSummary && (
-          <div className="mb-4">
+          <div className="mb-4 space-y-4">
             <AISummary summary={aiSummary} onClose={() => setAiSummary(null)} />
+            <AIArtwork summaryMarkdown={aiSummary} stats={aiStats ?? undefined} signAndExecute={signAndExecuteTransaction} />
           </div>
         )}
         <div className="space-y-3">
