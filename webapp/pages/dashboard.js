@@ -7,6 +7,8 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Modal, ModalTrigger, ModalBody, ModalContent, ModalFooter } from "@/components/ui/animated-modal";
 import { motion } from "motion/react";
 import { 
   Shield, 
@@ -34,7 +36,8 @@ import {
   Laptop,
   Scan,
   Moon,
-  Sun
+  Sun,
+  X
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -56,6 +59,14 @@ export default function Dashboard() {
   const [showPasswords, setShowPasswords] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(true);
+  
+  // Form state for Add Password modal
+  const [formData, setFormData] = useState({
+    siteName: "",
+    websiteUrl: "",
+    emailUsername: "",
+    password: ""
+  });
 
   // Enable dark mode by default
   useEffect(() => {
@@ -131,8 +142,43 @@ export default function Dashboard() {
     }
   };
 
+  // Form handling functions
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    // Here you would typically send the data to your backend
+    console.log('Form submitted:', formData);
+    
+    // Reset form
+    setFormData({
+      siteName: "",
+      websiteUrl: "",
+      emailUsername: "",
+      password: ""
+    });
+    
+    // Close modal (this would be handled by the modal context)
+    alert('Password added successfully!');
+  };
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 16; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    handleInputChange('password', password);
+  };
+
   return (
-    <div className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background`}>
+    <Modal>
+      <div className={`${inter.variable} ${interTight.variable} font-sans min-h-screen bg-background`}>
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-6 lg:px-8">
@@ -291,10 +337,10 @@ export default function Dashboard() {
                     <CardTitle className="heading-bold">Password Vault</CardTitle>
                     <CardDescription>Manage your stored passwords and credentials</CardDescription>
                   </div>
-                  <Button>
+                  <ModalTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Password
-                  </Button>
+                  </ModalTrigger>
                 </div>
               </CardHeader>
               <CardContent>
@@ -357,10 +403,10 @@ export default function Dashboard() {
                 <CardDescription>Common password management tasks</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full justify-start">
+                <ModalTrigger className="w-full justify-start inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
                   <Plus className="h-4 w-4 mr-2" />
                   Add New Password
-                </Button>
+                </ModalTrigger>
                 <Button variant="outline" className="w-full justify-start">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Generate Password
@@ -425,6 +471,87 @@ export default function Dashboard() {
           </div>
         </motion.div>
       </main>
+      
+      {/* Add Password Modal */}
+      <ModalBody>
+        <ModalContent>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2 className="text-2xl font-bold text-foreground mb-6">Add New Password</h2>
+            <form onSubmit={handleFormSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="siteName">Site Name</Label>
+                <Input
+                  id="siteName"
+                  placeholder="e.g., GitHub, Gmail, Netflix"
+                  value={formData.siteName}
+                  onChange={(e) => handleInputChange('siteName', e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="websiteUrl">Website URL</Label>
+                <Input
+                  id="websiteUrl"
+                  type="url"
+                  placeholder="https://example.com"
+                  value={formData.websiteUrl}
+                  onChange={(e) => handleInputChange('websiteUrl', e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="emailUsername">Email/Username</Label>
+                <Input
+                  id="emailUsername"
+                  placeholder="your.email@example.com or username"
+                  value={formData.emailUsername}
+                  onChange={(e) => handleInputChange('emailUsername', e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter or generate a secure password"
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    required
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={generatePassword}
+                    className="px-3"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </motion.div>
+        </ModalContent>
+        
+        <ModalFooter>
+          <div className="flex gap-3 w-full justify-end">
+            <Button type="submit" onClick={handleFormSubmit}>
+              <Key className="h-4 w-4 mr-2" />
+              Add Password
+            </Button>
+          </div>
+        </ModalFooter>
+      </ModalBody>
     </div>
+    </Modal>
   );
 }
