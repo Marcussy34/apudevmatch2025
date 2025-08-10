@@ -10,6 +10,7 @@ Empowering proactive password security: AI-powered risk analysis, decentralized 
 
 - **Live Demo**: [https://b91bb960cdf0.ngrok-free.app](https://b91bb960cdf0.ngrok-free.app)
 - **Demo Video**: [https://youtu.be/ir0vNm6ZuCE](https://youtu.be/ir0vNm6ZuCE)
+
 ---
 
 ## 💡 Inspiration: How We Came Up With This Idea
@@ -43,7 +44,6 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 
 ## ✨ Features
 
-- **🔐 Multi-Platform Support**: Chrome extension and web dashboard for seamless cross-device experience
 - **🛡️ Zero-Knowledge Security**: Aggregates and encrypts credentials locally—never exposes plaintext to the cloud
 - **🧠 Confidential AI Analysis**: Uses AI (in a secure ROFL enclave) to analyze password strength, risky patterns, and hygiene
 - **🌐 Breach Monitoring**: Monitors global breach datasets and raises timely alerts if credentials are found
@@ -60,28 +60,27 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Chrome       │    │   Web Dashboard  │    │   Backend API   │
-│   Extension    │◄──►│   (Next.js)      │◄──►│   (Express)     │
+│   Web Dashboard │    │   Backend API    │    │   ROFL Worker   │
+│   (Next.js 15)  │◄──►│   (Express)      │◄──►│   (Rust)        │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       │
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Seal Client   │    │   Walrus Client  │    │   ROFL Worker   │
+│   Seal Client   │    │   Walrus Client  │    │   Sapphire TEE  │
 │   Encryption    │    │   Storage        │    │   Bridge        │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       │
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   SUI Network   │    │   Sapphire TEE   │    │   AI Analysis   │
-│   (zkLogin, NFT)│    │   (Vault, Wallet)│    │   (ROFL Enclave)│
+│   SUI Network   │    │   AI Analysis    │    │   Device        │
+│   (zkLogin, NFT)│    │   (ROFL Enclave) │    │   Registry      │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
 ### Core Components
 
-- **Frontend Extension** (`/frontend`): Chrome extension with React + Vite, Sapphire encryption demo
 - **Web Dashboard** (`/webapp`): Next.js 15 dashboard with 3D visualizations and AI integration
 - **Backend API** (`/webapp_backend`): Express.js server for credential storage and retrieval
 - **ROFL Worker** (`/infrastructure/rofl-worker`): Rust-based bridge connecting Sui to Sapphire
@@ -93,13 +92,13 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 ## 🛠️ Technology Stack
 
 ### Frontend
-- **React 19** with **Next.js 15** for web dashboard
-- **Chrome Extension API** for browser integration
+- **React 19.1.0** with **Next.js 15.4.6** for web dashboard
 - **Tailwind CSS 4** for utility-first styling
 - **shadcn/ui** components for consistent design system
 - **Three.js** and **React Three Fiber** for 3D globe visualization
 - **Framer Motion** for smooth animations and interactions
 - **Lucide React** for modern iconography
+- **Particles.js** for interactive background effects
 
 ### Backend & Infrastructure
 - **Express.js** for API server
@@ -125,24 +124,27 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 
 ```
 apudevmatch2025/
-├── frontend/                 # Chrome extension (React + Vite)
-│   ├── src/
-│   │   ├── components/      # Extension UI components
-│   │   ├── App.tsx         # Main extension app
-│   │   └── background.ts   # Extension background script
-│   └── manifest.json       # Extension manifest
 ├── webapp/                  # Web dashboard (Next.js 15)
 │   ├── pages/              # Next.js pages
+│   │   ├── index.js        # Landing page
+│   │   ├── dashboard.js    # Main dashboard
+│   │   └── api/            # API routes
 │   ├── components/         # React components
 │   │   ├── ui/            # shadcn/ui components
 │   │   ├── AISummary.jsx  # AI security report component
 │   │   ├── AIArtwork.jsx  # AI-generated security artwork
-│   │   └── GlobeDemo.jsx  # 3D globe visualization
+│   │   ├── GlobeDemo.jsx  # 3D globe visualization
+│   │   ├── Particles.js   # Interactive particle effects
+│   │   └── ParticlesJS.js # Particle system integration
 │   ├── lib/               # Utility libraries
 │   │   ├── encryption.js  # Walrus + Seal integration
 │   │   ├── decryption.js  # Credential retrieval
-│   │   └── blobIds.js     # Storage management
-│   └── public/            # Static assets
+│   │   ├── blobIds.js     # Storage management
+│   │   ├── imageLoader.js # Custom image loading
+│   │   └── utils.js       # General utilities
+│   ├── public/            # Static assets
+│   ├── data/              # Data files (globe.json)
+│   └── styles/            # Global styles
 ├── webapp_backend/         # Express.js API server
 │   ├── src/index.js       # Main server file
 │   └── package.json       # Backend dependencies
@@ -150,13 +152,16 @@ apudevmatch2025/
 │   └── security_nft/      # Security NFT contract
 │       ├── sources/
 │       │   └── SecurityNFT.move  # NFT minting logic
+│       ├── scripts/        # Deployment scripts
 │       └── Move.toml      # Contract configuration
 └── infrastructure/         # Deployment & infrastructure
-    └── rofl-worker/       # ROFL bridge worker
-        ├── src/           # Rust source code
-        ├── Dockerfile     # Container configuration
-        ├── compose.yaml   # Docker Compose setup
-        └── README.md      # Detailed worker documentation
+    ├── rofl-worker/       # ROFL bridge worker
+    │   ├── src/           # Rust source code
+    │   ├── abis/          # Contract ABIs
+    │   ├── Dockerfile     # Container configuration
+    │   ├── compose.yaml   # Docker Compose setup
+    │   └── README.md      # Detailed worker documentation
+    └── sui/               # Sui-specific infrastructure
 ```
 
 ---
@@ -167,20 +172,11 @@ apudevmatch2025/
 - **Node.js 18+** (or 20+)
 - **npm** or **pnpm**
 - **Docker** (for ROFL worker and local development)
-- **Modern browser** with Chrome extension support
+- **Modern browser** with Web3 support
 - **Sui testnet wallet** with SUI tokens
 - **Sapphire testnet wallet** with ROSE tokens
 
-### 1. Frontend Extension (Chrome)
-```bash
-cd frontend
-npm install
-npm run dev
-# Load the built extension in Chrome's developer mode
-# See frontend/README.md for detailed setup
-```
-
-### 2. Web Dashboard
+### 1. Web Dashboard
 ```bash
 cd webapp
 npm install
@@ -188,7 +184,7 @@ npm run dev
 # Access at http://localhost:3000
 ```
 
-### 3. Backend API Server
+### 2. Backend API Server
 ```bash
 cd webapp_backend
 npm install
@@ -197,7 +193,7 @@ npm run dev
 # Server runs on http://localhost:3001
 ```
 
-### 4. ROFL Worker (Infrastructure)
+### 3. ROFL Worker (Infrastructure)
 ```bash
 cd infrastructure/rofl-worker
 # See detailed setup in infrastructure/rofl-worker/README.md
@@ -205,7 +201,7 @@ cargo build --release
 docker compose up -d
 ```
 
-### 5. Smart Contracts
+### 4. Smart Contracts
 ```bash
 cd SUI-contracts/security_nft
 # Deploy to Sui testnet
@@ -244,13 +240,14 @@ NEXT_PUBLIC_WALRUS_WASM_URL=https://unpkg.com/@mysten/walrus-wasm@latest/web/wal
 ## 📊 Current Implementation Status
 
 ### ✅ **Completed & Production Ready**
-- **Chrome Extension**: Complete with Sapphire encryption demo
-- **Web Dashboard**: Full-featured Next.js app with 3D visualizations
+- **Web Dashboard**: Full-featured Next.js 15 app with 3D visualizations
 - **Backend API**: Express server with Walrus integration
 - **ROFL Worker**: Official Oasis application, devnet ready
 - **Smart Contracts**: Security NFT contract deployed and tested
 - **UI Components**: Complete shadcn/ui component library
 - **Encryption**: Walrus + Seal integration working
+- **3D Visualizations**: Interactive globe and particle effects
+- **AI Integration**: OpenAI API integration for security analysis
 
 ### 🚧 **In Development**
 - **Real-time Event Processing**: Sui → Sapphire bridge integration
@@ -259,6 +256,7 @@ NEXT_PUBLIC_WALRUS_WASM_URL=https://unpkg.com/@mysten/walrus-wasm@latest/web/wal
 - **Breach Monitoring**: Real-time credential leak detection
 
 ### 🔮 **Planned Features**
+- **Chrome Extension**: Browser integration for seamless credential management
 - **Mobile App**: React Native companion application
 - **Advanced Analytics**: Machine learning security insights
 - **Enterprise Features**: Team management and compliance reporting
@@ -274,7 +272,6 @@ NEXT_PUBLIC_WALRUS_WASM_URL=https://unpkg.com/@mysten/walrus-wasm@latest/web/wal
 docker compose -f infrastructure/rofl-worker/compose.yaml up -d
 cd webapp_backend && npm run dev &
 cd webapp && npm run dev &
-cd frontend && npm run dev &
 ```
 
 ### Testing
@@ -298,7 +295,7 @@ cd infrastructure/rofl-worker && cargo test
 
 - **ROFL Worker**: `infrastructure/rofl-worker/README.md` - Complete bridge documentation
 - **Smart Contracts**: `SUI-contracts/README.md` - Contract deployment and usage
-- **Frontend Components**: `webapp/components/README.md` - UI component library
+- **Deployment Guide**: `DEPLOYMENT_GUIDE.md` - Production deployment instructions
 - **API Reference**: `webapp_backend/README.md` - Backend API documentation
 
 ---
@@ -326,7 +323,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🔗 Links
 
 - **Project Repository**: [GitHub](#)
-- **Live Demo**: [Demo Link](#)
+- **Live Demo**: [https://b91bb960cdf0.ngrok-free.app](https://b91bb960cdf0.ngrok-free.app)
+- **Demo Video**: [https://youtu.be/ir0vNm6ZuCE](https://youtu.be/ir0vNm6ZuCE)
 - **Documentation**: [Docs](#)
 - **Discord**: [Community](#)
 
