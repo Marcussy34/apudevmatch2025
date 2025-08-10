@@ -12,7 +12,7 @@ Empowering proactive password security: AI-powered risk analysis, decentralized 
 *Grand Warden Landing Page*
 
 ![Grand Warden Security Dashboard](appendix/grandwardensecurity.jpeg)
-*Grand Warden Security Dashboard*
+*Grand Warden AI Analysis Results*
 
 ---
 
