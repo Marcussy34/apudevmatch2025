@@ -58,30 +58,18 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 
 ## 🏗️ System Architecture
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Web Dashboard │    │   Backend API    │    │   ROFL Worker   │
-│   (Next.js 15)  │◄──►│   (Express)      │◄──►│   (Rust)        │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Seal Client   │    │   Walrus Client  │    │   Sapphire TEE  │
-│   Encryption    │    │   Storage        │    │   Bridge        │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   SUI Network   │    │   AI Analysis    │    │   Device        │
-│   (zkLogin, NFT)│    │   (ROFL Enclave) │    │   Registry      │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
+![Architecture Diagram](architecture-diagram.png)
+
+*Grand Warden System Architecture: Frontend → Wallet Connection & Sui → Password Storage (Walrus/Seal) → AI Analysis (ROFL/OpenAI) → Image Generation → Deployed NFT*
 
 ### Core Components
 
-- **Web Dashboard** (`/webapp`): Next.js 15 dashboard with 3D visualizations and AI integration
+- **Frontend** (`/webapp`): Next.js 15 dashboard with 3D visualizations and AI integration
+- **Wallet Connection**: Sui blockchain integration with zkLogin support
+- **Password Storage**: Walrus decentralized storage with Seal client-side encryption
+- **AI Analysis**: ROFL trusted execution environment for confidential AI processing
+- **Image Generation**: AI-powered security artwork creation
+- **NFT Deployment**: SUI blockchain NFT minting and management
 - **Backend API** (`/webapp_backend`): Express.js server for credential storage and retrieval
 - **ROFL Worker** (`/infrastructure/rofl-worker`): Rust-based bridge connecting Sui to Sapphire
 - **Smart Contracts** (`/SUI-contracts`): Move contracts for Security NFT and device registry
