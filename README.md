@@ -92,7 +92,9 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 ### Frontend
 - **React 19.1.0** with **Next.js 15.4.6** for web dashboard
 - **Tailwind CSS 4** for utility-first styling
-- **shadcn/ui** components for consistent design system
+- **shadcn/ui & tweakcn** components for consistent design system
+- **Magic UI** for advanced interactive components and effects
+- **Aceternity UI** for cutting-edge UI components and animations
 - **Three.js** and **React Three Fiber** for 3D globe visualization
 - **Framer Motion** for smooth animations and interactions
 - **Lucide React** for modern iconography
@@ -105,14 +107,13 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 - **Rust** for ROFL worker (performance-critical components)
 
 ### Blockchain & Security
-- **Sui Blockchain**: zkLogin, NFT minting, device registry
-- **Oasis Sapphire**: Trusted execution environment (TEE)
+- **Sui Blockchain**: NFT minting
 - **ROFL (Runtime OFfload)**: Official Oasis application for confidential compute
 - **Walrus**: Decentralized storage with client-side encryption
 - **Seal**: Client-side encryption library for zero-knowledge operations
 
 ### AI & Analysis
-- **OpenAI API**: Password strength analysis and security insights
+- **Red Pill(gpt 4o) by Phala Network**: Password strength analysis and security insights
 - **ROFL Enclave**: Secure AI processing in trusted execution environment
 - **Real-time Monitoring**: Continuous security posture assessment
 
@@ -122,44 +123,11 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 
 ```
 apudevmatch2025/
-├── webapp/                  # Web dashboard (Next.js 15)
-│   ├── pages/              # Next.js pages
-│   │   ├── index.js        # Landing page
-│   │   ├── dashboard.js    # Main dashboard
-│   │   └── api/            # API routes
-│   ├── components/         # React components
-│   │   ├── ui/            # shadcn/ui components
-│   │   ├── AISummary.jsx  # AI security report component
-│   │   ├── AIArtwork.jsx  # AI-generated security artwork
-│   │   ├── GlobeDemo.jsx  # 3D globe visualization
-│   │   ├── Particles.js   # Interactive particle effects
-│   │   └── ParticlesJS.js # Particle system integration
-│   ├── lib/               # Utility libraries
-│   │   ├── encryption.js  # Walrus + Seal integration
-│   │   ├── decryption.js  # Credential retrieval
-│   │   ├── blobIds.js     # Storage management
-│   │   ├── imageLoader.js # Custom image loading
-│   │   └── utils.js       # General utilities
-│   ├── public/            # Static assets
-│   ├── data/              # Data files (globe.json)
-│   └── styles/            # Global styles
+├── webapp/                 # Next.js 15 web dashboard
 ├── webapp_backend/         # Express.js API server
-│   ├── src/index.js       # Main server file
-│   └── package.json       # Backend dependencies
 ├── SUI-contracts/          # Move smart contracts
-│   └── security_nft/      # Security NFT contract
-│       ├── sources/
-│       │   └── SecurityNFT.move  # NFT minting logic
-│       ├── scripts/        # Deployment scripts
-│       └── Move.toml      # Contract configuration
-└── infrastructure/         # Deployment & infrastructure
-    ├── rofl-worker/       # ROFL bridge worker
-    │   ├── src/           # Rust source code
-    │   ├── abis/          # Contract ABIs
-    │   ├── Dockerfile     # Container configuration
-    │   ├── compose.yaml   # Docker Compose setup
-    │   └── README.md      # Detailed worker documentation
-    └── sui/               # Sui-specific infrastructure
+├── infrastructure/         # ROFL worker & deployment
+└── appendix/               # Project assets & documentation
 ```
 
 ---
