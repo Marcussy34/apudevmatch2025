@@ -240,23 +240,16 @@ NEXT_PUBLIC_WALRUS_WASM_URL=https://unpkg.com/@mysten/walrus-wasm@latest/web/wal
 ### ✅ **Completed & Production Ready**
 - **Web Dashboard**: Full-featured Next.js 15 app with 3D visualizations
 - **Backend API**: Express server with Walrus integration
-- **ROFL Worker**: Official Oasis application, devnet ready
+- **ROFL Worker**: Official Oasis application, deployed on testnet
 - **Smart Contracts**: Security NFT contract deployed and tested
 - **UI Components**: Complete shadcn/ui component library
 - **Encryption**: Walrus + Seal integration working
 - **3D Visualizations**: Interactive globe and particle effects
 - **AI Integration**: OpenAI API integration for security analysis
 
-### 🚧 **In Development**
-- **Real-time Event Processing**: Sui → Sapphire bridge integration
-- **AI Analysis Pipeline**: ROFL enclave AI processing
-- **Device Registry**: Multi-device security management
-- **Breach Monitoring**: Real-time credential leak detection
-
 ### 🔮 **Planned Features**
 - **Chrome Extension**: Browser integration for seamless credential management
 - **Mobile App**: React Native companion application
-- **Advanced Analytics**: Machine learning security insights
 - **Enterprise Features**: Team management and compliance reporting
 - **Multi-chain Support**: Ethereum, Polygon, and other networks
 
@@ -289,43 +282,12 @@ cd infrastructure/rofl-worker && cargo test
 
 ---
 
-## 📚 Documentation
-
-- **ROFL Worker**: `infrastructure/rofl-worker/README.md` - Complete bridge documentation
-- **Smart Contracts**: `SUI-contracts/README.md` - Contract deployment and usage
-- **Deployment Guide**: `DEPLOYMENT_GUIDE.md` - Production deployment instructions
-- **API Reference**: `webapp_backend/README.md` - Backend API documentation
-
----
-
 ## 👥 Team Members
 
-- **Derek Liew Qi Jian** — Project Lead, Frontend Development
-- **Phen Jing Yuan** — Backend, zkLogin, Sui, ROFL Integration
-- **Marcus** — Infrastructure, Documentation, Security Architecture
+- **Marcus Tan Chi Yau** — Project Lead, Frontend Development
+- **Gan Wei Lee** — ROFL, Sui NFT Minting
+- **Ivy Chung** — Walrus + Seal Development
 
 ---
 
-## 🤝 Contributing
 
-We welcome contributions! Please see our contributing guidelines and development setup instructions in the respective component directories.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-## 🔗 Links
-
-- **Project Repository**: [GitHub](#)
-- **Live Demo**: [https://b91bb960cdf0.ngrok-free.app](https://b91bb960cdf0.ngrok-free.app)
-- **Demo Video**: [https://youtu.be/ir0vNm6ZuCE](https://youtu.be/ir0vNm6ZuCE)
-- **Documentation**: [Docs](#)
-- **Discord**: [Community](#)
-
----
-
-*Grand Warden - Where security meets innovation in the decentralized age.* 🛡️✨
