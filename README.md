@@ -44,111 +44,293 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 
 ## ✨ Features
 
-- Aggregates and encrypts your credentials locally—never exposes plaintext to the cloud
-- Uses AI (in a secure enclave) to analyze password strength, risky patterns, and hygiene
-- Monitors global breach datasets and raises timely alerts if your credentials are found
-- Issues a non-fungible risk badge (NFT) on SUI, bound to your account and visible in the UI
-- Provides concise, actionable recommendations to improve your security
-- Supports seedless onboarding via zkLogin (Google/Facebook)
-- All sensitive operations (analysis, signing) happen inside a TEE (ROFL/Sapphire)
-
-- Open, auditable architecture—no secrets ever leave trusted execution
+- **🔐 Multi-Platform Support**: Chrome extension and web dashboard for seamless cross-device experience
+- **🛡️ Zero-Knowledge Security**: Aggregates and encrypts credentials locally—never exposes plaintext to the cloud
+- **🧠 Confidential AI Analysis**: Uses AI (in a secure ROFL enclave) to analyze password strength, risky patterns, and hygiene
+- **🌐 Breach Monitoring**: Monitors global breach datasets and raises timely alerts if credentials are found
+- **🎨 Dynamic NFT Badges**: Issues non-fungible risk badges on SUI, bound to accounts and visible in the UI
+- **📊 Actionable Insights**: Provides concise, actionable recommendations to improve security posture
+- **🔑 Seedless Onboarding**: Supports zkLogin (Google/Facebook) for frictionless access
+- **⚡ Trusted Execution**: All sensitive operations (analysis, signing) happen inside TEE (ROFL/Sapphire)
+- **🎭 Interactive UI**: Modern, responsive interface with 3D globe visualization and particle effects
+- **📱 Device Registry**: Tracks and manages multiple devices for comprehensive security overview
 
 ---
 
-## 🏗️ System Architecture High-Level Overview
+## 🏗️ System Architecture
 
 ```
-User Browser (React UI/Extension)
-    ↓
-Walrus (Decentralized Storage) ←→ Seal (Encryption)
-    ↓
-Sui Blockchain (zkLogin, NFT, Device Registry)
-    ↓
-Oasis Sapphire (TEE, Vault, Wallet)
-    ↓
-ROFL Worker (Event Mirroring)
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Chrome       │    │   Web Dashboard  │    │   Backend API   │
+│   Extension    │◄──►│   (Next.js)      │◄──►│   (Express)     │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Seal Client   │    │   Walrus Client  │    │   ROFL Worker   │
+│   Encryption    │    │   Storage        │    │   Bridge        │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   SUI Network   │    │   Sapphire TEE   │    │   AI Analysis   │
+│   (zkLogin, NFT)│    │   (Vault, Wallet)│    │   (ROFL Enclave)│
+└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-_(Insert architecture diagram here)_
+### Core Components
+
+- **Frontend Extension** (`/frontend`): Chrome extension with React + Vite, Sapphire encryption demo
+- **Web Dashboard** (`/webapp`): Next.js 15 dashboard with 3D visualizations and AI integration
+- **Backend API** (`/webapp_backend`): Express.js server for credential storage and retrieval
+- **ROFL Worker** (`/infrastructure/rofl-worker`): Rust-based bridge connecting Sui to Sapphire
+- **Smart Contracts** (`/SUI-contracts`): Move contracts for Security NFT and device registry
+- **Infrastructure** (`/infrastructure`): Docker containers and deployment configurations
 
 ---
 
-## 🛠️ Technology Used
+## 🛠️ Technology Stack
 
-- **Cursor** for code assistance
-- **ChatGPT** for code debugging
-- **React 18** and **Next.js** for frontend
-- **Tailwind CSS** for utility-first styling
-- **shadcn/ui** and custom UI components for design
-- **Lucide React** for icons
-- **GNews API** (for demo news aggregation)
-- **Oasis Sapphire** for confidential compute
-- **Walrus** for decentralized storage
-- **Seal** for client-side encryption
-- **Sui Blockchain** for on-chain NFT and device registry
-- **OpenAI** for confidential AI analysis (via ROFL)
+### Frontend
+- **React 19** with **Next.js 15** for web dashboard
+- **Chrome Extension API** for browser integration
+- **Tailwind CSS 4** for utility-first styling
+- **shadcn/ui** components for consistent design system
+- **Three.js** and **React Three Fiber** for 3D globe visualization
+- **Framer Motion** for smooth animations and interactions
+- **Lucide React** for modern iconography
 
-- **Docker** for local development and deployment
+### Backend & Infrastructure
+- **Express.js** for API server
+- **Node.js** with ES modules
+- **Docker** for containerization
+- **Rust** for ROFL worker (performance-critical components)
+
+### Blockchain & Security
+- **Sui Blockchain**: zkLogin, NFT minting, device registry
+- **Oasis Sapphire**: Trusted execution environment (TEE)
+- **ROFL (Runtime OFfload)**: Official Oasis application for confidential compute
+- **Walrus**: Decentralized storage with client-side encryption
+- **Seal**: Client-side encryption library for zero-knowledge operations
+
+### AI & Analysis
+- **OpenAI API**: Password strength analysis and security insights
+- **ROFL Enclave**: Secure AI processing in trusted execution environment
+- **Real-time Monitoring**: Continuous security posture assessment
 
 ---
 
-## 🔗 Important Endpoints & Modules
+## 🔗 Project Structure
 
-- **Frontend Extension**: `/frontend` (React/Vite, Chrome extension)
-- **Web Dashboard**: `/webapp` (Next.js, dashboard UI)
-- **ROFL Worker**: `/infrastructure/rofl-worker` (Sui → Sapphire event bridge)
-- **Sui Move Modules**: `/SUI-contracts/device_registry/sources/DeviceRegistry.move`
-- **Backend Contracts**: `/infrastructure/oasis/contracts/`
-- **AI Analysis**: ROFL enclave (see `/infrastructure/rofl-worker/README.md`)
-- **Decentralized Storage**: Walrus + Seal integration (see `/docs/BACKEND_SUI_WALRUS_SEAL_DESIGN.md`)
-
+```
+apudevmatch2025/
+├── frontend/                 # Chrome extension (React + Vite)
+│   ├── src/
+│   │   ├── components/      # Extension UI components
+│   │   ├── App.tsx         # Main extension app
+│   │   └── background.ts   # Extension background script
+│   └── manifest.json       # Extension manifest
+├── webapp/                  # Web dashboard (Next.js 15)
+│   ├── pages/              # Next.js pages
+│   ├── components/         # React components
+│   │   ├── ui/            # shadcn/ui components
+│   │   ├── AISummary.jsx  # AI security report component
+│   │   ├── AIArtwork.jsx  # AI-generated security artwork
+│   │   └── GlobeDemo.jsx  # 3D globe visualization
+│   ├── lib/               # Utility libraries
+│   │   ├── encryption.js  # Walrus + Seal integration
+│   │   ├── decryption.js  # Credential retrieval
+│   │   └── blobIds.js     # Storage management
+│   └── public/            # Static assets
+├── webapp_backend/         # Express.js API server
+│   ├── src/index.js       # Main server file
+│   └── package.json       # Backend dependencies
+├── SUI-contracts/          # Move smart contracts
+│   └── security_nft/      # Security NFT contract
+│       ├── sources/
+│       │   └── SecurityNFT.move  # NFT minting logic
+│       └── Move.toml      # Contract configuration
+└── infrastructure/         # Deployment & infrastructure
+    └── rofl-worker/       # ROFL bridge worker
+        ├── src/           # Rust source code
+        ├── Dockerfile     # Container configuration
+        ├── compose.yaml   # Docker Compose setup
+        └── README.md      # Detailed worker documentation
+```
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ (or 20+)
-- npm or pnpm
-- Docker (for ROFL worker)
-- Modern browser
+- **Node.js 18+** (or 20+)
+- **npm** or **pnpm**
+- **Docker** (for ROFL worker and local development)
+- **Modern browser** with Chrome extension support
+- **Sui testnet wallet** with SUI tokens
+- **Sapphire testnet wallet** with ROSE tokens
 
-### Frontend (Extension)
-1. `cd frontend`
-2. `npm install`
-3. `npm run dev`
-4. Load the built extension in your browser’s extension developer mode (see `frontend/README.md`)
+### 1. Frontend Extension (Chrome)
+```bash
+cd frontend
+npm install
+npm run dev
+# Load the built extension in Chrome's developer mode
+# See frontend/README.md for detailed setup
+```
 
-### Web App (Dashboard)
-1. `cd webapp`
-2. `npm install`
-3. `npm run dev`
+### 2. Web Dashboard
+```bash
+cd webapp
+npm install
+npm run dev
+# Access at http://localhost:3000
+```
 
-### ROFL Worker
-- See `infrastructure/rofl-worker/README.md` for build and deployment instructions
+### 3. Backend API Server
+```bash
+cd webapp_backend
+npm install
+# Copy .env.example to .env and configure
+npm run dev
+# Server runs on http://localhost:3001
+```
 
-### SUI Move Modules
-- See `SUI-contracts/device_registry/` for Move sources and tooling
+### 4. ROFL Worker (Infrastructure)
+```bash
+cd infrastructure/rofl-worker
+# See detailed setup in infrastructure/rofl-worker/README.md
+cargo build --release
+docker compose up -d
+```
+
+### 5. Smart Contracts
+```bash
+cd SUI-contracts/security_nft
+# Deploy to Sui testnet
+# See SUI-contracts/README.md for deployment instructions
+```
 
 ---
 
-## 👥 Team Members
+## 🔧 Configuration
 
-- _Derek Liew Qi Jian_ — Project Lead, Front End ([LinkedIn](#) | [Twitter](#))
-- _Phen Jing Yuan_ — Backend, zkLogin, Sui, ROFL ([LinkedIn](#))
-- _Marcus_ — Infrastructure, Docs, Security ([LinkedIn](#))
-- _[Add your name here!]_
+### Environment Variables
+
+#### Web App Backend (`.env`)
+```bash
+WALRUS_PUBLISHER=https://publisher-devnet.walrus.space
+WALRUS_AGGREGATOR=https://aggregator-devnet.walrus.space
+SUI_RPC_URL=https://fullnode.testnet.sui.io:443
+```
+
+#### ROFL Worker (`.env`)
+```bash
+SAPPHIRE_PRIVATE_KEY=0x...          # Required: Sapphire wallet private key
+SAPPHIRE_RPC_URL=https://testnet.sapphire.oasis.dev
+SUI_RPC_URL=https://fullnode.testnet.sui.io:443
+CONTRACT_ATOMIC_VAULT_MANAGER=0x... # Required: Deployed contract address
+```
+
+#### Web App Frontend (`.env.local`)
+```bash
+NEXT_PUBLIC_SUI_RPC_URL=https://fullnode.testnet.sui.io:443
+NEXT_PUBLIC_WALRUS_WASM_URL=https://unpkg.com/@mysten/walrus-wasm@latest/web/walrus_wasm_bg.wasm
+```
+
+---
+
+## 📊 Current Implementation Status
+
+### ✅ **Completed & Production Ready**
+- **Chrome Extension**: Complete with Sapphire encryption demo
+- **Web Dashboard**: Full-featured Next.js app with 3D visualizations
+- **Backend API**: Express server with Walrus integration
+- **ROFL Worker**: Official Oasis application, devnet ready
+- **Smart Contracts**: Security NFT contract deployed and tested
+- **UI Components**: Complete shadcn/ui component library
+- **Encryption**: Walrus + Seal integration working
+
+### 🚧 **In Development**
+- **Real-time Event Processing**: Sui → Sapphire bridge integration
+- **AI Analysis Pipeline**: ROFL enclave AI processing
+- **Device Registry**: Multi-device security management
+- **Breach Monitoring**: Real-time credential leak detection
+
+### 🔮 **Planned Features**
+- **Mobile App**: React Native companion application
+- **Advanced Analytics**: Machine learning security insights
+- **Enterprise Features**: Team management and compliance reporting
+- **Multi-chain Support**: Ethereum, Polygon, and other networks
+
+---
+
+## 🧪 Testing & Development
+
+### Local Development
+```bash
+# Start all services
+docker compose -f infrastructure/rofl-worker/compose.yaml up -d
+cd webapp_backend && npm run dev &
+cd webapp && npm run dev &
+cd frontend && npm run dev &
+```
+
+### Testing
+```bash
+# Frontend tests
+cd webapp && npm run test
+
+# Backend tests
+cd webapp_backend && npm run test
+
+# Smart contract tests
+cd SUI-contracts/security_nft && sui move test
+
+# ROFL worker tests
+cd infrastructure/rofl-worker && cargo test
+```
 
 ---
 
 ## 📚 Documentation
 
-- High-level design and component overviews: `docs/`
-- Backend, storage, and encryption: `docs/BACKEND_SUI_WALRUS_SEAL_DESIGN.md`
-- Frontend components: `docs/FRONTEND_COMPONENTS.md`
-- Implementation plan and architecture: `docs/PLAN.md`
+- **ROFL Worker**: `infrastructure/rofl-worker/README.md` - Complete bridge documentation
+- **Smart Contracts**: `SUI-contracts/README.md` - Contract deployment and usage
+- **Frontend Components**: `webapp/components/README.md` - UI component library
+- **API Reference**: `webapp_backend/README.md` - Backend API documentation
 
 ---
 
-Work in progress: APIs and on-chain components may evolve as the SUI-bound risk NFT and ROFL-based analysis mature.
+## 👥 Team Members
+
+- **Derek Liew Qi Jian** — Project Lead, Frontend Development
+- **Phen Jing Yuan** — Backend, zkLogin, Sui, ROFL Integration
+- **Marcus** — Infrastructure, Documentation, Security Architecture
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our contributing guidelines and development setup instructions in the respective component directories.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+## 🔗 Links
+
+- **Project Repository**: [GitHub](#)
+- **Live Demo**: [Demo Link](#)
+- **Documentation**: [Docs](#)
+- **Discord**: [Community](#)
+
+---
+
+*Grand Warden - Where security meets innovation in the decentralized age.* 🛡️✨
