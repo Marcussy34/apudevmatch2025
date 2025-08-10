@@ -62,7 +62,6 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 - **🔑 Seedless Onboarding**: Supports zkLogin (Google/Facebook) for frictionless access
 - **⚡ Trusted Execution**: All sensitive operations (analysis, signing) happen inside TEE (ROFL/Sapphire)
 - **🎭 Interactive UI**: Modern, responsive interface with 3D globe visualization and particle effects
-- **📱 Device Registry**: Tracks and manages multiple devices for comprehensive security overview
 
 ---
 
