@@ -6,6 +6,16 @@ Empowering proactive password security: AI-powered risk analysis, decentralized 
 
 ---
 
+## 🖼️ Project Screenshots
+
+![Grand Warden Landing Page](appendix/grandwarden.jpeg)
+*Grand Warden Landing Page - Modern, secure password vault interface*
+
+![Grand Warden Security Dashboard](appendix/grandwardensecurity.jpeg)
+*Grand Warden Security Dashboard - AI-powered security insights and password management*
+
+---
+
 ## 🚀 Live Demo
 
 - **Live Demo**: [https://b91bb960cdf0.ngrok-free.app](https://b91bb960cdf0.ngrok-free.app)
@@ -58,7 +68,7 @@ This turns a traditional password manager into a proactive cybersecurity tool wh
 
 ## 🏗️ System Architecture
 
-![Architecture Diagram](architecture-diagram.png)
+![Architecture Diagram](appendix/architecture-diagram.png)
 
 *Grand Warden System Architecture: Frontend → Wallet Connection & Sui → Password Storage (Walrus/Seal) → AI Analysis (ROFL/OpenAI) → Image Generation → Deployed NFT*
 
