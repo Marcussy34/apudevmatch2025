@@ -8,9 +8,8 @@ Empowering proactive password security: AI-powered risk analysis, decentralized 
 
 ## 🚀 Live Demo
 
-- 👉 [Click here to try it out](#) _ https://b91bb960cdf0.ngrok-free.app_
-- 🎥 [Watch Demo Video](#) _https://youtu.be/ir0vNm6ZuCE_
-
+- **Live Demo**: [https://b91bb960cdf0.ngrok-free.app](https://b91bb960cdf0.ngrok-free.app)
+- **Demo Video**: [https://youtu.be/ir0vNm6ZuCE](https://youtu.be/ir0vNm6ZuCE)
 ---
 
 ## 💡 Inspiration: How We Came Up With This Idea
