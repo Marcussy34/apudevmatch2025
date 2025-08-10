@@ -9,10 +9,10 @@ Empowering proactive password security: AI-powered risk analysis, decentralized 
 ## 🖼️ Project Screenshots
 
 ![Grand Warden Landing Page](appendix/grandwarden.jpeg)
-*Grand Warden Landing Page - Modern, secure password vault interface*
+*Grand Warden Landing Page*
 
 ![Grand Warden Security Dashboard](appendix/grandwardensecurity.jpeg)
-*Grand Warden Security Dashboard - AI-powered security insights and password management*
+*Grand Warden Security Dashboard*
 
 ---
 
